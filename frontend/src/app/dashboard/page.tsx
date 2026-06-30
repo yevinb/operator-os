@@ -9,7 +9,7 @@ import { DEMO_METRICS, demoExecuteCommand } from "@/lib/demo";
 import { runCommand } from "@/lib/api";
 import { logCommand } from "@/lib/store";
 import { recordGrowth } from "@/lib/valuation";
-import { ValuationPath } from "@/components/ValuationPath";
+import { CompanyPulse } from "@/components/CompanyPulse";
 import type { CommandResponse } from "@/lib/types";
 
 export default function CommandCenterPage() {
@@ -38,7 +38,7 @@ export default function CommandCenterPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
-      <ValuationPath key={tick} />
+      <CompanyPulse key={tick} />
 
       {/* Command box — hero of dashboard */}
       <div className="card-premium rounded-3xl p-6 md:p-8 border-2 border-gold/30">

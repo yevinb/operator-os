@@ -13,9 +13,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OperatorOS v2 — Build a $30M AI Company",
+  title: "OperatorOS — Your AI Chief Operating Officer",
   description:
-    "Type 'Increase sales.' Your AI COO executes — ads, customers, hiring, reports. Live demo. Path to $30M.",
+    "Type 'Increase sales.' Your AI COO executes — ads, customers, hiring, reports. Autonomous business operations.",
   keywords: ["AI COO", "business automation", "autonomous AI", "OperatorOS"],
   metadataBase: new URL("https://yevinb.github.io"),
   alternates: {

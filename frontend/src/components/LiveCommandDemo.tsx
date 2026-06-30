@@ -1,21 +1,20 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Send, CheckCircle2, TrendingUp, ArrowRight } from "lucide-react";
+import { Send, CheckCircle2, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { demoExecuteCommand } from "@/lib/demo";
 import { runCommand } from "@/lib/api";
 import { TaskList } from "./TaskList";
 import { Button } from "./ui/Button";
 import type { CommandResponse } from "@/lib/types";
-import { recordGrowth, getCompanyProgress, formatMoney } from "@/lib/valuation";
+import { recordGrowth } from "@/lib/valuation";
 
 export function LiveCommandDemo() {
   const [cmd, setCmd] = useState("");
   const [response, setResponse] = useState<CommandResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [valuation, setValuation] = useState(0);
+  const [actionsRun, setActionsRun] = useState(0);
   const runningRef = useRef(false);
 
   const run = useCallback(async (command: string) => {
@@ -24,39 +23,31 @@ export function LiveCommandDemo() {
 
     runningRef.current = true;
     setBusy(true);
-    setError(null);
     setResponse(null);
 
-    // Show results instantly — never wait on network for the live demo
     const instant = demoExecuteCommand(trimmed);
     setResponse(instant);
-    const growth = recordGrowth(instant.tasks.length);
-    setValuation(growth.estimatedValuation);
+    recordGrowth(instant.tasks.length);
+    setActionsRun(instant.tasks.length);
     setBusy(false);
     runningRef.current = false;
 
-    // Sync with API layer in background (no-op on GitHub Pages)
     runCommand(trimmed).catch(() => {});
   }, []);
 
-  const progress = getCompanyProgress();
-
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Giant $30M header */}
       <div className="text-center mb-8">
         <p className="text-gold text-sm font-bold uppercase tracking-[0.3em] mb-3">
-          ▶ LIVE DEMO — TRY IT NOW
+          ▶ Live demo — try it now
         </p>
-        <h2 className="text-4xl md:text-6xl font-black mb-2">
-          <span className="gradient-gold">$30 Million</span>
-          <span className="text-white"> Company</span>
+        <h2 className="text-4xl md:text-5xl font-black mb-2 text-white">
+          Command your company
         </h2>
-        <p className="text-text-2 text-lg">Type a command. Watch your AI COO execute it. Right now.</p>
+        <p className="text-text-2 text-lg">Type a command. Watch your AI COO execute it instantly.</p>
       </div>
 
       <div className="card-premium rounded-3xl p-6 md:p-8 glow-gold">
-        {/* Command input */}
         <form
           onSubmit={(e) => { e.preventDefault(); run(cmd); }}
           className="flex flex-col sm:flex-row gap-3 mb-6"
@@ -85,7 +76,6 @@ export function LiveCommandDemo() {
           </button>
         </form>
 
-        {/* One-click demos */}
         <div className="flex flex-wrap gap-2 mb-6">
           {["Increase sales.", "Run my company.", "Reply to customers.", "Check cash flow."].map((c) => (
             <button
@@ -99,7 +89,6 @@ export function LiveCommandDemo() {
           ))}
         </div>
 
-        {/* Results */}
         {response && (
           <div className="animate-slide-up border-t border-white/10 pt-6">
             <div className="flex items-center gap-2 mb-4">
@@ -112,23 +101,17 @@ export function LiveCommandDemo() {
             <p className="text-text-2 mb-6">{response.summary}</p>
             <TaskList tasks={response.tasks} animate />
 
-            <div className="mt-6 p-4 rounded-2xl bg-gold/10 border border-gold/30 flex items-center justify-between">
+            <div className="mt-6 p-4 rounded-2xl bg-success/10 border border-success/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <TrendingUp className="text-gold" size={20} />
-                <span className="text-gold font-medium">Company value grew</span>
+                <Zap className="text-success" size={20} />
+                <span className="text-success font-medium">Autonomous actions deployed</span>
               </div>
-              <span className="text-2xl font-black text-gold">
-                {formatMoney(valuation || progress.estimatedValuation)}
-              </span>
+              <span className="text-2xl font-black text-white">{actionsRun}</span>
             </div>
           </div>
         )}
 
-        {error && (
-          <p className="text-center py-4 text-danger border-t border-white/5">{error}</p>
-        )}
-
-        {!response && !busy && !error && (
+        {!response && !busy && (
           <div className="text-center py-8 text-text-3 border-t border-white/5">
             ↑ Click a button or type a command above to see your AI COO work
           </div>
@@ -138,7 +121,7 @@ export function LiveCommandDemo() {
       <div className="text-center mt-8">
         <Link href="/signup">
           <Button size="lg" className="bg-white text-black hover:bg-zinc-200 font-bold px-10">
-            Create account to save progress
+            Create account to run your company
             <ArrowRight size={18} />
           </Button>
         </Link>

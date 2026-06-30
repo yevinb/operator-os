@@ -1,4 +1,4 @@
-/** Path to $30M company valuation — the north star. */
+/** Internal business metrics — tracks the user's company as the COO runs operations. */
 
 export const VALUATION_TARGET = 30_000_000; // $30M
 export const SAAS_MULTIPLE = 10; // conservative SaaS ARR multiple
