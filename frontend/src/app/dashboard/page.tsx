@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { DEMO_METRICS } from "@/lib/demo";
 import { runCommand } from "@/lib/api";
 import { logCommand } from "@/lib/store";
+import { recordGrowth } from "@/lib/valuation";
+import { ValuationPath } from "@/components/ValuationPath";
 import { buildSpokenResponse } from "@/lib/voice";
 import type { CommandResponse } from "@/lib/types";
 
@@ -36,6 +38,7 @@ export default function CommandCenterPage() {
       setLastResponse(response);
       setHistory((h) => [response, ...h].slice(0, 20));
       logCommand(response);
+      recordGrowth(response.tasks.length);
       return response;
     } finally {
       setBusy(false);
@@ -54,6 +57,8 @@ export default function CommandCenterPage() {
         <h1 className="text-2xl font-bold">Command Center</h1>
         <p className="text-text-2 text-sm">Say or type what you need. Your AI COO executes.</p>
       </div>
+
+      <ValuationPath />
 
       {/* Command bar */}
       <form onSubmit={handleSubmit} className="flex gap-3">
@@ -110,6 +115,7 @@ export default function CommandCenterPage() {
             setLastResponse(r);
             setHistory((h) => [r, ...h].slice(0, 20));
             logCommand(r);
+            recordGrowth(r.tasks.length);
           }}
         />
       </section>

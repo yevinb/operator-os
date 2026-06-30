@@ -3,6 +3,7 @@ import { ArrowRight, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PricingSection } from "@/components/PricingSection";
 import { FeaturesSection } from "@/components/FeaturesSection";
+import { ValuationSection } from "@/components/ValuationSection";
 import { SiriHero } from "@/components/SiriHero";
 
 export default function Home() {
@@ -17,7 +18,7 @@ export default function Home() {
             <span className="font-semibold text-text">OperatorOS</span>
           </Link>
           <div className="hidden md:flex items-center gap-8 text-sm text-text-2">
-            <a href="#siri" className="hover:text-text transition-colors">Try Siri</a>
+            <a href="#vision" className="hover:text-text transition-colors">$30M path</a>
             <a href="#features" className="hover:text-text transition-colors">Features</a>
             <a href="#pricing" className="hover:text-text transition-colors">Pricing</a>
           </div>
@@ -54,7 +55,7 @@ export default function Home() {
           </p>
 
           <p className="text-sm text-text-3 mb-8">
-            Tap the orb below and say &ldquo;Increase sales.&rdquo;
+            500 customers × $500/mo = $30M company. Start with one command.
           </p>
 
           <Link href="/signup">
@@ -66,7 +67,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Live Siri demo */}
+      <ValuationSection />
+
       <section id="siri" className="pb-20 px-6">
         <SiriHero />
       </section>
