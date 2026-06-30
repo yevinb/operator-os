@@ -5,86 +5,117 @@ import type { VoiceHook, VoiceState } from "@/lib/voice";
 
 type SpeechEndHandler = (text: string) => void;
 
+function getSpeechRecognition() {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
 export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusHint, setStatusHint] = useState("");
 
-  const recognitionRef = useRef<InstanceType<NonNullable<typeof window.SpeechRecognition>> | null>(null);
-  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const recognitionRef = useRef<InstanceType<NonNullable<ReturnType<typeof getSpeechRecognition>>> | null>(null);
   const finalRef = useRef("");
   const interimRef = useRef("");
   const onSpeechEndRef = useRef(onSpeechEnd);
-  const stateRef = useRef<VoiceState>("idle");
-  const handledEndRef = useRef(false);
+  const listeningRef = useRef(false);
 
   onSpeechEndRef.current = onSpeechEnd;
 
-  const getHeardText = useCallback(() => {
-    const combined = `${finalRef.current} ${interimRef.current}`.trim();
-    return combined;
+  useEffect(() => {
+    const SR = getSpeechRecognition();
+    const hasSynth = typeof window !== "undefined" && "speechSynthesis" in window;
+    setIsSupported(!!SR && hasSynth);
   }, []);
 
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  const processHeardText = useCallback(() => {
+    const heard = `${finalRef.current} ${interimRef.current}`.trim();
+    interimRef.current = "";
+    setInterimTranscript("");
+    listeningRef.current = false;
+    setState("idle");
 
-  useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const hasSynth = "speechSynthesis" in window;
-    setIsSupported(!!SR && hasSynth);
+    if (heard) {
+      finalRef.current = heard;
+      setTranscript(heard);
+      setError(null);
+      setStatusHint(`Heard: "${heard}"`);
+      onSpeechEndRef.current?.(heard);
+    } else {
+      setError("Didn't catch that — try again or type below.");
+      setStatusHint("");
+    }
+  }, []);
 
-    if (!SR) return;
+  const stopListening = useCallback(() => {
+    if (!recognitionRef.current) return;
+    try {
+      recognitionRef.current.stop();
+    } catch {
+      /* ignore */
+    }
+    // Fallback if onend doesn't fire
+    setTimeout(() => {
+      if (listeningRef.current) processHeardText();
+    }, 400);
+  }, [processHeardText]);
+
+  const startListening = useCallback(async () => {
+    const SR = getSpeechRecognition();
+    if (!SR) {
+      setError("Voice not supported. Use Chrome or Safari.");
+      return;
+    }
+
+    window.speechSynthesis?.cancel();
+    setError(null);
+    setStatusHint("Requesting microphone…");
+    finalRef.current = "";
+    interimRef.current = "";
+    setTranscript("");
+    setInterimTranscript("");
+
+    // Explicit mic permission — required on Safari & mobile
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      setState("error");
+      setError("Microphone blocked. Allow mic access in browser settings, then refresh.");
+      setStatusHint("");
+      return;
+    }
+
+    // Fresh recognition instance each time (Chrome fix)
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        /* ignore */
+      }
+    }
 
     const recognition = new SR();
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = "en-US";
     recognition.maxAlternatives = 1;
 
-    const finishListening = () => {
-      if (handledEndRef.current) return;
-      handledEndRef.current = true;
-
-      // Small delay — browsers often fire onend before the last onresult
-      setTimeout(() => {
-        const heard = getHeardText();
-        const wasListening = stateRef.current === "listening";
-        interimRef.current = "";
-        setInterimTranscript("");
-
-        if (wasListening) {
-          setState("idle");
-        }
-
-        if (heard) {
-          finalRef.current = heard;
-          setTranscript(heard);
-          setError(null);
-          onSpeechEndRef.current?.(heard);
-        } else if (wasListening) {
-          setError("Didn't catch that. Tap the orb and speak clearly.");
-        }
-      }, 250);
-    };
-
     recognition.onstart = () => {
-      handledEndRef.current = false;
-      finalRef.current = "";
-      interimRef.current = "";
-      setTranscript("");
-      setInterimTranscript("");
-      setError(null);
+      listeningRef.current = true;
       setState("listening");
+      setStatusHint("Listening… speak your command");
     };
 
     recognition.onresult = (event) => {
       let newFinal = "";
       let interim = "";
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         const text = result[0].transcript;
         if (result.isFinal) {
@@ -98,78 +129,49 @@ export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
         finalRef.current = `${finalRef.current} ${newFinal}`.trim();
         setTranscript(finalRef.current);
       }
-
       interimRef.current = interim;
       setInterimTranscript(interim);
     };
 
     recognition.onend = () => {
-      finishListening();
+      if (listeningRef.current) {
+        // Delay for last onresult
+        setTimeout(processHeardText, 150);
+      }
     };
 
     recognition.onerror = (event) => {
       if (event.error === "aborted") return;
 
-      if (event.error === "not-allowed") {
-        setState("error");
-        setError("Microphone blocked. Click the lock icon in your browser and allow mic access.");
-        return;
-      }
-
-      // If we already captured words, still process them
-      const heard = getHeardText();
+      const heard = `${finalRef.current} ${interimRef.current}`.trim();
       if (heard) {
-        finishListening();
+        setTimeout(processHeardText, 100);
         return;
       }
 
-      if (event.error === "no-speech") {
-        setState("idle");
-        setError("No speech detected. Tap the orb and try again.");
+      listeningRef.current = false;
+      setState("idle");
+
+      if (event.error === "not-allowed") {
+        setError("Microphone blocked. Allow access and refresh.");
+      } else if (event.error === "no-speech") {
+        setError("No speech heard. Tap orb and speak louder.");
       } else {
-        setState("idle");
-        setError("Voice error. Tap the orb and try again.");
+        setError(`Voice error (${event.error}). Try again or type below.`);
       }
+      setStatusHint("");
     };
 
     recognitionRef.current = recognition;
-  }, [getHeardText]);
-
-  const startListening = useCallback(() => {
-    if (!recognitionRef.current) return;
-    window.speechSynthesis?.cancel();
-    setError(null);
-    finalRef.current = "";
-    interimRef.current = "";
-    setTranscript("");
-    setInterimTranscript("");
 
     try {
-      recognitionRef.current.start();
+      recognition.start();
     } catch {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        /* already stopped */
-      }
-      setTimeout(() => {
-        try {
-          recognitionRef.current?.start();
-        } catch {
-          setError("Could not start microphone. Refresh and try again.");
-        }
-      }, 200);
+      setError("Could not start mic. Wait a second and tap again.");
+      setState("idle");
+      setStatusHint("");
     }
-  }, []);
-
-  const stopListening = useCallback(() => {
-    if (!recognitionRef.current) return;
-    try {
-      recognitionRef.current.stop();
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  }, [processHeardText]);
 
   const speak = useCallback((text: string) => {
     return new Promise<void>((resolve) => {
@@ -180,35 +182,31 @@ export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
 
       window.speechSynthesis.cancel();
       setState("speaking");
+      setStatusHint("Speaking response…");
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
       utterance.pitch = 1;
       utterance.volume = 1;
 
-      const pickVoice = () => {
-        const voices = window.speechSynthesis.getVoices();
-        return (
-          voices.find((v) => v.name.includes("Samantha")) ||
-          voices.find((v) => v.name.includes("Google US English")) ||
-          voices.find((v) => v.lang.startsWith("en") && v.localService) ||
-          voices.find((v) => v.lang.startsWith("en"))
-        );
-      };
-
-      const preferred = pickVoice();
+      const voices = window.speechSynthesis.getVoices();
+      const preferred =
+        voices.find((v) => v.name.includes("Samantha")) ||
+        voices.find((v) => v.name.includes("Google US English")) ||
+        voices.find((v) => v.lang.startsWith("en"));
       if (preferred) utterance.voice = preferred;
 
       utterance.onend = () => {
         setState("idle");
+        setStatusHint("Done. Tap orb for another command.");
         resolve();
       };
       utterance.onerror = () => {
         setState("idle");
+        setStatusHint("");
         resolve();
       };
 
-      synthRef.current = utterance;
       window.speechSynthesis.speak(utterance);
     });
   }, []);
@@ -216,9 +214,13 @@ export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
   const cancelSpeech = useCallback(() => {
     window.speechSynthesis?.cancel();
     setState("idle");
+    setStatusHint("");
   }, []);
 
-  const setProcessing = useCallback(() => setState("processing"), []);
+  const setProcessing = useCallback(() => {
+    setState("processing");
+    setStatusHint("Running your command…");
+  }, []);
 
   return {
     state,
@@ -226,6 +228,7 @@ export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
     interimTranscript,
     isSupported,
     error,
+    statusHint,
     startListening,
     stopListening,
     speak,

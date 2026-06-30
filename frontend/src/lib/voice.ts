@@ -11,6 +11,7 @@ export interface VoiceHook {
   speak: (text: string) => Promise<void>;
   cancelSpeech: () => void;
   setProcessing: () => void;
+  statusHint: string;
 }
 
 export function buildSpokenResponse(command: string, summary: string, taskCount: number): string {

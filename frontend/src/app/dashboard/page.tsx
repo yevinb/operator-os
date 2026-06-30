@@ -18,6 +18,7 @@ import { MetricsGrid } from "@/components/MetricsGrid";
 import { TaskList } from "@/components/TaskList";
 import { Button } from "@/components/ui/Button";
 import { demoExecuteCommand, DEMO_METRICS } from "@/lib/demo";
+import { runCommand } from "@/lib/api";
 import { buildSpokenResponse } from "@/lib/voice";
 import type { CommandResponse } from "@/lib/types";
 
@@ -34,17 +35,8 @@ export default function DashboardPage() {
     setLastResponse(null);
 
     try {
-      let response: CommandResponse;
-      try {
-        const { executeCommand, getHealth } = await import("@/lib/api");
-        await getHealth();
-        setBackendOnline(true);
-        response = await executeCommand(command);
-      } catch {
-        setBackendOnline(false);
-        response = demoExecuteCommand(command);
-      }
-
+      const response = await runCommand(command);
+      setBackendOnline(false);
       setLastResponse(response);
       setHistory((prev) => [response, ...prev].slice(0, 10));
       return response;

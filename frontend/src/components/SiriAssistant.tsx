@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { X, Send } from "lucide-react";
+import { X, Send, Mic } from "lucide-react";
 import { SiriOrb } from "./SiriOrb";
 import { useVoice } from "@/hooks/useVoice";
 import { buildSpokenResponse } from "@/lib/voice";
-import { demoExecuteCommand } from "@/lib/demo";
+import { runCommand } from "@/lib/api";
 import type { CommandResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -20,12 +20,13 @@ export function SiriAssistant({
   fullscreen = false,
   className,
 }: SiriAssistantProps) {
-  const [displayText, setDisplayText] = useState("");
   const [responseText, setResponseText] = useState("");
   const [expanded, setExpanded] = useState(fullscreen);
   const [lastHeard, setLastHeard] = useState("");
+  const [typedCommand, setTypedCommand] = useState("");
   const processingRef = useRef(false);
-  const voiceRef = useRef<ReturnType<typeof useVoice> | null>(null);
+  const setProcessingRef = useRef<(() => void) | null>(null);
+  const speakRef = useRef<((text: string) => Promise<void>) | null>(null);
 
   const executeCommand = useCallback(
     async (command: string) => {
@@ -33,29 +34,26 @@ export function SiriAssistant({
       if (!trimmed || processingRef.current) return;
 
       processingRef.current = true;
-      voiceRef.current?.setProcessing();
+      setProcessingRef.current?.();
       setLastHeard(trimmed);
-      setDisplayText(trimmed);
       setResponseText("");
+      setTypedCommand(trimmed);
 
-      let response: CommandResponse;
       try {
-        const { executeCommand: apiExec, getHealth } = await import("@/lib/api");
-        await getHealth();
-        response = await apiExec(trimmed);
+        const response = await runCommand(trimmed);
+        const spoken = buildSpokenResponse(
+          response.command,
+          response.summary,
+          response.tasks.length
+        );
+        setResponseText(spoken);
+        onCommandComplete?.(response);
+        await speakRef.current?.(spoken);
       } catch {
-        response = demoExecuteCommand(trimmed);
+        setResponseText("Something went wrong. Try again.");
+      } finally {
+        processingRef.current = false;
       }
-
-      const spoken = buildSpokenResponse(
-        response.command,
-        response.summary,
-        response.tasks.length
-      );
-      setResponseText(spoken);
-      onCommandComplete?.(response);
-      await voiceRef.current?.speak(spoken);
-      processingRef.current = false;
     },
     [onCommandComplete]
   );
@@ -68,13 +66,13 @@ export function SiriAssistant({
   );
 
   const voice = useVoice(handleSpeechEnd);
-  voiceRef.current = voice;
+  setProcessingRef.current = voice.setProcessing;
+  speakRef.current = voice.speak;
 
   const liveText =
-    [voice.transcript, voice.interimTranscript].filter(Boolean).join(" ").trim() ||
-    displayText;
+    [voice.transcript, voice.interimTranscript].filter(Boolean).join(" ").trim();
 
-  const handleOrbClick = useCallback(() => {
+  const handleOrbClick = () => {
     if (voice.state === "speaking") {
       voice.cancelSpeech();
       return;
@@ -89,14 +87,14 @@ export function SiriAssistant({
     setLastHeard("");
     if (!expanded) setExpanded(true);
     voice.startListening();
-  }, [voice, expanded]);
+  };
 
-  const handleManualRun = useCallback(() => {
-    const text = liveText.trim();
-    if (text) executeCommand(text);
-  }, [liveText, executeCommand]);
+  const handleTypedSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cmd = typedCommand.trim();
+    if (cmd) executeCommand(cmd);
+  };
 
-  // Spacebar hold to talk
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (
@@ -132,93 +130,105 @@ export function SiriAssistant({
 
   if (!voice.isSupported) {
     return (
-      <div className={cn("text-center text-text-2 text-sm p-6", className)}>
-        Voice not supported in this browser. Use Chrome or Safari on desktop/mobile.
+      <div className={cn("text-center p-6 max-w-md mx-auto", className)}>
+        <p className="text-text-2 text-sm mb-4">
+          Voice not supported in this browser. Type your command below.
+        </p>
+        <form onSubmit={handleTypedSubmit} className="flex gap-2">
+          <input
+            value={typedCommand}
+            onChange={(e) => setTypedCommand(e.target.value)}
+            placeholder='e.g. "Increase sales"'
+            className="flex-1 px-4 py-3 rounded-xl bg-surface border border-border text-text outline-none focus:border-accent"
+          />
+          <button
+            type="submit"
+            className="px-4 py-3 rounded-xl bg-accent text-white font-medium"
+          >
+            Run
+          </button>
+        </form>
       </div>
     );
   }
 
   const content = (
-    <div className="flex flex-col items-center justify-center w-full">
-      <div className="min-h-[100px] max-w-lg text-center mb-8 px-4">
-        {voice.error && (
-          <p className="text-danger text-base mb-2">{voice.error}</p>
-        )}
+    <div className="flex flex-col items-center justify-center w-full max-w-lg mx-auto">
+      {/* Status bar — always visible */}
+      <div className="w-full mb-6 px-4 py-3 rounded-xl bg-surface-2/80 border border-border text-center">
+        <p className="text-xs text-text-3 uppercase tracking-wider mb-1">Status</p>
+        <p className={cn(
+          "text-sm",
+          voice.error ? "text-danger" : voice.state === "listening" ? "text-accent" : "text-text-2"
+        )}>
+          {voice.error || voice.statusHint || (voice.state === "idle" ? "Ready — tap orb to speak" : "")}
+        </p>
+      </div>
 
-        {!voice.error && voice.state === "idle" && !liveText && !responseText && (
-          <p className="text-text-2 text-xl font-light">
-            {expanded ? "What can I run for you?" : "Tap to speak"}
+      <div className="min-h-[72px] text-center mb-6 px-4">
+        {voice.state === "listening" && (
+          <p className="text-text text-2xl font-light typing-cursor">
+            {liveText || "Say your command…"}
           </p>
         )}
-
-        {voice.state === "listening" && (
-          <>
-            <p className="text-text-3 text-sm mb-2">Hearing you…</p>
-            <p className="text-text text-2xl font-light typing-cursor">
-              {liveText || "Say your command…"}
-            </p>
-          </>
-        )}
-
         {voice.state === "processing" && (
-          <>
-            <p className="text-text-3 text-sm mb-2">You said:</p>
-            <p className="text-text text-xl font-medium mb-2">&ldquo;{lastHeard}&rdquo;</p>
-            <p className="text-accent text-lg font-light animate-pulse">
-              Running your company…
-            </p>
-          </>
+          <p className="text-text text-xl">&ldquo;{lastHeard}&rdquo;</p>
         )}
-
         {voice.state === "speaking" && (
-          <>
-            <p className="text-text-3 text-sm mb-2">You said: &ldquo;{lastHeard}&rdquo;</p>
-            <p className="text-text text-lg font-light leading-relaxed">{responseText}</p>
-          </>
+          <p className="text-text text-base leading-relaxed">{responseText}</p>
         )}
-
-        {voice.state === "idle" && liveText && !responseText && !processingRef.current && (
-          <>
-            <p className="text-text-3 text-sm mb-2">Heard:</p>
-            <p className="text-text text-xl font-light">&ldquo;{liveText}&rdquo;</p>
-          </>
-        )}
-
-        {voice.state === "idle" && responseText && (
-          <p className="text-text-3 text-sm mt-2">Tap orb for another command</p>
+        {voice.state === "idle" && !liveText && !responseText && (
+          <p className="text-text-2 text-xl font-light">What should I run?</p>
         )}
       </div>
 
       <SiriOrb state={voice.state} size="lg" onClick={handleOrbClick} />
 
-      <p className="mt-8 text-text-3 text-sm text-center">
+      <p className="mt-6 text-text-3 text-sm text-center">
         {voice.state === "listening"
-          ? "Speak now — tap orb again when finished"
-          : "Tap orb to talk · tap again to send"}
+          ? "Speak now — stops automatically when you pause"
+          : "Tap orb · or type below"}
       </p>
 
-      {/* Fallback run button if voice captured but user wants to confirm */}
-      {voice.state === "idle" && liveText && !responseText && (
+      {/* Always-visible text fallback */}
+      <form onSubmit={handleTypedSubmit} className="w-full mt-6 flex gap-2">
+        <input
+          value={typedCommand}
+          onChange={(e) => setTypedCommand(e.target.value)}
+          placeholder='Type command: "Increase sales"'
+          disabled={voice.state === "processing" || voice.state === "listening"}
+          className="flex-1 px-4 py-3 rounded-xl bg-surface border border-border text-text text-sm outline-none focus:border-accent disabled:opacity-50"
+        />
         <button
-          onClick={handleManualRun}
-          className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent-bright transition-colors"
+          type="submit"
+          disabled={!typedCommand.trim() || voice.state === "processing"}
+          className="px-4 py-3 rounded-xl bg-accent text-white disabled:opacity-40 flex items-center gap-1.5"
         >
           <Send size={16} />
-          Run &ldquo;{liveText.length > 30 ? liveText.slice(0, 30) + "…" : liveText}&rdquo;
+          Run
+        </button>
+      </form>
+
+      {liveText && voice.state === "idle" && !responseText && (
+        <button
+          onClick={() => executeCommand(liveText)}
+          className="mt-3 flex items-center gap-2 text-sm text-accent hover:underline"
+        >
+          <Mic size={14} />
+          Run what I said: &ldquo;{liveText.slice(0, 40)}{liveText.length > 40 ? "…" : ""}&rdquo;
         </button>
       )}
 
       {voice.state === "idle" && (
-        <div className="flex flex-wrap justify-center gap-2 mt-6 max-w-md">
+        <div className="flex flex-wrap justify-center gap-2 mt-4">
           {["Increase sales.", "Run my company.", "Reply to customers."].map((cmd) => (
             <button
               key={cmd}
               onClick={() => {
-                setDisplayText(cmd);
-                setResponseText("");
+                setTypedCommand(cmd);
                 executeCommand(cmd);
               }}
-              className="px-3 py-1.5 text-xs text-text-2 bg-surface-2/80 hover:bg-surface-3 border border-border rounded-full transition-colors"
+              className="px-3 py-1.5 text-xs text-text-2 bg-surface-2 border border-border rounded-full hover:bg-surface-3"
             >
               {cmd}
             </button>
@@ -244,17 +254,14 @@ export function SiriAssistant({
         )}
         <div
           className={cn(
-            fullscreen
-              ? "relative py-12"
-              : "fixed inset-0 z-50 flex flex-col items-center justify-center px-6",
+            fullscreen ? "relative py-8" : "fixed inset-0 z-50 flex items-center justify-center px-6",
             className
           )}
         >
           {!fullscreen && voice.state === "idle" && (
             <button
               onClick={() => setExpanded(false)}
-              className="absolute top-6 right-6 p-2 rounded-full bg-surface-2 text-text-2 hover:text-text"
-              aria-label="Close"
+              className="absolute top-6 right-6 p-2 rounded-full bg-surface-2 text-text-2"
             >
               <X size={20} />
             </button>
@@ -266,14 +273,8 @@ export function SiriAssistant({
   }
 
   return (
-    <div className={cn("flex flex-col items-center py-8", className)}>
+    <div className={cn("flex flex-col items-center py-6", className)}>
       {content}
-      <button
-        onClick={() => setExpanded(true)}
-        className="mt-4 text-xs text-accent hover:underline"
-      >
-        Open full voice mode
-      </button>
     </div>
   );
 }
