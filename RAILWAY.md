@@ -10,7 +10,7 @@ In Railway dashboard:
 2. **Settings** → **Networking** → **Public Networking**
 3. Copy the domain (example: `https://operator-os-xxxx.up.railway.app`)
 
-Test: `YOUR_URL/api/v1/health` → should return `{"status":"ok",...}`
+Test: `https://operator-os-production-2a8a.up.railway.app/api/v1/health`
 
 ## 2. Paste the URL (pick one)
 

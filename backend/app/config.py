@@ -1,10 +1,18 @@
+import os
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
+def _default_database_url() -> str:
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
+        return "sqlite+aiosqlite:////tmp/operatoros.db"
+    return "sqlite+aiosqlite:///./operatoros.db"
+
+
 class Settings(BaseSettings):
     app_name: str = "OperatorOS"
-    debug: bool = True
+    debug: bool = False
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -32,8 +40,8 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     ai_provider: str = "auto"  # auto | openai | anthropic | gemini | rules
 
-    # Database — SQLite default for easy local dev; use Postgres in production
-    database_url: str = "sqlite+aiosqlite:///./operatoros.db"
+    # Database — SQLite local; /tmp on Railway; Postgres via DATABASE_URL
+    database_url: str = _default_database_url()
     redis_url: str = "redis://localhost:6379/0"
 
     # Optional automation webhooks
