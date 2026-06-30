@@ -84,9 +84,9 @@ async def execute_command(
     )
 
     integration_keys = {
-        i.integration_id: i.api_key
+        i.integration_id: (i.api_key or "")
         for i in user.integrations
-        if i.connected and i.api_key
+        if i.connected
     }
 
     executed = await execute_tasks(response, context, integration_keys)
