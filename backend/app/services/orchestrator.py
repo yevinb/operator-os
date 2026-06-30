@@ -2,6 +2,7 @@ import re
 import time
 import json
 from app.models import Task, TaskStatus, CommandResponse
+from app.services.business_context import BusinessContext
 
 
 INTENT_TEMPLATES: dict[str, dict] = {
@@ -147,16 +148,30 @@ def detect_intent(command: str) -> str:
     return "general_ops"
 
 
-async def execute_with_ai(command: str, provider: str, openai_key: str, anthropic_key: str) -> CommandResponse | None:
+async def execute_with_ai(
+    command: str,
+    provider: str,
+    openai_key: str,
+    anthropic_key: str,
+    context: BusinessContext | None = None,
+) -> CommandResponse | None:
     """Try AI-powered intent parsing. Returns None if unavailable."""
-    system_prompt = """You are OperatorOS, an AI Chief Operating Officer.
+    business_block = context.to_prompt_block() if context else "No business profile yet."
+    system_prompt = f"""You are OperatorOS, an AI Chief Operating Officer.
+You know this business:
+{business_block}
+
 Given a business command, return JSON with:
 - intent: snake_case intent id
-- summary: one sentence of what you're doing
-- tasks: array of {action: string, category: string} (3-8 tasks)
+- summary: one sentence of what you're doing FOR THIS SPECIFIC BUSINESS
+- tasks: array of {{action: string, category: string}} (3-8 tasks tailored to their industry, goals, and connected tools)
 
 Categories: marketing, support, analytics, hr, finance, communication, operations, reporting, sales
 Return ONLY valid JSON, no markdown."""
+
+    user_content = command
+    if context and context.company:
+        user_content = f"Business: {context.company}\nCommand: {command}"
 
     try:
         if provider in ("openai", "auto") and openai_key:
@@ -166,7 +181,7 @@ Return ONLY valid JSON, no markdown."""
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": command},
+                    {"role": "user", "content": user_content},
                 ],
                 response_format={"type": "json_object"},
             )
@@ -180,7 +195,7 @@ Return ONLY valid JSON, no markdown."""
                 model="claude-3-5-haiku-latest",
                 max_tokens=1024,
                 system=system_prompt,
-                messages=[{"role": "user", "content": command}],
+                messages=[{"role": "user", "content": user_content}],
             )
             text = resp.content[0].text
             data = json.loads(text)
@@ -210,25 +225,48 @@ def _build_response(command: str, data: dict) -> CommandResponse:
     )
 
 
-def execute_with_rules(command: str) -> CommandResponse:
+def execute_with_rules(command: str, context: BusinessContext | None = None) -> CommandResponse:
     intent = detect_intent(command)
     template = INTENT_TEMPLATES[intent]
     now = int(time.time() * 1000)
 
-    tasks = [
-        Task(
-            id=f"task-{now}-{i}",
-            action=action,
-            category=category,
-            status=TaskStatus.pending,
+    company = context.company if context else "your business"
+    industry = context.industry if context else ""
+    goal = context.goal if context else ""
+    connected = context.connected_integrations if context else []
+
+    summary = template["summary"]
+    if context and context.company:
+        summary = f"For {company}"
+        if industry:
+            summary += f" ({industry})"
+        summary += f": {template['summary']}"
+        if goal:
+            summary += f" Focus: {goal}."
+
+    tasks = []
+    for i, (action, category) in enumerate(template["tasks"]):
+        tailored_action = action
+        if context and context.company:
+            if category == "marketing" and "google" in action.lower() and "google-ads" not in connected:
+                tailored_action = f"Draft ad strategy for {company} — connect Google Ads to launch"
+            elif category == "finance" and context.live_metrics:
+                tailored_action = f"{action} (using live Stripe data)"
+            elif industry and i == 0:
+                tailored_action = f"{action} for {company}'s {industry} business"
+        tasks.append(
+            Task(
+                id=f"task-{now}-{i}",
+                action=tailored_action,
+                category=category,
+                status=TaskStatus.pending,
+            )
         )
-        for i, (action, category) in enumerate(template["tasks"])
-    ]
 
     return CommandResponse(
         command=command,
         intent=intent,
-        summary=template["summary"],
+        summary=summary,
         tasks=tasks,
     )
 
@@ -238,10 +276,11 @@ async def orchestrate_command(
     ai_provider: str = "auto",
     openai_key: str = "",
     anthropic_key: str = "",
+    context: BusinessContext | None = None,
 ) -> CommandResponse:
     if ai_provider != "rules":
-        ai_result = await execute_with_ai(command, ai_provider, openai_key, anthropic_key)
+        ai_result = await execute_with_ai(command, ai_provider, openai_key, anthropic_key, context)
         if ai_result:
             return ai_result
 
-    return execute_with_rules(command)
+    return execute_with_rules(command, context)

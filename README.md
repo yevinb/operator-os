@@ -1,67 +1,63 @@
-# OperatorOS
+# OperatorOS — Phase 2 Complete
 
-**Your AI Chief Operating Officer.** Say what you need. It runs your business.
+**Your AI Chief Operating Officer.** Connect your business. Command it. It executes.
 
-## Phase 1 — Complete
+## What's built
 
-| Feature | Status |
-|---------|--------|
-| Landing + pricing | ✅ |
-| Sign up / login | ✅ |
-| Onboarding wizard | ✅ |
-| Command Center | ✅ |
-| Text commands (primary) | ✅ |
-| Voice assistant | ✅ (fix later) |
-| Activity log | ✅ |
-| Integrations (12 tools) | ✅ |
-| Billing ($99/$499/$5K) | ✅ |
-| Settings | ✅ |
-| AI orchestration (10+ intents) | ✅ |
-| FastAPI backend | ✅ |
-| GPT + Claude + Gemini router | ✅ |
-| PostgreSQL + Redis (docker) | ✅ ready |
+| Layer | Status |
+|-------|--------|
+| Business profile (industry, goal, market) | ✅ Saved & used in every command |
+| Real auth (JWT + database) | ✅ SQLite local / Postgres production |
+| Context-aware AI orchestration | ✅ Rules + GPT/Claude when API keys set |
+| Task executor | ✅ Runs against connected integrations |
+| Stripe integration | ✅ Live revenue/customer data with API key |
+| Integrations framework | ✅ Connect/disconnect + API keys |
+| Payments (Stripe links) | ✅ Ready via env vars |
+| Frontend + Backend | ✅ Full stack |
 
-## Quick start
+## Quick start (full stack)
 
 ```bash
-# Frontend
+# Terminal 1 — Backend
+cd backend && chmod +x run.sh && ./run.sh
+
+# Terminal 2 — Frontend
 cd frontend && npm install && npm run dev
-
-# Backend
-cd backend && python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000
-
-# Database (optional)
-docker compose up -d
 ```
 
-## Live demo
+1. Sign up at http://localhost:3000/signup
+2. Complete onboarding (company, industry, goal, market)
+3. Integrations → Connect **Stripe** with `sk_test_...` key
+4. Command Center → **Increase sales** → see tasks with live Stripe data
 
-https://yevinb.github.io/operator-os/
+## Deploy
 
-1. Click **Start free trial**
-2. Create account → onboarding
-3. Command Center → type **"Increase sales"** → Execute
-4. Watch 7 autonomous actions run
+**Frontend** — GitHub Pages (auto on push to main)
+
+**Backend** — Railway:
+```bash
+cd backend
+# Set env: JWT_SECRET, DATABASE_URL, OPENAI_API_KEY, CORS_ORIGINS
+railway up
+```
+
+Then set in frontend build:
+```
+NEXT_PUBLIC_API_URL=https://your-api.railway.app
+```
 
 ## Revenue model
 
 - Starter: $99/mo
-- Business: $499/mo  
+- Business: $499/mo
 - Enterprise: $5,000/mo
-- Target: 10,000 × $500 = **$5M/month**
 
-## Roadmap
-
-- **Phase 2**: 10,000 paying customers, real Stripe/Slack/n8n
-- **Phase 3**: Global expansion, KIB/WEYAY payments
-- **Phase 4**: Exit 🚀
+Set `NEXT_PUBLIC_STRIPE_*_URL` for live checkout.
 
 ## Stack
 
 Frontend: Next.js, React, Tailwind  
-Backend: Python, FastAPI  
-AI: GPT, Claude, Gemini  
-Memory: PostgreSQL, Redis, Vector DB  
-Automation: n8n, MCP, Browser  
-Hosting: Vercel, Railway, Cloudflare
+Backend: FastAPI, SQLAlchemy, JWT  
+AI: GPT-4o, Claude (optional)  
+Integrations: Stripe (live), Slack/Gmail/Ads (framework)  
+DB: SQLite / PostgreSQL

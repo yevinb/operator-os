@@ -1,4 +1,4 @@
-import type { BusinessMetrics, CommandResponse, Task } from "./types";
+import type { BusinessMetrics, CommandResponse, Task, BusinessContext } from "./types";
 
 const INTENT_MAP: Record<string, { intent: string; summary: string; tasks: Omit<Task, "id" | "status">[] }> = {
   sales: {
@@ -143,20 +143,38 @@ function detectIntent(command: string): keyof typeof INTENT_MAP {
   return "default";
 }
 
-export function demoExecuteCommand(command: string): CommandResponse {
+export function demoExecuteCommand(command: string, context?: BusinessContext): CommandResponse {
   const key = detectIntent(command);
   const template = INTENT_MAP[key];
   const now = Date.now();
+  const company = context?.company || "your business";
+  const industry = context?.industry || "";
+  const goal = context?.goal || "";
+
+  let summary = template.summary;
+  if (context?.company) {
+    summary = `For ${company}`;
+    if (industry) summary += ` (${industry})`;
+    summary += `: ${template.summary}`;
+    if (goal) summary += ` Focus: ${goal}.`;
+  }
 
   return {
     command,
     intent: template.intent,
-    summary: template.summary,
-    tasks: template.tasks.map((t, i) => ({
-      ...t,
-      id: `task-${now}-${i}`,
-      status: "pending" as const,
-    })),
+    summary,
+    tasks: template.tasks.map((t, i) => {
+      let action = t.action;
+      if (context?.company && i === 0 && industry) {
+        action = `${t.action} for ${company}'s ${industry} business`;
+      }
+      return {
+        ...t,
+        id: `task-${now}-${i}`,
+        status: "pending" as const,
+        action,
+      };
+    }),
   };
 }
 

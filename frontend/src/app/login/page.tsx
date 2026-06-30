@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Zap, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { login, getSession } from "@/lib/auth";
+import { login } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,14 +13,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
       setError("Enter your email");
       return;
     }
-    login(email, password);
-    const user = getSession();
+    const user = await login(email, password);
     router.push(user?.onboarded ? "/dashboard" : "/onboarding");
   };
 

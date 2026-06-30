@@ -43,4 +43,4 @@ class BusinessMetrics(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     ai_provider: str
-    version: str = "0.1.0"
+    version: str = "2.0.0"

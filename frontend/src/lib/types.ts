@@ -8,7 +8,6 @@ export interface Task {
   category: string;
   status: TaskStatus;
   detail?: string;
-  startedAt?: string;
   completedAt?: string;
 }
 
@@ -49,6 +48,21 @@ export interface User {
   plan: Plan;
   onboarded: boolean;
   createdAt: string;
+  industry?: string;
+  goal?: string;
+  market?: string;
+  description?: string;
+  website?: string;
+}
+
+export interface BusinessContext {
+  company: string;
+  industry: string;
+  goal: string;
+  market: string;
+  description?: string;
+  website?: string;
+  connectedIntegrations?: string[];
 }
 
 export interface Integration {

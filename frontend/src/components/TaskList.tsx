@@ -119,6 +119,9 @@ export function TaskList({ tasks, animate = true }: TaskListProps) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text truncate">{task.action}</p>
+              {task.detail && (
+                <p className="text-xs text-success mt-0.5 truncate">{task.detail}</p>
+              )}
               <p className="text-xs text-text-3 capitalize">{task.category}</p>
             </div>
           </div>

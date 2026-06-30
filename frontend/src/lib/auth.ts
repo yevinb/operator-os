@@ -1,7 +1,19 @@
-import type { User, Plan } from "./types";
+import type { Plan, User } from "./types";
+import { apiFetch, hasApiConfigured } from "./api";
+import { syncUserToProfile } from "./business-context";
 
 const USER_KEY = "operatoros_user";
 const SESSION_KEY = "operatoros_session";
+const TOKEN_KEY = "operatoros_token";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
 
 export function getSession(): User | null {
   if (typeof window === "undefined") return null;
@@ -16,14 +28,46 @@ export function getSession(): User | null {
 export function setSession(user: User) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  syncUserToProfile(user);
 }
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }
 
-export function login(email: string, _password: string): User {
+function mapApiUser(data: Record<string, unknown>): User {
+  return {
+    id: String(data.id),
+    email: String(data.email),
+    name: String(data.name),
+    company: String(data.company),
+    plan: (data.plan as Plan) || "starter",
+    onboarded: Boolean(data.onboarded),
+    createdAt: new Date().toISOString(),
+    industry: String(data.industry || ""),
+    goal: String(data.goal || ""),
+    market: String(data.market || ""),
+  };
+}
+
+export async function login(email: string, password: string): Promise<User> {
+  if (hasApiConfigured()) {
+    try {
+      const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
+        "/api/v1/auth/login",
+        { method: "POST", body: JSON.stringify({ email, password }) }
+      );
+      setToken(data.token);
+      const user = mapApiUser(data.user);
+      setSession(user);
+      return user;
+    } catch {
+      // fallback to local
+    }
+  }
+
   const existing = getSession();
   if (existing?.email === email) return existing;
 
@@ -40,7 +84,22 @@ export function login(email: string, _password: string): User {
   return user;
 }
 
-export function signup(email: string, name: string, company: string): User {
+export async function signup(email: string, name: string, company: string, password = ""): Promise<User> {
+  if (hasApiConfigured()) {
+    try {
+      const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
+        "/api/v1/auth/signup",
+        { method: "POST", body: JSON.stringify({ email, name, company, password: password || "demo123" }) }
+      );
+      setToken(data.token);
+      const user = mapApiUser(data.user);
+      setSession(user);
+      return user;
+    } catch {
+      // fallback to local
+    }
+  }
+
   const user: User = {
     id: `user_${Date.now()}`,
     email,
@@ -54,11 +113,32 @@ export function signup(email: string, name: string, company: string): User {
   return user;
 }
 
-export function updateUser(patch: Partial<User>) {
+export async function updateUser(patch: Partial<User>) {
   const user = getSession();
   if (!user) return null;
   const updated = { ...user, ...patch };
   setSession(updated);
+
+  if (hasApiConfigured() && getToken()) {
+    try {
+      await apiFetch("/api/v1/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          company: patch.company,
+          industry: patch.industry,
+          goal: patch.goal,
+          market: patch.market,
+          description: patch.description,
+          website: patch.website,
+          onboarded: patch.onboarded,
+          plan: patch.plan,
+        }),
+      });
+    } catch {
+      // local already saved
+    }
+  }
+
   return updated;
 }
 

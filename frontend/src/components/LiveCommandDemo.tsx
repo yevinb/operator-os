@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { Send, CheckCircle2, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { demoExecuteCommand } from "@/lib/demo";
+import { getBusinessContext } from "@/lib/business-context";
 import { runCommand } from "@/lib/api";
 import { TaskList } from "./TaskList";
 import { Button } from "./ui/Button";
@@ -25,7 +26,7 @@ export function LiveCommandDemo() {
     setBusy(true);
     setResponse(null);
 
-    const instant = demoExecuteCommand(trimmed);
+    const instant = demoExecuteCommand(trimmed, getBusinessContext());
     setResponse(instant);
     recordActivity(instant.tasks.length);
     setActionsRun(instant.tasks.length);

@@ -4,12 +4,13 @@ import { useState, useCallback } from "react";
 import { Zap, Send, Sparkles } from "lucide-react";
 import { MetricsGrid } from "@/components/MetricsGrid";
 import { TaskList } from "@/components/TaskList";
-import { Button } from "@/components/ui/Button";
-import { DEMO_METRICS, demoExecuteCommand } from "@/lib/demo";
-import { runCommand } from "@/lib/api";
+import { DEMO_METRICS } from "@/lib/demo";
+import { runCommand, getMetrics } from "@/lib/api";
 import { logCommand } from "@/lib/store";
 import { recordActivity } from "@/lib/business-metrics";
 import { CompanyPulse } from "@/components/CompanyPulse";
+import { getBusinessContext } from "@/lib/business-context";
+import { getSession } from "@/lib/auth";
 import type { CommandResponse } from "@/lib/types";
 
 export default function CommandCenterPage() {
@@ -18,29 +19,42 @@ export default function CommandCenterPage() {
   const [textCmd, setTextCmd] = useState("");
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
+  const [metrics, setMetrics] = useState(DEMO_METRICS);
+  const user = getSession();
+  const ctx = getBusinessContext();
 
   const execute = useCallback(async (command: string) => {
     const trimmed = command.trim();
     if (!trimmed || busy) return;
     setBusy(true);
     setLastResponse(null);
-
-    const instant = demoExecuteCommand(trimmed);
-    setLastResponse(instant);
-    setHistory((h) => [instant, ...h].slice(0, 20));
-    logCommand(instant);
-    recordActivity(instant.tasks.length);
-    setTick((t) => t + 1);
-    setBusy(false);
-
-    runCommand(trimmed).catch(() => {});
+    try {
+      const response = await runCommand(trimmed);
+      setLastResponse(response);
+      setHistory((h) => [response, ...h].slice(0, 20));
+      logCommand(response);
+      recordActivity(response.tasks.length);
+      setTick((t) => t + 1);
+      const m = await getMetrics();
+      setMetrics(m);
+    } finally {
+      setBusy(false);
+    }
   }, [busy]);
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
+      {user && (
+        <div className="p-4 rounded-2xl border border-white/10 bg-black/30 text-sm text-text-2">
+          AI COO context: <span className="text-white font-medium">{ctx.company}</span>
+          {ctx.industry && <> · {ctx.industry}</>}
+          {ctx.goal && <> · Goal: {ctx.goal}</>}
+          {ctx.market && <> · {ctx.market}</>}
+        </div>
+      )}
+
       <CompanyPulse key={tick} />
 
-      {/* Command box — hero of dashboard */}
       <div className="card-premium rounded-3xl p-6 md:p-8 border-2 border-gold/30">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="text-gold" size={20} />
@@ -89,18 +103,18 @@ export default function CommandCenterPage() {
               <Zap size={18} className="text-white" />
             </div>
             <div>
-              <p className="text-success font-bold">EXECUTING NOW</p>
+              <p className="text-success font-bold">EXECUTED</p>
               <p className="text-white font-semibold">&ldquo;{lastResponse.command}&rdquo;</p>
             </div>
           </div>
           <p className="text-text-2 mb-4">{lastResponse.summary}</p>
-          <TaskList tasks={lastResponse.tasks} animate />
+          <TaskList tasks={lastResponse.tasks} animate={lastResponse.tasks.some((t) => t.status !== "completed")} />
         </section>
       )}
 
       <section>
         <h2 className="text-sm font-bold text-gold uppercase tracking-wider mb-4">Live business metrics</h2>
-        <MetricsGrid metrics={DEMO_METRICS} />
+        <MetricsGrid metrics={metrics} />
       </section>
 
       {history.length > 1 && (

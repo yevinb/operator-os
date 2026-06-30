@@ -1,19 +1,36 @@
 import type { BusinessMetrics, CommandResponse } from "./types";
 import { demoExecuteCommand } from "./demo";
+import { getBusinessContext } from "./business-context";
+import { getToken } from "./auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const FETCH_TIMEOUT_MS = 800;
+const FETCH_TIMEOUT_MS = 15000;
 
-/** True when we should hit a real backend (local dev with backend running). */
-export function shouldUseBackend(): boolean {
+export function getApiUrl(): string {
+  return API_URL.replace(/\/$/, "");
+}
+
+export function hasApiConfigured(): boolean {
+  return Boolean(getApiUrl());
+}
+
+export function isLocalBackend(): boolean {
   if (typeof window === "undefined") return false;
-  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") return false;
   const host = window.location.hostname;
   return host === "localhost" || host === "127.0.0.1";
 }
 
-export function isLocalBackend(): boolean {
-  return shouldUseBackend();
+export function shouldUseBackend(): boolean {
+  if (!hasApiConfigured()) return false;
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true" && !getToken()) return false;
+  return true;
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken();
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 async function fetchWithTimeout(
@@ -31,21 +48,26 @@ async function fetchWithTimeout(
 }
 
 export async function executeCommand(command: string): Promise<CommandResponse> {
-  const res = await fetchWithTimeout(`${API_URL}/api/v1/command`, {
+  const res = await fetchWithTimeout(`${getApiUrl()}/api/v1/command`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(),
     body: JSON.stringify({ command }),
   });
 
+  if (res.status === 401) throw new Error("Unauthorized");
   if (!res.ok) throw new Error("Failed to execute command");
   return res.json();
 }
 
 export async function getMetrics(): Promise<BusinessMetrics> {
-  if (!shouldUseBackend()) return (await import("./demo")).DEMO_METRICS;
+  if (!shouldUseBackend() || !getToken()) {
+    return (await import("./demo")).DEMO_METRICS;
+  }
 
   try {
-    const res = await fetchWithTimeout(`${API_URL}/api/v1/metrics`);
+    const res = await fetchWithTimeout(`${getApiUrl()}/api/v1/metrics`, {
+      headers: authHeaders(),
+    });
     if (!res.ok) throw new Error("Failed to fetch metrics");
     const data = await res.json();
     return {
@@ -65,20 +87,34 @@ export async function getMetrics(): Promise<BusinessMetrics> {
 }
 
 export async function getHealth(): Promise<{ status: string; ai_provider: string }> {
-  const res = await fetchWithTimeout(`${API_URL}/api/v1/health`);
+  const res = await fetchWithTimeout(`${getApiUrl()}/api/v1/health`);
   if (!res.ok) throw new Error("Backend unavailable");
   return res.json();
 }
 
-/** Run command — instant demo on GitHub Pages / production. Backend only on localhost. */
+/** Run command — uses authenticated API when available, else contextual demo. */
 export async function runCommand(command: string): Promise<CommandResponse> {
-  if (!shouldUseBackend()) {
-    return demoExecuteCommand(command);
+  const context = getBusinessContext();
+
+  if (shouldUseBackend() && getToken()) {
+    try {
+      return await executeCommand(command);
+    } catch {
+      // fall through to demo
+    }
   }
 
-  try {
-    return await executeCommand(command);
-  } catch {
-    return demoExecuteCommand(command);
+  return demoExecuteCommand(command, context);
+}
+
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetchWithTimeout(`${getApiUrl()}${path}`, {
+    ...options,
+    headers: { ...authHeaders(), ...options.headers },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail || `API error ${res.status}`);
   }
+  return res.json();
 }

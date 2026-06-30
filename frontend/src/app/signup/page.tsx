@@ -14,10 +14,10 @@ export default function SignupPage() {
   const [company, setCompany] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !name || !company) return;
-    signup(email, name, company);
+    await signup(email, name, company, password);
     router.push("/onboarding");
   };
 
