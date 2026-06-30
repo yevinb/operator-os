@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ApiBootstrap } from "@/components/ApiBootstrap";
+import { assetPath } from "@/lib/asset-path";
 import "./globals.css";
 
 const inter = Inter({
@@ -13,14 +14,16 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const LOGO = assetPath("/nexa-logo.png");
+
 export const metadata: Metadata = {
   title: "Nexa — Your AI Operating System",
   description:
     "Type 'Increase sales.' Your AI COO executes — ads, customers, hiring, reports. Autonomous business operations.",
   keywords: ["AI COO", "business automation", "autonomous AI", "Nexa"],
-  metadataBase: new URL("https://yevinb.github.io"),
+  metadataBase: new URL("https://yevinb.github.io/operator-os/"),
   alternates: {
-    canonical: "/operator-os/",
+    canonical: "/",
   },
   openGraph: {
     title: "Nexa — Your AI Operating System",
@@ -28,11 +31,11 @@ export const metadata: Metadata = {
       "Say what you need. Nexa runs your business. Not a chatbot. An autonomous employee.",
     url: "https://yevinb.github.io/operator-os/",
     type: "website",
-    images: [{ url: "/nexa-logo.png", width: 512, height: 512, alt: "Nexa" }],
+    images: [{ url: LOGO, width: 1024, height: 1024, alt: "Nexa" }],
   },
   icons: {
-    icon: "/nexa-logo.png",
-    apple: "/nexa-logo.png",
+    icon: LOGO,
+    apple: LOGO,
   },
 };
 

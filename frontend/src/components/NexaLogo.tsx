@@ -1,14 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
+import { assetPath } from "@/lib/asset-path";
 import { cn } from "@/lib/utils";
+
+const LOGO_SRC = assetPath("/nexa-logo.png");
 
 const VARIANTS = {
   /** Hero — full lockup with tagline */
-  full: "h-auto w-56 sm:w-64 md:w-72",
+  full: "h-auto w-64 sm:w-72 md:w-80 max-w-[90vw]",
   /** Top nav */
-  compact: "h-11 sm:h-12 w-auto",
+  compact: "h-12 sm:h-14 w-auto max-w-[140px] sm:max-w-[160px]",
   /** Dashboard sidebar */
-  sidebar: "h-12 w-auto",
+  sidebar: "h-14 w-auto max-w-[160px]",
 } as const;
 
 type NexaLogoProps = {
@@ -26,11 +29,12 @@ export function NexaLogo({
 }: NexaLogoProps) {
   const image = (
     <Image
-      src="/nexa-logo.png"
+      src={LOGO_SRC}
       alt="Nexa — Your AI Operating System"
       width={1024}
       height={1024}
       priority={priority}
+      unoptimized
       className={cn(VARIANTS[variant], className)}
     />
   );
