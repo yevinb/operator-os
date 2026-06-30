@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-void hero-glow">
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
           <NexaLogo variant="compact" priority />
           <div className="hidden md:flex items-center gap-8 text-sm text-text-2">
             <a href="#demo" className="hover:text-gold transition-colors font-medium">Preview</a>
@@ -25,7 +25,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <section className="pt-28 pb-8 px-6 text-center">
+      <section className="pt-32 pb-8 px-6 text-center">
         <div className="max-w-5xl mx-auto">
           <div className="flex justify-center mb-8">
             <NexaLogo variant="full" href="/" priority />

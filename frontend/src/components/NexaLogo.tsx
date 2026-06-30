@@ -1,17 +1,14 @@
-import Image from "next/image";
+"use client";
+
 import Link from "next/link";
+import { useMemo } from "react";
 import { assetPath } from "@/lib/asset-path";
 import { cn } from "@/lib/utils";
 
-const LOGO_SRC = assetPath("/nexa-logo.png");
-
 const VARIANTS = {
-  /** Hero — full lockup with tagline */
-  full: "h-auto w-64 sm:w-72 md:w-80 max-w-[90vw]",
-  /** Top nav */
-  compact: "h-12 sm:h-14 w-auto max-w-[140px] sm:max-w-[160px]",
-  /** Dashboard sidebar */
-  sidebar: "h-14 w-auto max-w-[160px]",
+  full: "h-auto w-72 sm:w-80 md:w-96 max-w-[min(90vw,24rem)]",
+  compact: "h-14 sm:h-16 w-auto",
+  sidebar: "h-16 w-auto",
 } as const;
 
 type NexaLogoProps = {
@@ -27,15 +24,25 @@ export function NexaLogo({
   className,
   priority = false,
 }: NexaLogoProps) {
+  const src = useMemo(() => {
+    const built = assetPath("/nexa-logo.png");
+    if (built !== "/nexa-logo.png") return built;
+    if (typeof window !== "undefined" && window.location.pathname.startsWith("/operator-os")) {
+      return "/operator-os/nexa-logo.png";
+    }
+    return "/nexa-logo.png";
+  }, []);
+
   const image = (
-    <Image
-      src={LOGO_SRC}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
       alt="Nexa — Your AI Operating System"
       width={1024}
       height={1024}
-      priority={priority}
-      unoptimized
-      className={cn(VARIANTS[variant], className)}
+      loading={priority ? "eager" : "lazy"}
+      decoding="async"
+      className={cn(VARIANTS[variant], "object-contain", className)}
     />
   );
 
