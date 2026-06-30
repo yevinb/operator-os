@@ -1,163 +1,169 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { VoiceHook, VoiceState } from "@/lib/voice";
+import type { VoiceHook } from "@/lib/voice";
+import {
+  getSpeechRecognitionCtor,
+  isVoiceInputAvailable,
+} from "@/lib/voice";
 
 type SpeechEndHandler = (text: string) => void;
 
-function getSpeechRecognition() {
-  if (typeof window === "undefined") return null;
-  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-}
-
 export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
-  const [state, setState] = useState<VoiceState>("idle");
+  const [state, setState] = useState<VoiceHook["state"]>("idle");
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusHint, setStatusHint] = useState("");
 
-  const recognitionRef = useRef<InstanceType<NonNullable<ReturnType<typeof getSpeechRecognition>>> | null>(null);
+  const recognitionRef = useRef<InstanceType<NonNullable<ReturnType<typeof getSpeechRecognitionCtor>>> | null>(null);
   const finalRef = useRef("");
   const interimRef = useRef("");
   const onSpeechEndRef = useRef(onSpeechEnd);
   const listeningRef = useRef(false);
+  const processedRef = useRef(false);
 
   onSpeechEndRef.current = onSpeechEnd;
 
   useEffect(() => {
-    const SR = getSpeechRecognition();
-    const hasSynth = typeof window !== "undefined" && "speechSynthesis" in window;
-    setIsSupported(!!SR && hasSynth);
+    setIsSupported(isVoiceInputAvailable());
   }, []);
 
+  const getHeard = () => `${finalRef.current} ${interimRef.current}`.trim();
+
   const processHeardText = useCallback(() => {
-    const heard = `${finalRef.current} ${interimRef.current}`.trim();
+    if (processedRef.current) return;
+    processedRef.current = true;
+    listeningRef.current = false;
+
+    const heard = getHeard();
     interimRef.current = "";
     setInterimTranscript("");
-    listeningRef.current = false;
-    setState("idle");
 
     if (heard) {
       finalRef.current = heard;
       setTranscript(heard);
       setError(null);
-      setStatusHint(`Heard: "${heard}"`);
+      setState("idle");
+      setStatusHint(`Heard: "${heard}" — running now…`);
       onSpeechEndRef.current?.(heard);
     } else {
-      setError("Didn't catch that — try again or type below.");
+      setState("idle");
+      setError("Didn't catch that. Tap orb, speak, then tap DONE.");
       setStatusHint("");
     }
   }, []);
 
   const stopListening = useCallback(() => {
-    if (!recognitionRef.current) return;
+    if (!listeningRef.current) return;
+    setStatusHint("Processing what you said…");
     try {
-      recognitionRef.current.stop();
+      recognitionRef.current?.stop();
     } catch {
       /* ignore */
     }
-    // Fallback if onend doesn't fire
     setTimeout(() => {
-      if (listeningRef.current) processHeardText();
-    }, 400);
+      if (!processedRef.current) processHeardText();
+    }, 300);
   }, [processHeardText]);
 
-  const startListening = useCallback(async () => {
-    const SR = getSpeechRecognition();
+  /** MUST stay synchronous — called directly from click/tap handler. */
+  const startListening = useCallback(() => {
+    const SR = getSpeechRecognitionCtor();
     if (!SR) {
-      setError("Voice not supported. Use Chrome or Safari.");
+      setError("Voice not available on this device. Use the text box.");
       return;
     }
 
     window.speechSynthesis?.cancel();
-    setError(null);
-    setStatusHint("Requesting microphone…");
+    processedRef.current = false;
+    listeningRef.current = false;
     finalRef.current = "";
     interimRef.current = "";
     setTranscript("");
     setInterimTranscript("");
+    setError(null);
 
-    // Explicit mic permission — required on Safari & mobile
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch {
-      setState("error");
-      setError("Microphone blocked. Allow mic access in browser settings, then refresh.");
-      setStatusHint("");
-      return;
-    }
-
-    // Fresh recognition instance each time (Chrome fix)
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort();
       } catch {
         /* ignore */
       }
+      recognitionRef.current = null;
     }
 
     const recognition = new SR();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       listeningRef.current = true;
+      processedRef.current = false;
       setState("listening");
-      setStatusHint("Listening… speak your command");
+      setStatusHint("Listening… say your command, then tap DONE");
     };
 
     recognition.onresult = (event) => {
-      let newFinal = "";
+      let allFinal = "";
       let interim = "";
 
       for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
         const text = result[0].transcript;
         if (result.isFinal) {
-          newFinal += text;
+          allFinal += text;
         } else {
           interim += text;
         }
       }
 
-      if (newFinal) {
-        finalRef.current = `${finalRef.current} ${newFinal}`.trim();
-        setTranscript(finalRef.current);
+      // Rebuild full final from all final segments
+      if (allFinal || event.results.length > 0) {
+        let complete = "";
+        for (let i = 0; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            complete += event.results[i][0].transcript;
+          }
+        }
+        if (complete) {
+          finalRef.current = complete.trim();
+          setTranscript(finalRef.current);
+        }
       }
+
       interimRef.current = interim;
       setInterimTranscript(interim);
     };
 
     recognition.onend = () => {
-      if (listeningRef.current) {
-        // Delay for last onresult
-        setTimeout(processHeardText, 150);
+      if (listeningRef.current && !processedRef.current) {
+        setTimeout(processHeardText, 200);
       }
     };
 
     recognition.onerror = (event) => {
       if (event.error === "aborted") return;
 
-      const heard = `${finalRef.current} ${interimRef.current}`.trim();
+      const heard = getHeard();
       if (heard) {
         setTimeout(processHeardText, 100);
         return;
       }
 
       listeningRef.current = false;
+      processedRef.current = true;
       setState("idle");
 
       if (event.error === "not-allowed") {
-        setError("Microphone blocked. Allow access and refresh.");
+        setError("Mic blocked. Click the lock icon in the address bar → Allow microphone.");
       } else if (event.error === "no-speech") {
-        setError("No speech heard. Tap orb and speak louder.");
+        setError("No speech detected. Tap orb and speak clearly.");
       } else {
-        setError(`Voice error (${event.error}). Try again or type below.`);
+        setError(`Voice error. Type your command below instead.`);
       }
       setStatusHint("");
     };
@@ -167,7 +173,7 @@ export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
     try {
       recognition.start();
     } catch {
-      setError("Could not start mic. Wait a second and tap again.");
+      setError("Mic busy. Wait 1 second and tap again.");
       setState("idle");
       setStatusHint("");
     }
@@ -176,38 +182,47 @@ export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
   const speak = useCallback((text: string) => {
     return new Promise<void>((resolve) => {
       if (!window.speechSynthesis) {
+        setState("idle");
+        setStatusHint("Done.");
         resolve();
         return;
       }
 
       window.speechSynthesis.cancel();
       setState("speaking");
-      setStatusHint("Speaking response…");
+      setStatusHint("Speaking…");
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
-      utterance.pitch = 1;
       utterance.volume = 1;
 
-      const voices = window.speechSynthesis.getVoices();
-      const preferred =
-        voices.find((v) => v.name.includes("Samantha")) ||
-        voices.find((v) => v.name.includes("Google US English")) ||
-        voices.find((v) => v.lang.startsWith("en"));
-      if (preferred) utterance.voice = preferred;
+      const loadAndSpeak = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const preferred =
+          voices.find((v) => v.name.includes("Samantha")) ||
+          voices.find((v) => v.name.includes("Google US English")) ||
+          voices.find((v) => v.lang.startsWith("en"));
+        if (preferred) utterance.voice = preferred;
 
-      utterance.onend = () => {
-        setState("idle");
-        setStatusHint("Done. Tap orb for another command.");
-        resolve();
-      };
-      utterance.onerror = () => {
-        setState("idle");
-        setStatusHint("");
-        resolve();
+        utterance.onend = () => {
+          setState("idle");
+          setStatusHint("Done. Tap orb for another command.");
+          resolve();
+        };
+        utterance.onerror = () => {
+          setState("idle");
+          setStatusHint("Done.");
+          resolve();
+        };
+
+        window.speechSynthesis.speak(utterance);
       };
 
-      window.speechSynthesis.speak(utterance);
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = loadAndSpeak;
+      } else {
+        loadAndSpeak();
+      }
     });
   }, []);
 
@@ -239,5 +254,4 @@ export function useVoice(onSpeechEnd?: SpeechEndHandler): VoiceHook {
 
 if (typeof window !== "undefined" && window.speechSynthesis) {
   window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 }
