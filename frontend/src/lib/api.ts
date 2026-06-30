@@ -2,16 +2,22 @@ import type { BusinessMetrics, CommandResponse } from "./types";
 import { demoExecuteCommand } from "./demo";
 import { getBusinessContext } from "./business-context";
 import { getToken } from "./auth";
+import { getApiUrlSync, initApiConfig } from "./api-config";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const FETCH_TIMEOUT_MS = 15000;
 
+async function apiUrl(): Promise<string> {
+  await initApiConfig();
+  return getApiUrlSync();
+}
+
 export function getApiUrl(): string {
-  return API_URL.replace(/\/$/, "");
+  return getApiUrlSync();
 }
 
 export function hasApiConfigured(): boolean {
-  return Boolean(getApiUrl());
+  const url = getApiUrlSync();
+  return Boolean(url) && url !== "http://localhost:8000" || typeof window !== "undefined" && window.location.hostname === "localhost";
 }
 
 export function isLocalBackend(): boolean {
@@ -21,8 +27,11 @@ export function isLocalBackend(): boolean {
 }
 
 export function shouldUseBackend(): boolean {
-  if (!hasApiConfigured()) return false;
-  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true" && !getToken()) return false;
+  const url = getApiUrlSync();
+  if (!url) return false;
+  if (url === "http://localhost:8000" && typeof window !== "undefined" && !isLocalBackend()) {
+    return false;
+  }
   return true;
 }
 
@@ -48,7 +57,8 @@ async function fetchWithTimeout(
 }
 
 export async function executeCommand(command: string): Promise<CommandResponse> {
-  const res = await fetchWithTimeout(`${getApiUrl()}/api/v1/command`, {
+  const base = await apiUrl();
+  const res = await fetchWithTimeout(`${base}/api/v1/command`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ command }),
@@ -60,12 +70,14 @@ export async function executeCommand(command: string): Promise<CommandResponse> 
 }
 
 export async function getMetrics(): Promise<BusinessMetrics> {
+  await initApiConfig();
   if (!shouldUseBackend() || !getToken()) {
     return (await import("./demo")).DEMO_METRICS;
   }
 
   try {
-    const res = await fetchWithTimeout(`${getApiUrl()}/api/v1/metrics`, {
+    const base = await apiUrl();
+    const res = await fetchWithTimeout(`${base}/api/v1/metrics`, {
       headers: authHeaders(),
     });
     if (!res.ok) throw new Error("Failed to fetch metrics");
@@ -86,14 +98,15 @@ export async function getMetrics(): Promise<BusinessMetrics> {
   }
 }
 
-export async function getHealth(): Promise<{ status: string; ai_provider: string }> {
-  const res = await fetchWithTimeout(`${getApiUrl()}/api/v1/health`);
+export async function getHealth(): Promise<{ status: string; ai_provider: string; version?: string }> {
+  const base = await apiUrl();
+  const res = await fetchWithTimeout(`${base}/api/v1/health`);
   if (!res.ok) throw new Error("Backend unavailable");
   return res.json();
 }
 
-/** Run command — uses authenticated API when available, else contextual demo. */
 export async function runCommand(command: string): Promise<CommandResponse> {
+  await initApiConfig();
   const context = getBusinessContext();
 
   if (shouldUseBackend() && getToken()) {
@@ -108,7 +121,8 @@ export async function runCommand(command: string): Promise<CommandResponse> {
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetchWithTimeout(`${getApiUrl()}${path}`, {
+  const base = await apiUrl();
+  const res = await fetchWithTimeout(`${base}${path}`, {
     ...options,
     headers: { ...authHeaders(), ...options.headers },
   });
@@ -118,3 +132,5 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   }
   return res.json();
 }
+
+export { initApiConfig };

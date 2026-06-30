@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -9,6 +10,17 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "https://yevinb.github.io",
     ]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors(cls, v):
+        if isinstance(v, str):
+            import json
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return [x.strip() for x in v.split(",") if x.strip()]
+        return v
 
     # Auth
     jwt_secret: str = "change-me-in-production-operatoros-secret"

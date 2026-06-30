@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { ApiBootstrap } from "@/components/ApiBootstrap";
 import "./globals.css";
 
 const inter = Inter({
@@ -37,7 +38,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <ApiBootstrap>{children}</ApiBootstrap>
+      </body>
     </html>
   );
 }

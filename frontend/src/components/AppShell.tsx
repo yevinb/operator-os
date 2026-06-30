@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import type { User } from "@/lib/types";
+import { BackendStatus } from "@/components/ApiBootstrap";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -135,6 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2 ml-auto">
+            <BackendStatus />
             <span className="px-2 py-1 text-xs rounded-full bg-success/10 text-success border border-success/20 capitalize">
               {user.plan} plan
             </span>
