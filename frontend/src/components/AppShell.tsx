@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  Zap,
   LayoutDashboard,
   Activity,
   Plug,
@@ -16,6 +15,7 @@ import {
 import { getSession, clearSession } from "@/lib/auth";
 import type { User } from "@/lib/types";
 import { BackendStatus } from "@/components/ApiBootstrap";
+import { NexaLogo } from "@/components/NexaLogo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -61,15 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <>
       <div className="p-6 border-b border-border">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-            <Zap size={16} className="text-white" />
-          </div>
-          <div>
-            <span className="font-semibold block">Nexa</span>
-            <span className="text-xs text-text-3">AI COO</span>
-          </div>
-        </Link>
+        <NexaLogo variant="sidebar" href="/dashboard" />
       </div>
 
       <nav className="flex-1 p-4 space-y-1">

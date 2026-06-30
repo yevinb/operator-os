@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Zap, ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getSession, updateUser } from "@/lib/auth";
 import { saveBusinessProfile } from "@/lib/business-context";
 import { apiFetch, hasApiConfigured } from "@/lib/api";
 import { DEFAULT_INTEGRATIONS } from "@/lib/store";
+import { NexaLogo } from "@/components/NexaLogo";
 
 const STEPS = [
   { title: "What does your business do?" },
@@ -78,11 +79,9 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen grid-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-            <Zap size={20} className="text-white" />
-          </div>
-          <span className="text-xl font-bold">Teach your AI COO about your business</span>
+        <div className="flex flex-col items-center mb-8">
+          <NexaLogo variant="compact" href={false} className="mb-4" />
+          <span className="text-lg font-bold text-center">Teach your AI COO about your business</span>
         </div>
 
         <div className="flex gap-2 mb-8 justify-center">

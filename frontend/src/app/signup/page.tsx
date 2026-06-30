@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Zap, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { signup } from "@/lib/auth";
+import { NexaLogo } from "@/components/NexaLogo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -34,12 +35,9 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen grid-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-            <Zap size={20} className="text-white" />
-          </div>
-          <span className="text-xl font-bold">Nexa</span>
-        </Link>
+        <div className="flex justify-center mb-8">
+          <NexaLogo variant="full" href="/" />
+        </div>
 
         <div className="p-8 rounded-2xl bg-surface border border-border">
           <h1 className="text-2xl font-bold mb-1">Start your AI COO</h1>

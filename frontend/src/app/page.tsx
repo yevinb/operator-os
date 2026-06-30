@@ -1,20 +1,16 @@
 import Link from "next/link";
-import { ArrowRight, Zap, Megaphone, Headphones, Calendar, BarChart3 } from "lucide-react";
+import { ArrowRight, Megaphone, Headphones, Calendar, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { LiveCommandDemo } from "@/components/LiveCommandDemo";
 import { PricingSection } from "@/components/PricingSection";
+import { NexaLogo } from "@/components/NexaLogo";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-void hero-glow">
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold to-amber-600 flex items-center justify-center">
-              <Zap size={18} className="text-black" />
-            </div>
-            <span className="font-bold text-lg">Nexa</span>
-          </Link>
+          <NexaLogo variant="compact" priority />
           <div className="hidden md:flex items-center gap-8 text-sm text-text-2">
             <a href="#demo" className="hover:text-gold transition-colors font-medium">Preview</a>
             <a href="#capabilities" className="hover:text-text transition-colors">Capabilities</a>
@@ -31,6 +27,9 @@ export default function Home() {
 
       <section className="pt-28 pb-8 px-6 text-center">
         <div className="max-w-5xl mx-auto">
+          <div className="flex justify-center mb-8">
+            <NexaLogo variant="full" href="/" priority />
+          </div>
           <p className="inline-block px-4 py-1.5 rounded-full bg-gold/10 border border-gold/30 text-gold text-sm font-bold mb-6">
             AI COO — REAL API EXECUTION
           </p>

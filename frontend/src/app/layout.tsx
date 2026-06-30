@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nexa — Your AI Chief Operating Officer",
+  title: "Nexa — Your AI Operating System",
   description:
     "Type 'Increase sales.' Your AI COO executes — ads, customers, hiring, reports. Autonomous business operations.",
   keywords: ["AI COO", "business automation", "autonomous AI", "Nexa"],
@@ -23,11 +23,16 @@ export const metadata: Metadata = {
     canonical: "/operator-os/",
   },
   openGraph: {
-    title: "Nexa — Your AI Chief Operating Officer",
+    title: "Nexa — Your AI Operating System",
     description:
       "Say what you need. Nexa runs your business. Not a chatbot. An autonomous employee.",
     url: "https://yevinb.github.io/operator-os/",
     type: "website",
+    images: [{ url: "/nexa-logo.png", width: 512, height: 512, alt: "Nexa" }],
+  },
+  icons: {
+    icon: "/nexa-logo.png",
+    apple: "/nexa-logo.png",
   },
 };
 
