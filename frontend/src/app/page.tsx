@@ -1,131 +1,141 @@
 import Link from "next/link";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight, Zap, TrendingUp, Users, Target } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { LiveCommandDemo } from "@/components/LiveCommandDemo";
 import { PricingSection } from "@/components/PricingSection";
-import { FeaturesSection } from "@/components/FeaturesSection";
-import { ValuationSection } from "@/components/ValuationSection";
-import { SiriHero } from "@/components/SiriHero";
 
 export default function Home() {
   return (
-    <div className="min-h-screen grid-bg">
-      <nav className="fixed top-0 inset-x-0 z-50 border-b border-border bg-void/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-void hero-glow">
+      {/* Nav */}
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-              <Zap size={16} className="text-white" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold to-amber-600 flex items-center justify-center">
+              <Zap size={18} className="text-black" />
             </div>
-            <span className="font-semibold text-text">OperatorOS</span>
+            <span className="font-bold text-lg">OperatorOS</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gold/20 text-gold font-bold">v2</span>
           </Link>
           <div className="hidden md:flex items-center gap-8 text-sm text-text-2">
-            <a href="#vision" className="hover:text-text transition-colors">$30M path</a>
-            <a href="#features" className="hover:text-text transition-colors">Features</a>
+            <a href="#demo" className="hover:text-gold transition-colors font-medium">Live Demo</a>
+            <a href="#math" className="hover:text-text transition-colors">$30M Math</a>
             <a href="#pricing" className="hover:text-text transition-colors">Pricing</a>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm">Sign in</Button>
-            </Link>
-            <Link href="/signup">
-              <Button size="sm">
-                Start free trial
-                <ArrowRight size={14} />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      <section className="pt-32 pb-12 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm mb-8">
-            <Zap size={14} />
-            Not a chatbot. An autonomous employee.
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
-            <span className="gradient-text">Your AI Chief</span>
-            <br />
-            Operating Officer
-          </h1>
-
-          <p className="text-xl text-text-2 max-w-2xl mx-auto mb-4 leading-relaxed">
-            Say what you need — just like Siri. OperatorOS runs your business:
-            ads, customers, reports, hiring, and more.
-          </p>
-
-          <p className="text-sm text-text-3 mb-8">
-            500 customers × $500/mo = $30M company. Start with one command.
-          </p>
-
           <Link href="/signup">
-            <Button size="lg" className="text-base">
-              Start free trial
-              <ArrowRight size={18} />
+            <Button size="sm" className="bg-gold text-black hover:brightness-110 font-bold">
+              Start free
+              <ArrowRight size={14} />
             </Button>
           </Link>
         </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="pt-28 pb-8 px-6 text-center">
+        <div className="max-w-5xl mx-auto">
+          <p className="inline-block px-4 py-1.5 rounded-full bg-gold/10 border border-gold/30 text-gold text-sm font-bold mb-6">
+            NOT A CHATBOT — AN AUTONOMOUS EMPLOYEE
+          </p>
+          <h1 className="text-5xl md:text-8xl font-black tracking-tight mb-6 leading-[0.95]">
+            <span className="gradient-text">Your AI</span>
+            <br />
+            Chief Operating Officer
+          </h1>
+          <p className="text-xl md:text-2xl text-text-2 max-w-2xl mx-auto mb-4">
+            You type <span className="text-white font-semibold">&ldquo;Increase sales.&rdquo;</span>
+            <br />It creates ads, launches campaigns, replies to customers — autonomously.
+          </p>
+        </div>
       </section>
 
-      <ValuationSection />
-
-      <section id="siri" className="pb-20 px-6">
-        <SiriHero />
+      {/* LIVE DEMO — the main event */}
+      <section id="demo" className="py-12 px-6">
+        <LiveCommandDemo />
       </section>
 
-      <section id="how" className="py-20 px-6 border-t border-border">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">How it works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+      {/* $30M Math */}
+      <section id="math" className="py-20 px-6 border-t border-white/10">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-black text-center mb-4">
+            Path to <span className="gradient-gold">$30 Million</span>
+          </h2>
+          <p className="text-center text-text-2 text-lg mb-12 max-w-xl mx-auto">
+            500 customers × $500/month = $250K MRR = $3M ARR = $30M company
+          </p>
+          <div className="grid md:grid-cols-3 gap-6">
             {[
-              {
-                step: "01",
-                title: "You speak",
-                desc: 'Tap the orb and say: "Grow my business." Like Siri — one voice, full company control.',
-              },
-              {
-                step: "02",
-                title: "AI executes",
-                desc: "OperatorOS creates ads, replies to customers, books meetings — then speaks back what it's doing.",
-              },
-              {
-                step: "03",
-                title: "Business compounds",
-                desc: "It learns from results, improves itself, and compounds value every month.",
-              },
+              { icon: Users, val: "500", label: "Paying customers", sub: "at $499/mo Business plan" },
+              { icon: TrendingUp, val: "$250K", label: "Monthly revenue", sub: "recurring every month" },
+              { icon: Target, val: "$30M", label: "Company value", sub: "10× ARR SaaS multiple" },
             ].map((item) => (
-              <div key={item.step} className="p-6 rounded-2xl bg-surface border border-border">
-                <span className="text-accent font-mono text-sm">{item.step}</span>
-                <h3 className="text-lg font-semibold mt-2 mb-2">{item.title}</h3>
-                <p className="text-text-2 text-sm leading-relaxed">{item.desc}</p>
+              <div key={item.label} className="card-premium rounded-2xl p-8 text-center">
+                <item.icon className="mx-auto text-gold mb-4" size={32} />
+                <p className="text-5xl font-black text-white mb-2">{item.val}</p>
+                <p className="font-semibold text-gold">{item.label}</p>
+                <p className="text-sm text-text-3 mt-2">{item.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-12 card-premium rounded-2xl p-8">
+            <h3 className="text-xl font-bold mb-6">What your AI COO does (not another wrapper)</h3>
+            <div className="grid md:grid-cols-2 gap-4 text-text-2">
+              {[
+                "Creates & launches ad campaigns on Google + Meta",
+                "Replies to customers & resolves support tickets",
+                "Books meetings & manages your calendar",
+                "Writes newsletters to thousands of subscribers",
+                "Hires people — posts jobs, screens, schedules interviews",
+                "Checks revenue, cash flow, fires bad vendors",
+                "Answers Slack & generates executive reports",
+                "Improves itself every month you pay",
+              ].map((t) => (
+                <div key={t} className="flex items-start gap-3">
+                  <span className="text-gold text-lg">→</span>
+                  <span>{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-20 px-6 border-t border-white/10 bg-surface/30">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-12">3 steps to a $30M company</h2>
+          <div className="grid md:grid-cols-3 gap-8 text-left">
+            {[
+              { n: "1", t: "You command", d: 'Type "Grow my business." One sentence. Full company.' },
+              { n: "2", t: "AI executes", d: "7+ autonomous actions run instantly. Ads, emails, reports, hiring." },
+              { n: "3", t: "Value compounds", d: "Every month customers pay because it saves time & money. MRR grows." },
+            ].map((s) => (
+              <div key={s.n} className="card-premium rounded-2xl p-6">
+                <span className="text-4xl font-black text-gold/40">{s.n}</span>
+                <h3 className="text-lg font-bold mt-2 mb-2">{s.t}</h3>
+                <p className="text-text-2 text-sm">{s.d}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <FeaturesSection />
       <PricingSection />
 
-      <section className="py-20 px-6 border-t border-border">
-        <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            Stop building tools.<br />Start running a company.
-          </h2>
-          <p className="text-text-2 mb-8">
-            One voice. One command. Your entire business — operated by AI.
-          </p>
-          <Link href="/signup">
-            <Button size="lg">
-              Launch OperatorOS
-              <ArrowRight size={18} />
-            </Button>
-          </Link>
-        </div>
+      <section className="py-24 px-6 text-center border-t border-white/10">
+        <h2 className="text-4xl font-black mb-4">Build a company.<br /><span className="gradient-gold">Not an app.</span></h2>
+        <p className="text-text-2 mb-8 text-lg">Phase 1 is done. Your move.</p>
+        <Link href="/signup">
+          <Button size="lg" className="bg-gold text-black font-bold text-lg px-12 py-4 h-auto hover:brightness-110">
+            Launch OperatorOS — Free
+            <ArrowRight size={20} />
+          </Button>
+        </Link>
       </section>
 
-      <footer className="py-8 px-6 border-t border-border text-center text-sm text-text-3">
-        <p>OperatorOS — Build a company, not an app.</p>
+      <footer className="py-8 text-center text-text-3 text-sm border-t border-white/10">
+        OperatorOS v2 · Build a $30M company · Kuwait → Global
       </footer>
     </div>
   );
