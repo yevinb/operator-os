@@ -13,12 +13,22 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !name || !company) return;
-    await signup(email, name, company, password);
-    router.push("/onboarding");
+    setError("");
+    setLoading(true);
+    try {
+      await signup(email, name, company, password || "demo123");
+      router.push("/onboarding");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Signup failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,7 +43,7 @@ export default function SignupPage() {
 
         <div className="p-8 rounded-2xl bg-surface border border-border">
           <h1 className="text-2xl font-bold mb-1">Start your AI COO</h1>
-          <p className="text-text-2 text-sm mb-6">14-day free trial · No credit card</p>
+          <p className="text-text-2 text-sm mb-6">Creates a real account on our server</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
@@ -41,6 +51,7 @@ export default function SignupPage() {
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
               required
+              disabled={loading}
               className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
             />
             <input
@@ -49,6 +60,7 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Work email"
               required
+              disabled={loading}
               className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
             />
             <input
@@ -56,18 +68,21 @@ export default function SignupPage() {
               onChange={(e) => setCompany(e.target.value)}
               placeholder="Company name"
               required
+              disabled={loading}
               className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
             />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder="Password (min 6 chars)"
+              disabled={loading}
               className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
             />
-            <Button type="submit" className="w-full" size="lg">
-              Create account
-              <ArrowRight size={16} />
+            {error && <p className="text-danger text-sm">{error}</p>}
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Creating account…" : "Create account"}
+              {!loading && <ArrowRight size={16} />}
             </Button>
           </form>
 

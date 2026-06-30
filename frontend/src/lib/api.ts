@@ -4,7 +4,7 @@ import { getBusinessContext } from "./business-context";
 import { getToken } from "./auth";
 import { getApiUrlSync, initApiConfig } from "./api-config";
 
-const FETCH_TIMEOUT_MS = 15000;
+const FETCH_TIMEOUT_MS = 20000;
 
 async function apiUrl(): Promise<string> {
   await initApiConfig();
@@ -15,22 +15,13 @@ export function getApiUrl(): string {
   return getApiUrlSync();
 }
 
-export function hasApiConfigured(): boolean {
-  const url = getApiUrlSync();
-  return Boolean(url) && url !== "http://localhost:8000" || typeof window !== "undefined" && window.location.hostname === "localhost";
-}
-
-export function isLocalBackend(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1";
-}
-
-export function shouldUseBackend(): boolean {
+export async function hasApiConfigured(): Promise<boolean> {
+  await initApiConfig();
   const url = getApiUrlSync();
   if (!url) return false;
-  if (url === "http://localhost:8000" && typeof window !== "undefined" && !isLocalBackend()) {
-    return false;
+  if (url === "http://localhost:8000" && typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1") return false;
   }
   return true;
 }
@@ -64,22 +55,22 @@ export async function executeCommand(command: string): Promise<CommandResponse> 
     body: JSON.stringify({ command }),
   });
 
-  if (res.status === 401) throw new Error("Unauthorized");
-  if (!res.ok) throw new Error("Failed to execute command");
+  if (res.status === 401) throw new Error("Session expired — please sign in again.");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail || "Command failed");
+  }
   return res.json();
 }
 
 export async function getMetrics(): Promise<BusinessMetrics> {
-  await initApiConfig();
-  if (!shouldUseBackend() || !getToken()) {
+  if (!(await hasApiConfigured()) || !getToken()) {
     return (await import("./demo")).DEMO_METRICS;
   }
 
   try {
     const base = await apiUrl();
-    const res = await fetchWithTimeout(`${base}/api/v1/metrics`, {
-      headers: authHeaders(),
-    });
+    const res = await fetchWithTimeout(`${base}/api/v1/metrics`, { headers: authHeaders() });
     if (!res.ok) throw new Error("Failed to fetch metrics");
     const data = await res.json();
     return {
@@ -105,16 +96,14 @@ export async function getHealth(): Promise<{ status: string; ai_provider: string
   return res.json();
 }
 
-export async function runCommand(command: string): Promise<CommandResponse> {
+/** Run command on Railway when logged in; demo on homepage only. */
+export async function runCommand(command: string, options?: { forceDemo?: boolean }): Promise<CommandResponse> {
   await initApiConfig();
   const context = getBusinessContext();
+  const token = getToken();
 
-  if (shouldUseBackend() && getToken()) {
-    try {
-      return await executeCommand(command);
-    } catch {
-      // fall through to demo
-    }
+  if (!options?.forceDemo && token && (await hasApiConfigured())) {
+    return executeCommand(command);
   }
 
   return demoExecuteCommand(command, context);

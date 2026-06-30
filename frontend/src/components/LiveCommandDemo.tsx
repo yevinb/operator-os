@@ -3,13 +3,10 @@
 import { useState, useCallback, useRef } from "react";
 import { Send, CheckCircle2, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { demoExecuteCommand } from "@/lib/demo";
-import { getBusinessContext } from "@/lib/business-context";
 import { runCommand } from "@/lib/api";
 import { TaskList } from "./TaskList";
 import { Button } from "./ui/Button";
 import type { CommandResponse } from "@/lib/types";
-import { recordActivity } from "@/lib/business-metrics";
 
 export function LiveCommandDemo() {
   const [cmd, setCmd] = useState("");
@@ -26,14 +23,14 @@ export function LiveCommandDemo() {
     setBusy(true);
     setResponse(null);
 
-    const instant = demoExecuteCommand(trimmed, getBusinessContext());
-    setResponse(instant);
-    recordActivity(instant.tasks.length);
-    setActionsRun(instant.tasks.length);
-    setBusy(false);
-    runningRef.current = false;
-
-    runCommand(trimmed).catch(() => {});
+    try {
+      const result = await runCommand(trimmed, { forceDemo: true });
+      setResponse(result);
+      setActionsRun(result.tasks.length);
+    } finally {
+      setBusy(false);
+      runningRef.current = false;
+    }
   }, []);
 
   return (
@@ -66,14 +63,7 @@ export function LiveCommandDemo() {
             disabled={!cmd.trim() || busy}
             className="px-10 py-5 rounded-2xl bg-gradient-to-r from-gold to-amber-500 text-black font-bold text-lg flex items-center justify-center gap-2 hover:brightness-110 disabled:opacity-40 transition-all shrink-0"
           >
-            {busy ? (
-              <span className="animate-pulse">Running…</span>
-            ) : (
-              <>
-                <Send size={20} />
-                EXECUTE
-              </>
-            )}
+            {busy ? <span className="animate-pulse">Running…</span> : <><Send size={20} />EXECUTE</>}
           </button>
         </form>
 
@@ -96,12 +86,9 @@ export function LiveCommandDemo() {
               <CheckCircle2 className="text-success" size={24} />
               <span className="text-success font-bold text-lg">COMMAND EXECUTED</span>
             </div>
-            <p className="text-white text-xl font-semibold mb-1">
-              &ldquo;{response.command}&rdquo;
-            </p>
+            <p className="text-white text-xl font-semibold mb-1">&ldquo;{response.command}&rdquo;</p>
             <p className="text-text-2 mb-6">{response.summary}</p>
             <TaskList tasks={response.tasks} animate />
-
             <div className="mt-6 p-4 rounded-2xl bg-success/10 border border-success/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap className="text-success" size={20} />
@@ -114,7 +101,7 @@ export function LiveCommandDemo() {
 
         {!response && !busy && (
           <div className="text-center py-8 text-text-3 border-t border-white/5">
-            ↑ Click a button or type a command above to see your AI COO work
+            ↑ Click a button or type a command above — then sign up for the full AI COO
           </div>
         )}
       </div>
@@ -122,7 +109,7 @@ export function LiveCommandDemo() {
       <div className="text-center mt-8">
         <Link href="/signup">
           <Button size="lg" className="bg-white text-black hover:bg-zinc-200 font-bold px-10">
-            Create account to run your company
+            Create account for real execution
             <ArrowRight size={18} />
           </Button>
         </Link>

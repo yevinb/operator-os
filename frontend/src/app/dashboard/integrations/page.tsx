@@ -29,9 +29,10 @@ export default function IntegrationsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!hasApiConfigured()) return;
-    apiFetch<ApiIntegration[]>("/api/v1/integrations")
-      .then((list) => {
+    (async () => {
+      if (!(await hasApiConfigured())) return;
+      try {
+        const list = await apiFetch<ApiIntegration[]>("/api/v1/integrations");
         setIntegrations((prev) =>
           prev.map((p) => {
             const api = list.find((i) => i.id === p.id);
@@ -41,8 +42,10 @@ export default function IntegrationsPage() {
         saveBusinessProfile({
           connectedIntegrations: list.filter((i) => i.connected).map((i) => i.id),
         });
-      })
-      .catch(() => {});
+      } catch {
+        // use local
+      }
+    })();
   }, []);
 
   const connect = async (id: string) => {
@@ -56,7 +59,7 @@ export default function IntegrationsPage() {
   };
 
   const doConnect = async (id: string, key: string) => {
-    if (hasApiConfigured()) {
+    if (await hasApiConfigured()) {
       try {
         await apiFetch(`/api/v1/integrations/${id}/connect`, {
           method: "POST",
@@ -88,7 +91,7 @@ export default function IntegrationsPage() {
   };
 
   const disconnect = async (id: string) => {
-    if (hasApiConfigured()) {
+    if (await hasApiConfigured()) {
       try {
         await apiFetch(`/api/v1/integrations/${id}/disconnect`, { method: "POST" });
       } catch {

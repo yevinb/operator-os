@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,8 +20,16 @@ export default function LoginPage() {
       setError("Enter your email");
       return;
     }
-    const user = await login(email, password);
-    router.push(user?.onboarded ? "/dashboard" : "/onboarding");
+    setError("");
+    setLoading(true);
+    try {
+      const user = await login(email, password || "demo123");
+      router.push(user.onboarded ? "/dashboard" : "/onboarding");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,7 +44,7 @@ export default function LoginPage() {
 
         <div className="p-8 rounded-2xl bg-surface border border-border">
           <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
-          <p className="text-text-2 text-sm mb-6">Your AI Chief Operating Officer</p>
+          <p className="text-text-2 text-sm mb-6">Sign in to your AI COO</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -45,6 +54,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
+                disabled={loading}
                 className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
               />
             </div>
@@ -55,13 +65,14 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                disabled={loading}
                 className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
               />
             </div>
             {error && <p className="text-danger text-sm">{error}</p>}
-            <Button type="submit" className="w-full" size="lg">
-              Sign in
-              <ArrowRight size={16} />
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Signing in…" : "Sign in"}
+              {!loading && <ArrowRight size={16} />}
             </Button>
           </form>
 

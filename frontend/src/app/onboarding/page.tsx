@@ -58,7 +58,7 @@ export default function OnboardingPage() {
     });
     saveBusinessProfile({ company, industry, goal, market, connectedIntegrations: connected });
 
-    if (hasApiConfigured()) {
+    if (await hasApiConfigured()) {
       for (const id of connected) {
         try {
           await apiFetch(`/api/v1/integrations/${id}/connect`, {

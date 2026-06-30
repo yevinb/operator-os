@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Zap, Send, Sparkles } from "lucide-react";
+import { Zap, Send, Sparkles, AlertCircle } from "lucide-react";
 import { MetricsGrid } from "@/components/MetricsGrid";
 import { TaskList } from "@/components/TaskList";
 import { DEMO_METRICS } from "@/lib/demo";
@@ -18,6 +18,7 @@ export default function CommandCenterPage() {
   const [history, setHistory] = useState<CommandResponse[]>([]);
   const [textCmd, setTextCmd] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
   const [metrics, setMetrics] = useState(DEMO_METRICS);
   const user = getSession();
@@ -27,6 +28,7 @@ export default function CommandCenterPage() {
     const trimmed = command.trim();
     if (!trimmed || busy) return;
     setBusy(true);
+    setError("");
     setLastResponse(null);
     try {
       const response = await runCommand(trimmed);
@@ -37,16 +39,20 @@ export default function CommandCenterPage() {
       setTick((t) => t + 1);
       const m = await getMetrics();
       setMetrics(m);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Command failed. Sign in again or retry.");
     } finally {
       setBusy(false);
     }
   }, [busy]);
 
+  const tasksDone = lastResponse?.tasks.every((t) => t.status === "completed");
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       {user && (
         <div className="p-4 rounded-2xl border border-white/10 bg-black/30 text-sm text-text-2">
-          AI COO context: <span className="text-white font-medium">{ctx.company}</span>
+          AI COO context: <span className="text-white font-medium">{ctx.company || user.company}</span>
           {ctx.industry && <> · {ctx.industry}</>}
           {ctx.goal && <> · Goal: {ctx.goal}</>}
           {ctx.market && <> · {ctx.market}</>}
@@ -82,6 +88,13 @@ export default function CommandCenterPage() {
           </button>
         </form>
 
+        {error && (
+          <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 flex items-center gap-2 text-danger text-sm">
+            <AlertCircle size={18} />
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           {["Increase sales.", "Run my company.", "Reply to customers.", "Check cash flow.", "Hire a developer."].map((cmd) => (
             <button
@@ -103,12 +116,12 @@ export default function CommandCenterPage() {
               <Zap size={18} className="text-white" />
             </div>
             <div>
-              <p className="text-success font-bold">EXECUTED</p>
+              <p className="text-success font-bold">EXECUTED ON SERVER</p>
               <p className="text-white font-semibold">&ldquo;{lastResponse.command}&rdquo;</p>
             </div>
           </div>
           <p className="text-text-2 mb-4">{lastResponse.summary}</p>
-          <TaskList tasks={lastResponse.tasks} animate={lastResponse.tasks.some((t) => t.status !== "completed")} />
+          <TaskList tasks={lastResponse.tasks} animate={!tasksDone} />
         </section>
       )}
 
@@ -122,7 +135,7 @@ export default function CommandCenterPage() {
           <h2 className="text-sm font-bold text-text-2 uppercase tracking-wider mb-4">Command history</h2>
           <div className="space-y-2">
             {history.slice(1, 6).map((h) => (
-              <div key={h.command + h.intent} className="flex justify-between p-4 rounded-xl card-premium">
+              <div key={h.command + h.intent + h.tasks.length} className="flex justify-between p-4 rounded-xl card-premium">
                 <div>
                   <p className="font-medium">{h.command}</p>
                   <p className="text-xs text-text-3">{h.tasks.length} actions completed</p>

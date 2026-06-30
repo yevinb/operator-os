@@ -1,5 +1,6 @@
 import type { Plan, User } from "./types";
-import { apiFetch, hasApiConfigured } from "./api";
+import { apiFetch } from "./api";
+import { initApiConfig } from "./api-config";
 import { syncUserToProfile } from "./business-context";
 
 const USER_KEY = "operatoros_user";
@@ -53,64 +54,35 @@ function mapApiUser(data: Record<string, unknown>): User {
 }
 
 export async function login(email: string, password: string): Promise<User> {
-  if (hasApiConfigured()) {
-    try {
-      const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
-        "/api/v1/auth/login",
-        { method: "POST", body: JSON.stringify({ email, password }) }
-      );
-      setToken(data.token);
-      const user = mapApiUser(data.user);
-      setSession(user);
-      return user;
-    } catch {
-      // fallback to local
-    }
+  await initApiConfig();
+  try {
+    const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
+      "/api/v1/auth/login",
+      { method: "POST", body: JSON.stringify({ email, password: password || "demo123" }) }
+    );
+    setToken(data.token);
+    const user = mapApiUser(data.user);
+    setSession(user);
+    return user;
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : "Login failed");
   }
-
-  const existing = getSession();
-  if (existing?.email === email) return existing;
-
-  const user: User = {
-    id: `user_${Date.now()}`,
-    email,
-    name: email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    company: "My Company",
-    plan: "business",
-    onboarded: true,
-    createdAt: new Date().toISOString(),
-  };
-  setSession(user);
-  return user;
 }
 
 export async function signup(email: string, name: string, company: string, password = ""): Promise<User> {
-  if (hasApiConfigured()) {
-    try {
-      const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
-        "/api/v1/auth/signup",
-        { method: "POST", body: JSON.stringify({ email, name, company, password: password || "demo123" }) }
-      );
-      setToken(data.token);
-      const user = mapApiUser(data.user);
-      setSession(user);
-      return user;
-    } catch {
-      // fallback to local
-    }
+  await initApiConfig();
+  try {
+    const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
+      "/api/v1/auth/signup",
+      { method: "POST", body: JSON.stringify({ email, name, company, password: password || "demo123" }) }
+    );
+    setToken(data.token);
+    const user = mapApiUser(data.user);
+    setSession(user);
+    return user;
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : "Signup failed");
   }
-
-  const user: User = {
-    id: `user_${Date.now()}`,
-    email,
-    name,
-    company,
-    plan: "starter",
-    onboarded: false,
-    createdAt: new Date().toISOString(),
-  };
-  setSession(user);
-  return user;
 }
 
 export async function updateUser(patch: Partial<User>) {
@@ -119,23 +91,24 @@ export async function updateUser(patch: Partial<User>) {
   const updated = { ...user, ...patch };
   setSession(updated);
 
-  if (hasApiConfigured() && getToken()) {
+  if (getToken()) {
     try {
+      await initApiConfig();
       await apiFetch("/api/v1/profile", {
         method: "PATCH",
         body: JSON.stringify({
-          company: patch.company,
-          industry: patch.industry,
-          goal: patch.goal,
-          market: patch.market,
+          company: patch.company ?? updated.company,
+          industry: patch.industry ?? updated.industry,
+          goal: patch.goal ?? updated.goal,
+          market: patch.market ?? updated.market,
           description: patch.description,
           website: patch.website,
-          onboarded: patch.onboarded,
-          plan: patch.plan,
+          onboarded: patch.onboarded ?? updated.onboarded,
+          plan: patch.plan ?? updated.plan,
         }),
       });
     } catch {
-      // local already saved
+      // profile saved locally
     }
   }
 
