@@ -17,7 +17,7 @@ import { CommandInput } from "@/components/CommandInput";
 import { MetricsGrid } from "@/components/MetricsGrid";
 import { TaskList } from "@/components/TaskList";
 import { Button } from "@/components/ui/Button";
-import { demoExecuteCommand, DEMO_METRICS } from "@/lib/demo";
+import { DEMO_METRICS } from "@/lib/demo";
 import { runCommand } from "@/lib/api";
 import { buildSpokenResponse } from "@/lib/voice";
 import type { CommandResponse } from "@/lib/types";
