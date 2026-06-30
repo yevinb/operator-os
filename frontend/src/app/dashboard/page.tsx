@@ -5,7 +5,7 @@ import { Zap, Send, Sparkles } from "lucide-react";
 import { MetricsGrid } from "@/components/MetricsGrid";
 import { TaskList } from "@/components/TaskList";
 import { Button } from "@/components/ui/Button";
-import { DEMO_METRICS } from "@/lib/demo";
+import { DEMO_METRICS, demoExecuteCommand } from "@/lib/demo";
 import { runCommand } from "@/lib/api";
 import { logCommand } from "@/lib/store";
 import { recordGrowth } from "@/lib/valuation";
@@ -24,17 +24,16 @@ export default function CommandCenterPage() {
     if (!trimmed || busy) return;
     setBusy(true);
     setLastResponse(null);
-    try {
-      const response = await runCommand(trimmed);
-      setLastResponse(response);
-      setHistory((h) => [response, ...h].slice(0, 20));
-      logCommand(response);
-      recordGrowth(response.tasks.length);
-      setTick((t) => t + 1);
-      return response;
-    } finally {
-      setBusy(false);
-    }
+
+    const instant = demoExecuteCommand(trimmed);
+    setLastResponse(instant);
+    setHistory((h) => [instant, ...h].slice(0, 20));
+    logCommand(instant);
+    recordGrowth(instant.tasks.length);
+    setTick((t) => t + 1);
+    setBusy(false);
+
+    runCommand(trimmed).catch(() => {});
   }, [busy]);
 
   return (

@@ -37,6 +37,7 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /operator-os
+          NEXT_PUBLIC_DEMO_MODE: "true"
 
       - uses: actions/upload-pages-artifact@v3
         with:

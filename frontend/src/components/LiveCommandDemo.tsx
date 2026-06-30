@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Zap, Send, CheckCircle2, TrendingUp, ArrowRight } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Send, CheckCircle2, TrendingUp, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { demoExecuteCommand } from "@/lib/demo";
 import { runCommand } from "@/lib/api";
 import { TaskList } from "./TaskList";
 import { Button } from "./ui/Button";
@@ -13,22 +14,30 @@ export function LiveCommandDemo() {
   const [cmd, setCmd] = useState("");
   const [response, setResponse] = useState<CommandResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [valuation, setValuation] = useState(0);
+  const runningRef = useRef(false);
 
   const run = useCallback(async (command: string) => {
     const trimmed = command.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || runningRef.current) return;
+
+    runningRef.current = true;
     setBusy(true);
+    setError(null);
     setResponse(null);
-    try {
-      const res = await runCommand(trimmed);
-      setResponse(res);
-      const growth = recordGrowth(res.tasks.length);
-      setValuation(growth.estimatedValuation);
-    } finally {
-      setBusy(false);
-    }
-  }, [busy]);
+
+    // Show results instantly — never wait on network for the live demo
+    const instant = demoExecuteCommand(trimmed);
+    setResponse(instant);
+    const growth = recordGrowth(instant.tasks.length);
+    setValuation(growth.estimatedValuation);
+    setBusy(false);
+    runningRef.current = false;
+
+    // Sync with API layer in background (no-op on GitHub Pages)
+    runCommand(trimmed).catch(() => {});
+  }, []);
 
   const progress = getCompanyProgress();
 
@@ -115,7 +124,11 @@ export function LiveCommandDemo() {
           </div>
         )}
 
-        {!response && !busy && (
+        {error && (
+          <p className="text-center py-4 text-danger border-t border-white/5">{error}</p>
+        )}
+
+        {!response && !busy && !error && (
           <div className="text-center py-8 text-text-3 border-t border-white/5">
             ↑ Click a button or type a command above to see your AI COO work
           </div>
