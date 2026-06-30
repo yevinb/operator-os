@@ -125,7 +125,7 @@ export const PLANS = [
     name: "Starter",
     price: 99,
     desc: "Solo founders getting started.",
-    features: ["Voice & text commands", "Marketing automation", "Customer replies", "50 AI actions/day"],
+    features: ["Text commands", "12 integrations", "Stripe, Slack, n8n", "Real API execution"],
   },
   {
     id: "business" as Plan,

@@ -7,117 +7,102 @@ from app.services.business_context import BusinessContext
 
 INTENT_TEMPLATES: dict[str, dict] = {
     "grow_revenue": {
-        "summary": "Launching full sales acceleration pipeline across ads, outreach, and conversion optimization.",
+        "summary": "Sales acceleration — runs against your connected Stripe, ads, CRM, and automation tools.",
         "tasks": [
-            ("Analyze sales funnel drop-off points", "analytics"),
-            ("Create 3 high-converting ad variants", "marketing"),
-            ("Launch Google & Meta campaigns ($500/day)", "marketing"),
-            ("Send personalized follow-ups to 47 warm leads", "sales"),
-            ("A/B test landing page headline", "marketing"),
-            ("Set up conversion tracking pixels", "analytics"),
-            ("Schedule daily performance report", "reporting"),
+            ("Pull live revenue from Stripe", "finance"),
+            ("Post sales update to Slack", "communication"),
+            ("Sync warm leads from HubSpot", "sales"),
+            ("Trigger sales workflow in n8n", "operations"),
+            ("Log strategy in Notion", "reporting"),
         ],
     },
     "run_company": {
-        "summary": "Executing full company operations review and autonomous management cycle.",
+        "summary": "Company operations review using your live integrations.",
         "tasks": [
-            ("Check revenue vs. forecast ($124K MTD, +12%)", "finance"),
-            ("Review team performance dashboards", "hr"),
-            ("Schedule 3 priority meetings this week", "operations"),
-            ("Flag underperforming vendor contract", "finance"),
-            ("Generate cash flow forecast (90 days)", "finance"),
-            ("Reply to 8 pending Slack messages", "communication"),
-            ("Update project timelines in Asana", "operations"),
-            ("Create executive summary report", "reporting"),
+            ("Check Stripe balance and customer count", "finance"),
+            ("Post ops summary to Slack", "communication"),
+            ("Schedule priority meetings on Calendar", "operations"),
+            ("Log executive summary in Notion", "reporting"),
+            ("Trigger ops workflow in n8n", "operations"),
         ],
     },
     "run_marketing": {
-        "summary": "Spinning up multi-channel marketing automation.",
+        "summary": "Marketing actions via Meta, Google Ads, Slack, and n8n.",
         "tasks": [
-            ("Draft weekly newsletter (2,400 subscribers)", "marketing"),
-            ("Post to LinkedIn, X, and Instagram", "marketing"),
-            ("Optimize SEO for top 5 landing pages", "marketing"),
-            ("Retarget website visitors with display ads", "marketing"),
-            ("Analyze competitor ad spend", "analytics"),
+            ("Check Meta ad account status", "marketing"),
+            ("Check Google Ads connection", "marketing"),
+            ("Post campaign update to Slack", "communication"),
+            ("Trigger marketing workflow in n8n", "operations"),
         ],
     },
     "customer_success": {
-        "summary": "Handling customer communications and support autonomously.",
+        "summary": "Customer support via Gmail, HubSpot, and automation.",
         "tasks": [
-            ("Reply to 23 customer emails", "support"),
-            ("Resolve 5 open support tickets", "support"),
-            ("Send onboarding sequence to 12 new signups", "sales"),
-            ("Request reviews from satisfied customers", "marketing"),
-            ("Flag churn-risk accounts for outreach", "analytics"),
+            ("Send customer update via Gmail", "support"),
+            ("Pull CRM contacts from HubSpot", "sales"),
+            ("Post support summary to Slack", "communication"),
+            ("Trigger support workflow in n8n", "operations"),
         ],
     },
     "hiring": {
-        "summary": "Initiating hiring pipeline for open positions.",
+        "summary": "Hiring pipeline via LinkedIn, Calendar, and Notion.",
         "tasks": [
-            ("Post job listing on LinkedIn & Indeed", "hr"),
-            ("Screen 34 incoming applications", "hr"),
-            ("Schedule interviews with top 5 candidates", "hr"),
-            ("Draft offer letter template", "hr"),
-            ("Update org chart and headcount forecast", "operations"),
+            ("Verify LinkedIn API for hiring", "hr"),
+            ("Schedule interviews on Calendar", "operations"),
+            ("Log hiring plan in Notion", "hr"),
+            ("Notify team on Slack", "communication"),
         ],
     },
     "reporting": {
-        "summary": "Generating comprehensive business intelligence report.",
+        "summary": "Business report from Stripe, HubSpot, and Notion.",
         "tasks": [
-            ("Pull revenue data from Stripe", "finance"),
-            ("Compile marketing ROI by channel", "analytics"),
-            ("Summarize team productivity metrics", "hr"),
-            ("Generate PDF executive dashboard", "reporting"),
-            ("Email report to stakeholders", "communication"),
+            ("Pull revenue from Stripe", "finance"),
+            ("Pull contacts from HubSpot", "analytics"),
+            ("Create report page in Notion", "reporting"),
+            ("Email report via Gmail", "communication"),
+            ("Post summary to Slack", "communication"),
         ],
     },
     "general_ops": {
-        "summary": "Analyzing your request and deploying autonomous actions across your business.",
+        "summary": "Parse your command and run against connected tools.",
         "tasks": [
-            ("Parse command intent and priority", "operations"),
-            ("Check relevant business data", "analytics"),
-            ("Queue autonomous action plan", "operations"),
-            ("Execute highest-impact tasks first", "operations"),
-            ("Monitor results and self-improve", "analytics"),
+            ("Check live business data", "analytics"),
+            ("Execute via n8n automation", "operations"),
+            ("Log action in Notion", "reporting"),
+            ("Notify team on Slack", "communication"),
         ],
     },
     "cash_flow": {
-        "summary": "Analyzing cash position and forecasting runway.",
+        "summary": "Cash position from Stripe and QuickBooks.",
         "tasks": [
-            ("Pull bank balances and Stripe payouts", "finance"),
-            ("Calculate 30/60/90 day cash forecast", "finance"),
-            ("Flag overdue invoices ($12,400 outstanding)", "finance"),
-            ("Recommend expense cuts ($3,200/mo savings)", "finance"),
-            ("Email CFO summary with projections", "communication"),
+            ("Pull Stripe balance and payouts", "finance"),
+            ("Sync QuickBooks company data", "finance"),
+            ("Post cash summary to Slack", "communication"),
+            ("Trigger finance workflow in n8n", "operations"),
         ],
     },
     "vendor_management": {
-        "summary": "Reviewing vendor performance and contracts.",
+        "summary": "Vendor review logged to Notion and Slack.",
         "tasks": [
-            ("Audit top 10 vendor contracts", "finance"),
-            ("Flag underperforming vendor for termination", "operations"),
-            ("Draft termination notice", "operations"),
-            ("Source 3 replacement vendor quotes", "operations"),
-            ("Negotiate better rates with top supplier", "finance"),
+            ("Log vendor audit in Notion", "operations"),
+            ("Post vendor update to Slack", "communication"),
+            ("Trigger vendor workflow in n8n", "operations"),
         ],
     },
     "scheduling": {
-        "summary": "Booking and optimizing your calendar.",
+        "summary": "Calendar scheduling via Google Calendar.",
         "tasks": [
-            ("Review calendar for conflicts this week", "operations"),
-            ("Book sales call with top 3 leads", "sales"),
-            ("Schedule team standup Mon/Wed/Fri", "operations"),
-            ("Send meeting prep briefs to attendees", "communication"),
-            ("Block focus time for deep work", "operations"),
+            ("Book meetings on Google Calendar", "operations"),
+            ("Send calendar invite via Gmail", "communication"),
+            ("Notify team on Slack", "communication"),
         ],
     },
     "communication": {
-        "summary": "Handling Slack messages and team communication.",
+        "summary": "Team communication via Slack and Gmail.",
         "tasks": [
-            ("Reply to 8 pending Slack DMs", "communication"),
-            ("Post weekly wins in #general", "communication"),
-            ("Summarize #support channel for CEO", "communication"),
-            ("Set up alert for revenue milestones", "operations"),
+            ("Post update to Slack", "communication"),
+            ("Send team email via Gmail", "communication"),
+            ("Trigger comms workflow in n8n", "operations"),
         ],
     },
 }
@@ -246,18 +231,10 @@ def execute_with_rules(command: str, context: BusinessContext | None = None) -> 
 
     tasks = []
     for i, (action, category) in enumerate(template["tasks"]):
-        tailored_action = action
-        if context and context.company:
-            if category == "marketing" and "google" in action.lower() and "google-ads" not in connected:
-                tailored_action = f"Draft ad strategy for {company} — connect Google Ads to launch"
-            elif category == "finance" and context.live_metrics:
-                tailored_action = f"{action} (using live Stripe data)"
-            elif industry and i == 0:
-                tailored_action = f"{action} for {company}'s {industry} business"
         tasks.append(
             Task(
                 id=f"task-{now}-{i}",
-                action=tailored_action,
+                action=action,
                 category=category,
                 status=TaskStatus.pending,
             )

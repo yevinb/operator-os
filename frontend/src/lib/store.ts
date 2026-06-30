@@ -41,6 +41,9 @@ export function addActivity(item: Omit<ActivityItem, "id" | "timestamp">) {
 }
 
 export function logCommand(response: CommandResponse) {
+  const executed = response.executed_count ?? response.tasks.filter((t) => t.status === "completed").length;
+  const planned = response.planned_count ?? response.tasks.filter((t) => t.status === "planned").length;
+
   addActivity({
     type: "command",
     message: response.summary,
@@ -49,15 +52,17 @@ export function logCommand(response: CommandResponse) {
   });
   response.tasks.forEach((t) => {
     addActivity({
-      type: "action",
-      message: t.action,
+      type: t.status === "completed" ? "action" : "alert",
+      message: t.detail ? `${t.action} — ${t.detail}` : t.action,
       category: t.category,
       command: response.command,
     });
   });
   addActivity({
-    type: "success",
-    message: `Completed ${response.tasks.length} autonomous actions for "${response.command}"`,
+    type: executed > 0 ? "success" : "alert",
+    message: executed > 0
+      ? `${executed} live action(s) executed, ${planned} planned`
+      : `${planned} action(s) planned — connect integrations to execute`,
     category: response.intent,
     command: response.command,
   });

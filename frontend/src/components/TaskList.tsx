@@ -6,6 +6,7 @@ import {
   Circle,
   Loader2,
   XCircle,
+  Clock,
   Megaphone,
   Headphones,
   BarChart3,
@@ -43,6 +44,8 @@ function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
     case "completed":
       return <CheckCircle2 size={18} className="text-success shrink-0" />;
+    case "planned":
+      return <Clock size={18} className="text-warning shrink-0" />;
     case "running":
       return <Loader2 size={18} className="text-accent animate-spin shrink-0" />;
     case "failed":
@@ -55,15 +58,19 @@ function StatusIcon({ status }: { status: TaskStatus }) {
 interface TaskListProps {
   tasks: Task[];
   animate?: boolean;
+  isDemo?: boolean;
 }
 
-export function TaskList({ tasks, animate = true }: TaskListProps) {
+export function TaskList({ tasks, animate = true, isDemo = false }: TaskListProps) {
+  const hasServerStatus = tasks.some((t) => t.status === "completed" || t.status === "planned" || t.status === "failed");
+  const shouldAnimate = animate && !hasServerStatus && !isDemo;
+
   const [displayTasks, setDisplayTasks] = useState<Task[]>(
-    animate ? tasks.map((t) => ({ ...t, status: "pending" as TaskStatus })) : tasks
+    shouldAnimate ? tasks.map((t) => ({ ...t, status: "pending" as TaskStatus })) : tasks
   );
 
   useEffect(() => {
-    if (!animate) {
+    if (!shouldAnimate) {
       setDisplayTasks(tasks);
       return;
     }
@@ -79,7 +86,7 @@ export function TaskList({ tasks, animate = true }: TaskListProps) {
 
       setDisplayTasks((prev) =>
         prev.map((t, i) => {
-          if (i < index) return { ...t, status: "completed" };
+          if (i < index) return { ...t, status: isDemo ? "planned" : "completed" };
           if (i === index) return { ...t, status: "running" };
           return t;
         })
@@ -87,14 +94,22 @@ export function TaskList({ tasks, animate = true }: TaskListProps) {
 
       setTimeout(() => {
         setDisplayTasks((prev) =>
-          prev.map((t, i) => (i === index ? { ...t, status: "completed" } : t))
+          prev.map((t, i) =>
+            i === index
+              ? {
+                  ...t,
+                  status: isDemo ? "planned" : "completed",
+                  detail: isDemo ? "Demo preview — sign up to execute" : t.detail,
+                }
+              : t
+          )
         );
         index++;
       }, 800);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [tasks, animate]);
+  }, [tasks, shouldAnimate, isDemo]);
 
   if (displayTasks.length === 0) return null;
 
@@ -108,7 +123,9 @@ export function TaskList({ tasks, animate = true }: TaskListProps) {
             className={cn(
               "flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 activity-slide-in",
               task.status === "running" && "bg-accent/5 border-accent/30",
-              task.status === "completed" && "bg-surface border-border opacity-80",
+              task.status === "completed" && "bg-success/5 border-success/30",
+              task.status === "planned" && "bg-warning/5 border-warning/30",
+              task.status === "failed" && "bg-danger/5 border-danger/30",
               task.status === "pending" && "bg-surface border-border"
             )}
             style={{ animationDelay: `${i * 50}ms` }}
@@ -118,11 +135,26 @@ export function TaskList({ tasks, animate = true }: TaskListProps) {
               <Icon size={14} className="text-text-2" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-text truncate">{task.action}</p>
+              <p className="text-sm text-text">{task.action}</p>
               {task.detail && (
-                <p className="text-xs text-success mt-0.5 truncate">{task.detail}</p>
+                <p
+                  className={cn(
+                    "text-xs mt-0.5",
+                    task.status === "completed" && "text-success",
+                    task.status === "planned" && "text-warning",
+                    task.status === "failed" && "text-danger",
+                    task.status !== "completed" && task.status !== "planned" && task.status !== "failed" && "text-text-3"
+                  )}
+                >
+                  {task.detail}
+                </p>
               )}
-              <p className="text-xs text-text-3 capitalize">{task.category}</p>
+              <div className="flex gap-2 mt-0.5">
+                <p className="text-xs text-text-3 capitalize">{task.category}</p>
+                {task.integration && (
+                  <p className="text-xs text-accent">via {task.integration}</p>
+                )}
+              </div>
             </div>
           </div>
         );

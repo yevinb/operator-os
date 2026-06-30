@@ -36,9 +36,11 @@ export default function BillingPage() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Billing</h1>
-      <p className="text-text-2 text-sm mb-8">
+      <p className="text-text-2 text-sm mb-4">
         Current plan: <span className="text-accent capitalize font-medium">{currentPlan}</span>
+        <span className="ml-2 text-warning text-xs font-medium">· Free during beta</span>
       </p>
+      <p className="text-sm text-text-3 mb-8">All features are unlocked. Billing activates when Stripe checkout is configured.</p>
 
       {notice && (
         <div className="mb-6 p-4 rounded-xl bg-accent/10 border border-accent/30 text-accent text-sm">

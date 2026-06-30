@@ -1,129 +1,93 @@
 import type { BusinessMetrics, CommandResponse, Task, BusinessContext } from "./types";
 
-const INTENT_MAP: Record<string, { intent: string; summary: string; tasks: Omit<Task, "id" | "status">[] }> = {
+const INTENT_MAP: Record<string, { intent: string; summary: string; tasks: Omit<Task, "id" | "status" | "detail">[] }> = {
   sales: {
     intent: "grow_revenue",
-    summary: "Launching full sales acceleration pipeline across ads, outreach, and conversion optimization.",
+    summary: "Preview: sales plan — sign up and connect Stripe, Slack, or n8n to run this for real.",
     tasks: [
-      { action: "Analyze sales funnel drop-off points", category: "analytics" },
-      { action: "Create 3 high-converting ad variants", category: "marketing" },
-      { action: "Launch Google & Meta campaigns ($500/day)", category: "marketing" },
-      { action: "Send personalized follow-ups to 47 warm leads", category: "sales" },
-      { action: "A/B test landing page headline", category: "marketing" },
-      { action: "Set up conversion tracking pixels", category: "analytics" },
-      { action: "Schedule daily performance report", category: "reporting" },
+      { action: "Pull live revenue from Stripe", category: "finance" },
+      { action: "Post sales update to Slack", category: "communication" },
+      { action: "Trigger sales workflow in n8n", category: "operations" },
     ],
   },
   company: {
     intent: "run_company",
-    summary: "Executing full company operations review and autonomous management cycle.",
+    summary: "Preview: company ops — connect integrations to execute live.",
     tasks: [
-      { action: "Check revenue vs. forecast ($124K MTD, +12%)", category: "finance" },
-      { action: "Review team performance dashboards", category: "hr" },
-      { action: "Schedule 3 priority meetings this week", category: "operations" },
-      { action: "Flag underperforming vendor contract", category: "finance" },
-      { action: "Generate cash flow forecast (90 days)", category: "finance" },
-      { action: "Reply to 8 pending Slack messages", category: "communication" },
-      { action: "Update project timelines in Asana", category: "operations" },
-      { action: "Create executive summary report", category: "reporting" },
+      { action: "Check Stripe balance", category: "finance" },
+      { action: "Post ops summary to Slack", category: "communication" },
+      { action: "Schedule meetings on Calendar", category: "operations" },
     ],
   },
   marketing: {
     intent: "run_marketing",
-    summary: "Spinning up multi-channel marketing automation.",
+    summary: "Preview: marketing — connect Meta, Google Ads, or n8n.",
     tasks: [
-      { action: "Draft weekly newsletter (2,400 subscribers)", category: "marketing" },
-      { action: "Post to LinkedIn, X, and Instagram", category: "marketing" },
-      { action: "Optimize SEO for top 5 landing pages", category: "marketing" },
-      { action: "Retarget website visitors with display ads", category: "marketing" },
-      { action: "Analyze competitor ad spend", category: "analytics" },
+      { action: "Check Meta ad account", category: "marketing" },
+      { action: "Post campaign update to Slack", category: "communication" },
     ],
   },
   customers: {
     intent: "customer_success",
-    summary: "Handling customer communications and support autonomously.",
+    summary: "Preview: customer support — connect Gmail or HubSpot.",
     tasks: [
-      { action: "Reply to 23 customer emails", category: "support" },
-      { action: "Resolve 5 open support tickets", category: "support" },
-      { action: "Send onboarding sequence to 12 new signups", category: "sales" },
-      { action: "Request reviews from satisfied customers", category: "marketing" },
-      { action: "Flag churn-risk accounts for outreach", category: "analytics" },
+      { action: "Send customer email via Gmail", category: "support" },
+      { action: "Pull CRM from HubSpot", category: "sales" },
     ],
   },
   hire: {
     intent: "hiring",
-    summary: "Initiating hiring pipeline for open positions.",
+    summary: "Preview: hiring — connect LinkedIn and Calendar.",
     tasks: [
-      { action: "Post job listing on LinkedIn & Indeed", category: "hr" },
-      { action: "Screen 34 incoming applications", category: "hr" },
-      { action: "Schedule interviews with top 5 candidates", category: "hr" },
-      { action: "Draft offer letter template", category: "hr" },
-      { action: "Update org chart and headcount forecast", category: "operations" },
+      { action: "Verify LinkedIn for hiring", category: "hr" },
+      { action: "Schedule interviews on Calendar", category: "operations" },
     ],
   },
   report: {
     intent: "reporting",
-    summary: "Generating comprehensive business intelligence report.",
+    summary: "Preview: reporting — connect Stripe and Notion.",
     tasks: [
-      { action: "Pull revenue data from Stripe", category: "finance" },
-      { action: "Compile marketing ROI by channel", category: "analytics" },
-      { action: "Summarize team productivity metrics", category: "hr" },
-      { action: "Generate PDF executive dashboard", category: "reporting" },
-      { action: "Email report to stakeholders", category: "communication" },
+      { action: "Pull revenue from Stripe", category: "finance" },
+      { action: "Create report in Notion", category: "reporting" },
     ],
   },
   cashflow: {
     intent: "cash_flow",
-    summary: "Analyzing cash position and forecasting runway.",
+    summary: "Preview: cash flow — connect Stripe or QuickBooks.",
     tasks: [
-      { action: "Pull bank balances and Stripe payouts", category: "finance" },
-      { action: "Calculate 30/60/90 day cash forecast", category: "finance" },
-      { action: "Flag overdue invoices ($12,400 outstanding)", category: "finance" },
-      { action: "Recommend expense cuts ($3,200/mo savings)", category: "finance" },
-      { action: "Email CFO summary with projections", category: "communication" },
+      { action: "Pull Stripe balance", category: "finance" },
+      { action: "Sync QuickBooks data", category: "finance" },
     ],
   },
   vendor: {
     intent: "vendor_management",
-    summary: "Reviewing vendor performance and contracts.",
+    summary: "Preview: vendor ops — connect Notion and Slack.",
     tasks: [
-      { action: "Audit top 10 vendor contracts", category: "finance" },
-      { action: "Flag underperforming vendor for termination", category: "operations" },
-      { action: "Draft termination notice", category: "operations" },
-      { action: "Source 3 replacement vendor quotes", category: "operations" },
-      { action: "Negotiate better rates with top supplier", category: "finance" },
+      { action: "Log vendor audit in Notion", category: "operations" },
+      { action: "Post update to Slack", category: "communication" },
     ],
   },
   meetings: {
     intent: "scheduling",
-    summary: "Booking and optimizing your calendar.",
+    summary: "Preview: scheduling — connect Google Calendar.",
     tasks: [
-      { action: "Review calendar for conflicts this week", category: "operations" },
-      { action: "Book sales call with top 3 leads", category: "sales" },
-      { action: "Schedule team standup Mon/Wed/Fri", category: "operations" },
-      { action: "Send meeting prep briefs to attendees", category: "communication" },
-      { action: "Block focus time for deep work", category: "operations" },
+      { action: "Book meeting on Calendar", category: "operations" },
+      { action: "Send invite via Gmail", category: "communication" },
     ],
   },
   slack: {
     intent: "communication",
-    summary: "Handling Slack messages and team communication.",
+    summary: "Preview: Slack — connect your webhook to post live.",
     tasks: [
-      { action: "Reply to 8 pending Slack DMs", category: "communication" },
-      { action: "Post weekly wins in #general", category: "communication" },
-      { action: "Summarize #support channel for CEO", category: "communication" },
-      { action: "Set up alert for revenue milestones", category: "operations" },
+      { action: "Post update to Slack", category: "communication" },
     ],
   },
   default: {
     intent: "general_ops",
-    summary: "Analyzing your request and deploying autonomous actions across your business.",
+    summary: "Preview: sign up free, connect tools, then commands run on real APIs.",
     tasks: [
-      { action: "Parse command intent and priority", category: "operations" },
-      { action: "Check relevant business data", category: "analytics" },
-      { action: "Queue autonomous action plan", category: "operations" },
-      { action: "Execute highest-impact tasks first", category: "operations" },
-      { action: "Monitor results and self-improve", category: "analytics" },
+      { action: "Check live business data", category: "analytics" },
+      { action: "Run via n8n automation", category: "operations" },
     ],
   },
 };
@@ -147,45 +111,39 @@ export function demoExecuteCommand(command: string, context?: BusinessContext): 
   const key = detectIntent(command);
   const template = INTENT_MAP[key];
   const now = Date.now();
-  const company = context?.company || "your business";
-  const industry = context?.industry || "";
-  const goal = context?.goal || "";
 
-  let summary = template.summary;
-  if (context?.company) {
-    summary = `For ${company}`;
-    if (industry) summary += ` (${industry})`;
-    summary += `: ${template.summary}`;
-    if (goal) summary += ` Focus: ${goal}.`;
-  }
+  const tasks: Task[] = template.tasks.map((t, i) => ({
+    ...t,
+    id: `task-${now}-${i}`,
+    status: "planned" as const,
+    detail: "Demo preview — sign up & connect integrations to execute",
+  }));
 
   return {
     command,
     intent: template.intent,
-    summary,
-    tasks: template.tasks.map((t, i) => {
-      let action = t.action;
-      if (context?.company && i === 0 && industry) {
-        action = `${t.action} for ${company}'s ${industry} business`;
-      }
-      return {
-        ...t,
-        id: `task-${now}-${i}`,
-        status: "pending" as const,
-        action,
-      };
-    }),
+    summary: template.summary,
+    tasks,
+    executed_count: 0,
+    planned_count: tasks.length,
+    failed_count: 0,
+    mode: "demo",
   };
 }
 
-export const DEMO_METRICS: BusinessMetrics = {
-  revenue: 124500,
-  revenueChange: 12.4,
-  customers: 847,
-  customersChange: 8.2,
-  conversionRate: 3.8,
-  conversionChange: 0.6,
-  activeCampaigns: 6,
-  pendingTasks: 14,
-  aiActionsToday: 127,
+export const EMPTY_METRICS: BusinessMetrics = {
+  revenue: 0,
+  revenueChange: 0,
+  customers: 0,
+  customersChange: 0,
+  conversionRate: 0,
+  conversionChange: 0,
+  activeCampaigns: 0,
+  pendingTasks: 0,
+  aiActionsToday: 0,
+  stripeConnected: false,
+  dataSource: "none",
 };
+
+/** @deprecated use EMPTY_METRICS */
+export const DEMO_METRICS = EMPTY_METRICS;

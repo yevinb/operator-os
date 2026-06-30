@@ -65,7 +65,7 @@ export async function executeCommand(command: string): Promise<CommandResponse> 
 
 export async function getMetrics(): Promise<BusinessMetrics> {
   if (!(await hasApiConfigured()) || !getToken()) {
-    return (await import("./demo")).DEMO_METRICS;
+    return (await import("./demo")).EMPTY_METRICS;
   }
 
   try {
@@ -83,9 +83,11 @@ export async function getMetrics(): Promise<BusinessMetrics> {
       activeCampaigns: data.active_campaigns,
       pendingTasks: data.pending_tasks,
       aiActionsToday: data.ai_actions_today,
+      stripeConnected: data.stripe_connected,
+      dataSource: data.data_source,
     };
   } catch {
-    return (await import("./demo")).DEMO_METRICS;
+    return (await import("./demo")).EMPTY_METRICS;
   }
 }
 

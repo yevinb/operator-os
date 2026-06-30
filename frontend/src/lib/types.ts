@@ -1,6 +1,6 @@
 export type Plan = "starter" | "business" | "enterprise";
 
-export type TaskStatus = "pending" | "running" | "completed" | "failed";
+export type TaskStatus = "pending" | "running" | "completed" | "failed" | "planned";
 
 export interface Task {
   id: string;
@@ -8,6 +8,7 @@ export interface Task {
   category: string;
   status: TaskStatus;
   detail?: string;
+  integration?: string;
   completedAt?: string;
 }
 
@@ -16,6 +17,10 @@ export interface CommandResponse {
   intent: string;
   summary: string;
   tasks: Task[];
+  executed_count?: number;
+  planned_count?: number;
+  failed_count?: number;
+  mode?: "live" | "demo";
   metrics?: Record<string, string | number>;
 }
 
@@ -29,6 +34,8 @@ export interface BusinessMetrics {
   activeCampaigns: number;
   pendingTasks: number;
   aiActionsToday: number;
+  stripeConnected?: boolean;
+  dataSource?: "stripe" | "commands" | "none";
 }
 
 export interface ActivityItem {

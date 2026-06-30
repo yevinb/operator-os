@@ -12,7 +12,6 @@ export function LiveCommandDemo() {
   const [cmd, setCmd] = useState("");
   const [response, setResponse] = useState<CommandResponse | null>(null);
   const [busy, setBusy] = useState(false);
-  const [actionsRun, setActionsRun] = useState(0);
   const runningRef = useRef(false);
 
   const run = useCallback(async (command: string) => {
@@ -26,7 +25,6 @@ export function LiveCommandDemo() {
     try {
       const result = await runCommand(trimmed, { forceDemo: true });
       setResponse(result);
-      setActionsRun(result.tasks.length);
     } finally {
       setBusy(false);
       runningRef.current = false;
@@ -37,12 +35,12 @@ export function LiveCommandDemo() {
     <div className="w-full max-w-4xl mx-auto">
       <div className="text-center mb-8">
         <p className="text-gold text-sm font-bold uppercase tracking-[0.3em] mb-3">
-          ▶ Live demo — try it now
+          ▶ Simulated preview — sign up for real execution
         </p>
         <h2 className="text-4xl md:text-5xl font-black mb-2 text-white">
           Command your company
         </h2>
-        <p className="text-text-2 text-lg">Type a command. Watch your AI COO execute it instantly.</p>
+        <p className="text-text-2 text-lg">See the action plan. Create a free account + connect integrations to run on live APIs.</p>
       </div>
 
       <div className="card-premium rounded-3xl p-6 md:p-8 glow-gold">
@@ -83,18 +81,18 @@ export function LiveCommandDemo() {
         {response && (
           <div className="animate-slide-up border-t border-white/10 pt-6">
             <div className="flex items-center gap-2 mb-4">
-              <CheckCircle2 className="text-success" size={24} />
-              <span className="text-success font-bold text-lg">COMMAND EXECUTED</span>
+              <CheckCircle2 className="text-warning" size={24} />
+              <span className="text-warning font-bold text-lg">PREVIEW — NOT LIVE</span>
             </div>
             <p className="text-white text-xl font-semibold mb-1">&ldquo;{response.command}&rdquo;</p>
             <p className="text-text-2 mb-6">{response.summary}</p>
-            <TaskList tasks={response.tasks} animate />
-            <div className="mt-6 p-4 rounded-2xl bg-success/10 border border-success/30 flex items-center justify-between">
+            <TaskList tasks={response.tasks} animate isDemo />
+            <div className="mt-6 p-4 rounded-2xl bg-warning/10 border border-warning/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap className="text-success" size={20} />
-                <span className="text-success font-medium">Autonomous actions deployed</span>
+                <Zap className="text-warning" size={20} />
+                <span className="text-warning font-medium">0 live actions — connect tools after signup</span>
               </div>
-              <span className="text-2xl font-black text-white">{actionsRun}</span>
+              <span className="text-2xl font-black text-white">{response.planned_count ?? response.tasks.length} planned</span>
             </div>
           </div>
         )}

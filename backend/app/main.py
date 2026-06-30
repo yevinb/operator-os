@@ -1,5 +1,6 @@
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -113,20 +114,51 @@ async def execute_command(
 async def get_metrics(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     context = await build_business_context(user, db)
     live = context.live_metrics
+    connected = context.connected_integrations
 
-    revenue = float(live.get("stripe_balance_usd", 124500)) if live else 124500
-    customers = int(live.get("stripe_customers", 847)) if live and str(live.get("stripe_customers", "")).isdigit() else 847
+    stripe_connected = "stripe" in connected and bool(live)
+    revenue = float(live.get("stripe_balance_usd", 0)) if stripe_connected else 0.0
+    customers_raw = live.get("stripe_customers", 0) if stripe_connected else 0
+    customers = int(customers_raw) if str(customers_raw).isdigit() else 0
+
+    marketing = [i for i in ("google-ads", "meta") if i in connected]
+
+    # Count real executed tasks from today's command logs
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    logs_result = await db.execute(
+        select(CommandLog).where(
+            CommandLog.user_id == user.id,
+            CommandLog.created_at >= today_start,
+        )
+    )
+    logs = logs_result.scalars().all()
+    ai_actions_today = 0
+    pending_tasks = 0
+    for log in logs:
+        try:
+            tasks = json.loads(log.tasks_json or "[]")
+            for t in tasks:
+                if t.get("status") == "completed":
+                    ai_actions_today += 1
+                elif t.get("status") == "planned":
+                    pending_tasks += 1
+        except json.JSONDecodeError:
+            pass
+
+    data_source = "stripe" if stripe_connected else ("commands" if ai_actions_today else "none")
 
     return BusinessMetrics(
         revenue=revenue,
-        revenue_change=12.4,
+        revenue_change=0.0,
         customers=customers,
-        customers_change=8.2,
-        conversion_rate=3.8,
-        conversion_change=0.6,
-        active_campaigns=6,
-        pending_tasks=14,
-        ai_actions_today=127,
+        customers_change=0.0,
+        conversion_rate=0.0,
+        conversion_change=0.0,
+        active_campaigns=len(marketing),
+        pending_tasks=pending_tasks,
+        ai_actions_today=ai_actions_today,
+        stripe_connected=stripe_connected,
+        data_source=data_source,
     )
 
 

@@ -1,51 +1,35 @@
-/** Tracks the customer's business as the AI COO runs operations. */
+/** Real company metrics from the API — no fake inflation. */
+
+import type { BusinessMetrics } from "./types";
+import { EMPTY_METRICS } from "./demo";
 
 export interface CompanyMetrics {
   mrr: number;
   customers: number;
   arr: number;
   aiActionsTotal: number;
+  stripeConnected: boolean;
+  dataSource: string;
 }
 
-const METRICS_KEY = "operatoros_company_metrics";
-
-const DEFAULT: CompanyMetrics = {
-  mrr: 12_400,
-  customers: 24,
-  arr: 148_800,
-  aiActionsTotal: 127,
-};
-
-export function getCompanyMetrics(): CompanyMetrics {
-  if (typeof window === "undefined") return DEFAULT;
-  try {
-    const raw = localStorage.getItem(METRICS_KEY);
-    if (!raw) return DEFAULT;
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT, ...parsed };
-  } catch {
-    return DEFAULT;
-  }
-}
-
-export function recordActivity(tasksCompleted: number): CompanyMetrics {
-  const current = getCompanyMetrics();
-  const customerGain = Math.random() > 0.7 ? 1 : 0;
-  const mrrGain = customerGain * (99 + Math.floor(Math.random() * 400));
-
-  const customers = current.customers + customerGain;
-  const mrr = current.mrr + mrrGain + tasksCompleted * 12;
-  const arr = mrr * 12;
-
-  const updated: CompanyMetrics = {
-    mrr,
-    customers,
-    arr,
-    aiActionsTotal: current.aiActionsTotal + tasksCompleted,
+export function metricsToPulse(m: BusinessMetrics): CompanyMetrics {
+  return {
+    mrr: m.revenue,
+    customers: m.customers,
+    arr: m.revenue * 12,
+    aiActionsTotal: m.aiActionsToday,
+    stripeConnected: m.stripeConnected ?? false,
+    dataSource: m.dataSource ?? "none",
   };
+}
 
-  localStorage.setItem(METRICS_KEY, JSON.stringify(updated));
-  return updated;
+export function getEmptyPulse(): CompanyMetrics {
+  const p = metricsToPulse(EMPTY_METRICS);
+  return p;
+}
+
+export function recordActivity(completedTasks: number): number {
+  return completedTasks;
 }
 
 export function formatMoney(n: number): string {

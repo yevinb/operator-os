@@ -6,15 +6,15 @@ const PLANS = [
   {
     name: "Starter",
     price: 99,
-    desc: "For solo founders and small teams getting started.",
+    desc: "For solo founders getting started.",
     features: [
-      "Voice & text commands",
-      "Marketing automation",
-      "Customer reply bot",
-      "Basic analytics",
-      "50 AI actions/day",
+      "Text commands",
+      "12 integrations",
+      "Stripe, Slack, n8n",
+      "Real API execution",
+      "Honest task status",
     ],
-    cta: "Start Starter",
+    cta: "Sign up free",
     highlighted: false,
   },
   {
@@ -23,26 +23,24 @@ const PLANS = [
     desc: "For growing companies that need a real COO.",
     features: [
       "Everything in Starter",
-      "Full company operations",
-      "Hiring & HR automation",
-      "Slack & email integration",
-      "Unlimited AI actions",
+      "Gmail, Calendar, HubSpot",
+      "Meta & Google Ads",
+      "Unlimited commands",
       "Priority support",
     ],
-    cta: "Start Business",
+    cta: "Sign up free",
     highlighted: true,
   },
   {
     name: "Enterprise",
     price: 5000,
-    desc: "For organizations running at scale.",
+    desc: "For organizations at scale.",
     features: [
       "Everything in Business",
-      "Custom AI training",
-      "Dedicated success manager",
+      "Custom integrations",
+      "Dedicated onboarding",
       "SSO & compliance",
       "API & MCP access",
-      "SLA guarantee",
     ],
     cta: "Contact sales",
     highlighted: false,
@@ -54,9 +52,9 @@ export function PricingSection() {
     <section id="pricing" className="py-20 px-6 border-t border-border">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Simple pricing. Massive ROI.</h2>
+          <h2 className="text-3xl font-bold mb-4">Pricing</h2>
           <p className="text-text-2">
-            Businesses pay monthly because it saves them time and money.
+            Product is free while in beta. Paid plans launch when billing is enabled.
           </p>
         </div>
 
@@ -78,7 +76,8 @@ export function PricingSection() {
                 <span className="text-4xl font-bold">${plan.price.toLocaleString()}</span>
                 <span className="text-text-3">/month</span>
               </div>
-              <p className="text-sm text-text-2 mb-6">{plan.desc}</p>
+              <p className="text-sm text-text-2 mb-2">{plan.desc}</p>
+              <p className="text-xs text-warning mb-6">Free during beta</p>
 
               <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((f) => (
@@ -89,7 +88,7 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              <Link href="/signup">
+              <Link href={plan.cta === "Contact sales" ? "mailto:sales@operatoros.com" : "/signup"}>
                 <Button
                   variant={plan.highlighted ? "primary" : "secondary"}
                   className="w-full"
@@ -102,7 +101,7 @@ export function PricingSection() {
         </div>
 
         <p className="text-center text-sm text-text-3 mt-8">
-          Cancel anytime. All plans include a 14-day trial when billing is enabled.
+          All features available free during beta. No credit card required.
         </p>
       </div>
     </section>
