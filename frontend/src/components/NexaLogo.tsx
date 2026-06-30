@@ -3,9 +3,12 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const VARIANTS = {
-  full: "h-auto w-52 sm:w-64",
-  compact: "h-9 w-auto",
-  sidebar: "h-10 w-auto",
+  /** Hero — full lockup with tagline */
+  full: "h-auto w-56 sm:w-64 md:w-72",
+  /** Top nav */
+  compact: "h-11 sm:h-12 w-auto",
+  /** Dashboard sidebar */
+  sidebar: "h-12 w-auto",
 } as const;
 
 type NexaLogoProps = {
@@ -25,8 +28,8 @@ export function NexaLogo({
     <Image
       src="/nexa-logo.png"
       alt="Nexa — Your AI Operating System"
-      width={512}
-      height={512}
+      width={1024}
+      height={1024}
       priority={priority}
       className={cn(VARIANTS[variant], className)}
     />
@@ -34,7 +37,7 @@ export function NexaLogo({
 
   if (href !== false) {
     return (
-      <Link href={href} className="inline-flex shrink-0">
+      <Link href={href} className="inline-flex shrink-0 items-center">
         {image}
       </Link>
     );
