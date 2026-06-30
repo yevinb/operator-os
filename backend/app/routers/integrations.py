@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,26 +9,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.db_models import IntegrationConnection, User
 from app.deps import get_current_user
-from app.services.integration_verify import verify_n8n_webhook, verify_slack_webhook, verify_stripe_key
+from app.services.integration_verify import verify_integration
+from app.services.integrations.providers import parse_config
 
 router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
 
-# tier: live = real API/webhook today | linked = saved, OAuth soon | key = needs URL/key
 CATALOG = [
-    {"id": "stripe", "name": "Stripe", "category": "finance", "description": "Live revenue, balance & customers", "needs_key": True, "tier": "live", "key_hint": "sk_test_... or sk_live_..."},
-    {"id": "slack", "name": "Slack", "category": "communication", "description": "Post COO updates to a channel", "needs_key": True, "tier": "live", "key_hint": "https://hooks.slack.com/services/..."},
-    {"id": "n8n", "name": "n8n", "category": "automation", "description": "Trigger workflows on every command", "needs_key": True, "tier": "live", "key_hint": "https://your-n8n.app/webhook/..."},
-    {"id": "google-ads", "name": "Google Ads", "category": "marketing", "description": "Campaign automation (OAuth coming)", "needs_key": False, "tier": "linked", "key_hint": ""},
-    {"id": "meta", "name": "Meta Ads", "category": "marketing", "description": "Facebook & Instagram ads (OAuth coming)", "needs_key": False, "tier": "linked", "key_hint": ""},
-    {"id": "gmail", "name": "Gmail", "category": "support", "description": "Customer email automation (OAuth coming)", "needs_key": False, "tier": "linked", "key_hint": ""},
-    {"id": "hubspot", "name": "HubSpot", "category": "sales", "description": "CRM & pipeline (OAuth coming)", "needs_key": False, "tier": "linked", "key_hint": ""},
-    {"id": "linkedin", "name": "LinkedIn", "category": "hr", "description": "Hiring & outreach (OAuth coming)", "needs_key": False, "tier": "linked", "key_hint": ""},
-    {"id": "mcp", "name": "MCP Servers", "category": "automation", "description": "AI tool servers (coming)", "needs_key": False, "tier": "linked", "key_hint": ""},
+    {"id": "stripe", "name": "Stripe", "category": "finance", "description": "Live revenue, balance & customers", "needs_key": True, "auth_type": "api_key", "key_hint": "sk_test_... or sk_live_...", "config_fields": []},
+    {"id": "slack", "name": "Slack", "category": "communication", "description": "Post COO updates to Slack", "needs_key": True, "auth_type": "webhook", "key_hint": "https://hooks.slack.com/services/...", "config_fields": []},
+    {"id": "n8n", "name": "n8n", "category": "automation", "description": "Trigger workflows on commands", "needs_key": True, "auth_type": "webhook", "key_hint": "https://your-n8n.app/webhook/...", "config_fields": []},
+    {"id": "gmail", "name": "Gmail", "category": "support", "description": "Send customer emails via Gmail API", "needs_key": False, "auth_type": "google_oauth", "key_hint": "", "config_fields": ["default_to"]},
+    {"id": "calendar", "name": "Google Calendar", "category": "operations", "description": "Book meetings on your calendar", "needs_key": False, "auth_type": "google_oauth", "key_hint": "", "config_fields": []},
+    {"id": "google-ads", "name": "Google Ads", "category": "marketing", "description": "Manage ad campaigns", "needs_key": True, "auth_type": "google_ads", "key_hint": "Developer token", "config_fields": ["customer_id"]},
+    {"id": "meta", "name": "Meta Ads", "category": "marketing", "description": "Facebook & Instagram ads", "needs_key": True, "auth_type": "api_key", "key_hint": "Long-lived access token", "config_fields": ["ad_account_id"]},
+    {"id": "hubspot", "name": "HubSpot", "category": "sales", "description": "CRM contacts & pipeline", "needs_key": True, "auth_type": "api_key", "key_hint": "Private app token (pat-...)", "config_fields": []},
+    {"id": "notion", "name": "Notion", "category": "operations", "description": "Create pages & docs", "needs_key": True, "auth_type": "api_key", "key_hint": "Integration token (secret_...)", "config_fields": ["database_id"]},
+    {"id": "quickbooks", "name": "QuickBooks", "category": "finance", "description": "Accounting & expenses", "needs_key": True, "auth_type": "api_key", "key_hint": "OAuth access token", "config_fields": ["realm_id"]},
+    {"id": "linkedin", "name": "LinkedIn", "category": "hr", "description": "Hiring & B2B outreach", "needs_key": True, "auth_type": "api_key", "key_hint": "LinkedIn access token", "config_fields": []},
+    {"id": "mcp", "name": "MCP Servers", "category": "automation", "description": "Model Context Protocol tools", "needs_key": True, "auth_type": "webhook", "key_hint": "MCP server URL", "config_fields": []},
 ]
 
 
 class ConnectRequest(BaseModel):
     api_key: str = ""
+    config: dict = {}
 
 
 class IntegrationOut(BaseModel):
@@ -37,18 +42,9 @@ class IntegrationOut(BaseModel):
     description: str
     connected: bool
     needs_key: bool
-    tier: str
+    auth_type: str
     key_hint: str
-
-
-async def _verify(integration_id: str, api_key: str) -> tuple[bool, str]:
-    if integration_id == "stripe":
-        return await verify_stripe_key(api_key)
-    if integration_id == "slack":
-        return await verify_slack_webhook(api_key)
-    if integration_id == "n8n":
-        return await verify_n8n_webhook(api_key)
-    return True, "Connected"
+    config_fields: list[str]
 
 
 @router.get("", response_model=list[IntegrationOut])
@@ -66,8 +62,9 @@ async def list_integrations(user: User = Depends(get_current_user), db: AsyncSes
             description=item["description"],
             connected=bool(connections.get(item["id"]) and connections[item["id"]].connected),
             needs_key=item["needs_key"],
-            tier=item["tier"],
+            auth_type=item["auth_type"],
             key_hint=item["key_hint"],
+            config_fields=item["config_fields"],
         )
         for item in CATALOG
     ]
@@ -84,36 +81,52 @@ async def connect_integration(
     if not catalog_item:
         raise HTTPException(status_code=404, detail="Integration not found")
 
+    if catalog_item["auth_type"] == "google_oauth":
+        conn = await _get_conn(db, user.id, integration_id)
+        if conn and conn.connected and body.config:
+            merged = parse_config(conn.config_json)
+            merged.update({k: v for k, v in (body.config or {}).items() if str(v).strip()})
+            conn.config_json = json.dumps(merged)
+            await db.commit()
+            return {"status": "connected", "id": integration_id, "message": "Settings saved"}
+        raise HTTPException(status_code=400, detail="Use Connect with Google button for this integration")
+
     key = body.api_key.strip()
-    if catalog_item["needs_key"] and not key:
+    config = body.config or {}
+
+    if catalog_item["auth_type"] == "google_ads":
+        gmail = await _get_conn(db, user.id, "gmail")
+        if gmail and gmail.config_json:
+            config["google_oauth"] = parse_config(gmail.config_json)
+        if not config.get("developer_token") and key:
+            config["developer_token"] = key
+        if not config.get("developer_token"):
+            raise HTTPException(status_code=400, detail="Google Ads developer token required. Connect Gmail with Google first.")
+
+    if catalog_item["needs_key"] and catalog_item["auth_type"] != "google_ads" and not key:
         raise HTTPException(status_code=400, detail=f"Required: {catalog_item['key_hint']}")
 
-    verify_msg = "Connected"
-    if catalog_item["tier"] == "live" and key:
-        ok, message = await _verify(integration_id, key)
-        if not ok:
-            raise HTTPException(status_code=400, detail=message)
-        verify_msg = message
-    elif catalog_item["tier"] == "linked":
-        verify_msg = "Linked — full OAuth activation coming soon"
+    for field in catalog_item["config_fields"]:
+        if field not in config or not str(config.get(field, "")).strip():
+            raise HTTPException(status_code=400, detail=f"Required field: {field}")
 
-    result = await db.execute(
-        select(IntegrationConnection).where(
-            IntegrationConnection.user_id == user.id,
-            IntegrationConnection.integration_id == integration_id,
-        )
-    )
-    conn = result.scalar_one_or_none()
+    config_json = json.dumps(config)
+    ok, message = await verify_integration(integration_id, key, config_json)
+    if not ok:
+        raise HTTPException(status_code=400, detail=message)
+
+    conn = await _get_conn(db, user.id, integration_id)
     if not conn:
         conn = IntegrationConnection(user_id=user.id, integration_id=integration_id)
         db.add(conn)
 
     conn.connected = True
     conn.api_key = key
+    conn.config_json = config_json
     conn.connected_at = datetime.now(timezone.utc)
     await db.commit()
 
-    return {"status": "connected", "id": integration_id, "message": verify_msg}
+    return {"status": "connected", "id": integration_id, "message": message}
 
 
 @router.post("/{integration_id}/disconnect")
@@ -122,15 +135,20 @@ async def disconnect_integration(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(IntegrationConnection).where(
-            IntegrationConnection.user_id == user.id,
-            IntegrationConnection.integration_id == integration_id,
-        )
-    )
-    conn = result.scalar_one_or_none()
+    conn = await _get_conn(db, user.id, integration_id)
     if conn:
         conn.connected = False
         conn.api_key = ""
+        conn.config_json = "{}"
         await db.commit()
     return {"status": "disconnected", "id": integration_id}
+
+
+async def _get_conn(db: AsyncSession, user_id: str, integration_id: str) -> IntegrationConnection | None:
+    result = await db.execute(
+        select(IntegrationConnection).where(
+            IntegrationConnection.user_id == user_id,
+            IntegrationConnection.integration_id == integration_id,
+        )
+    )
+    return result.scalar_one_or_none()

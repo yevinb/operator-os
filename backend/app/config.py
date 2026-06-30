@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     # Optional automation webhooks
     n8n_webhook_url: str = ""
 
+    # Google OAuth (Gmail, Calendar, Google Ads)
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/google/callback"
+    frontend_url: str = "https://yevinb.github.io/operator-os"
+
     class Config:
         env_file = ".env"
 

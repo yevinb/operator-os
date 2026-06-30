@@ -14,7 +14,7 @@ from app.models import (
     CommandResponse,
     HealthResponse,
 )
-from app.routers import auth, integrations, profile
+from app.routers import auth, integrations, oauth_google, profile
 from app.services.business_context import build_business_context
 from app.services.executor import execute_tasks
 from app.services.orchestrator import orchestrate_command
@@ -22,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.db_models import CommandLog
+from app.services.integrations.providers import parse_config
 
 
 @asynccontextmanager
@@ -48,6 +49,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(integrations.router)
+app.include_router(oauth_google.router)
 
 
 def _active_ai_provider() -> str:
@@ -83,13 +85,16 @@ async def execute_command(
         context=context,
     )
 
-    integration_keys = {
-        i.integration_id: (i.api_key or "")
+    integration_data = {
+        i.integration_id: {
+            "api_key": i.api_key or "",
+            "config": parse_config(i.config_json),
+        }
         for i in user.integrations
         if i.connected
     }
 
-    executed = await execute_tasks(response, context, integration_keys)
+    executed = await execute_tasks(response, context, integration_data)
 
     log = CommandLog(
         user_id=user.id,
