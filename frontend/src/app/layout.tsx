@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ApiBootstrap } from "@/components/ApiBootstrap";
+import { PwaRegister } from "@/components/PwaRegister";
 import { assetPath } from "@/lib/asset-path";
 import "./globals.css";
 
@@ -15,6 +16,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 const LOGO = assetPath("/nexa-logo.png");
+const MANIFEST = assetPath("/manifest.webmanifest");
+const ICON_192 = assetPath("/icons/icon-192x192.png");
+const APPLE_ICON = assetPath("/icons/apple-touch-icon.png");
 
 export const metadata: Metadata = {
   title: "Nexa — Your AI Operating System",
@@ -25,6 +29,12 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  manifest: MANIFEST,
+  appleWebApp: {
+    capable: true,
+    title: "Nexa",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "Nexa — Your AI Operating System",
     description:
@@ -34,9 +44,16 @@ export const metadata: Metadata = {
     images: [{ url: LOGO, width: 1024, height: 1024, alt: "Nexa" }],
   },
   icons: {
-    icon: LOGO,
-    apple: LOGO,
+    icon: [{ url: ICON_192, sizes: "192x192", type: "image/png" }],
+    apple: APPLE_ICON,
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -47,6 +64,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen antialiased">
+        <PwaRegister />
         <ApiBootstrap>{children}</ApiBootstrap>
       </body>
     </html>
