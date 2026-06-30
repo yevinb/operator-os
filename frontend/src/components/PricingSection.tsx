@@ -89,7 +89,7 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              <Link href="/dashboard">
+              <Link href="/signup">
                 <Button
                   variant={plan.highlighted ? "primary" : "secondary"}
                   className="w-full"

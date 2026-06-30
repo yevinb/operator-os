@@ -72,6 +72,49 @@ const INTENT_MAP: Record<string, { intent: string; summary: string; tasks: Omit<
       { action: "Email report to stakeholders", category: "communication" },
     ],
   },
+  cashflow: {
+    intent: "cash_flow",
+    summary: "Analyzing cash position and forecasting runway.",
+    tasks: [
+      { action: "Pull bank balances and Stripe payouts", category: "finance" },
+      { action: "Calculate 30/60/90 day cash forecast", category: "finance" },
+      { action: "Flag overdue invoices ($12,400 outstanding)", category: "finance" },
+      { action: "Recommend expense cuts ($3,200/mo savings)", category: "finance" },
+      { action: "Email CFO summary with projections", category: "communication" },
+    ],
+  },
+  vendor: {
+    intent: "vendor_management",
+    summary: "Reviewing vendor performance and contracts.",
+    tasks: [
+      { action: "Audit top 10 vendor contracts", category: "finance" },
+      { action: "Flag underperforming vendor for termination", category: "operations" },
+      { action: "Draft termination notice", category: "operations" },
+      { action: "Source 3 replacement vendor quotes", category: "operations" },
+      { action: "Negotiate better rates with top supplier", category: "finance" },
+    ],
+  },
+  meetings: {
+    intent: "scheduling",
+    summary: "Booking and optimizing your calendar.",
+    tasks: [
+      { action: "Review calendar for conflicts this week", category: "operations" },
+      { action: "Book sales call with top 3 leads", category: "sales" },
+      { action: "Schedule team standup Mon/Wed/Fri", category: "operations" },
+      { action: "Send meeting prep briefs to attendees", category: "communication" },
+      { action: "Block focus time for deep work", category: "operations" },
+    ],
+  },
+  slack: {
+    intent: "communication",
+    summary: "Handling Slack messages and team communication.",
+    tasks: [
+      { action: "Reply to 8 pending Slack DMs", category: "communication" },
+      { action: "Post weekly wins in #general", category: "communication" },
+      { action: "Summarize #support channel for CEO", category: "communication" },
+      { action: "Set up alert for revenue milestones", category: "operations" },
+    ],
+  },
   default: {
     intent: "general_ops",
     summary: "Analyzing your request and deploying autonomous actions across your business.",
@@ -91,8 +134,12 @@ function detectIntent(command: string): keyof typeof INTENT_MAP {
   if (/company|run my|operate|manage/.test(lower)) return "company";
   if (/market|ads|campaign|newsletter|social/.test(lower)) return "marketing";
   if (/customer|support|reply|email|client/.test(lower)) return "customers";
-  if (/hire|recruit|team|employee/.test(lower)) return "hire";
-  if (/report|dashboard|summary|analytics/.test(lower)) return "report";
+  if (/hire|recruit|employee|developer|salesperson/.test(lower)) return "hire";
+  if (/report|dashboard|summary/.test(lower)) return "report";
+  if (/cash|flow|runway|forecast/.test(lower)) return "cashflow";
+  if (/vendor|fire|terminate|contract/.test(lower)) return "vendor";
+  if (/meeting|schedule|calendar|book/.test(lower)) return "meetings";
+  if (/slack|message|team/.test(lower)) return "slack";
   return "default";
 }
 

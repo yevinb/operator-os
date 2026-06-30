@@ -22,10 +22,10 @@ export default function Home() {
             <a href="#pricing" className="hover:text-text transition-colors">Pricing</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/dashboard">
+            <Link href="/login">
               <Button variant="ghost" size="sm">Sign in</Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/signup">
               <Button size="sm">
                 Start free trial
                 <ArrowRight size={14} />
@@ -57,9 +57,9 @@ export default function Home() {
             Tap the orb below and say &ldquo;Increase sales.&rdquo;
           </p>
 
-          <Link href="/dashboard">
+          <Link href="/signup">
             <Button size="lg" className="text-base">
-              Open Command Center
+              Start free trial
               <ArrowRight size={18} />
             </Button>
           </Link>
@@ -113,7 +113,7 @@ export default function Home() {
           <p className="text-text-2 mb-8">
             One voice. One command. Your entire business — operated by AI.
           </p>
-          <Link href="/dashboard">
+          <Link href="/signup">
             <Button size="lg">
               Launch OperatorOS
               <ArrowRight size={18} />

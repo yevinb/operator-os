@@ -1,0 +1,79 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Zap, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { login, getSession } from "@/lib/auth";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError("Enter your email");
+      return;
+    }
+    login(email, password);
+    const user = getSession();
+    router.push(user?.onboarded ? "/dashboard" : "/onboarding");
+  };
+
+  return (
+    <div className="min-h-screen grid-bg flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+            <Zap size={20} className="text-white" />
+          </div>
+          <span className="text-xl font-bold">OperatorOS</span>
+        </Link>
+
+        <div className="p-8 rounded-2xl bg-surface border border-border">
+          <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
+          <p className="text-text-2 text-sm mb-6">Your AI Chief Operating Officer</p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-sm text-text-2 block mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-text-2 block mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
+              />
+            </div>
+            {error && <p className="text-danger text-sm">{error}</p>}
+            <Button type="submit" className="w-full" size="lg">
+              Sign in
+              <ArrowRight size={16} />
+            </Button>
+          </form>
+
+          <p className="text-center text-sm text-text-3 mt-6">
+            No account?{" "}
+            <Link href="/signup" className="text-accent hover:underline">
+              Start free trial
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

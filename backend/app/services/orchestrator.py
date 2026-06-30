@@ -80,6 +80,45 @@ INTENT_TEMPLATES: dict[str, dict] = {
             ("Monitor results and self-improve", "analytics"),
         ],
     },
+    "cash_flow": {
+        "summary": "Analyzing cash position and forecasting runway.",
+        "tasks": [
+            ("Pull bank balances and Stripe payouts", "finance"),
+            ("Calculate 30/60/90 day cash forecast", "finance"),
+            ("Flag overdue invoices ($12,400 outstanding)", "finance"),
+            ("Recommend expense cuts ($3,200/mo savings)", "finance"),
+            ("Email CFO summary with projections", "communication"),
+        ],
+    },
+    "vendor_management": {
+        "summary": "Reviewing vendor performance and contracts.",
+        "tasks": [
+            ("Audit top 10 vendor contracts", "finance"),
+            ("Flag underperforming vendor for termination", "operations"),
+            ("Draft termination notice", "operations"),
+            ("Source 3 replacement vendor quotes", "operations"),
+            ("Negotiate better rates with top supplier", "finance"),
+        ],
+    },
+    "scheduling": {
+        "summary": "Booking and optimizing your calendar.",
+        "tasks": [
+            ("Review calendar for conflicts this week", "operations"),
+            ("Book sales call with top 3 leads", "sales"),
+            ("Schedule team standup Mon/Wed/Fri", "operations"),
+            ("Send meeting prep briefs to attendees", "communication"),
+            ("Block focus time for deep work", "operations"),
+        ],
+    },
+    "communication": {
+        "summary": "Handling Slack messages and team communication.",
+        "tasks": [
+            ("Reply to 8 pending Slack DMs", "communication"),
+            ("Post weekly wins in #general", "communication"),
+            ("Summarize #support channel for CEO", "communication"),
+            ("Set up alert for revenue milestones", "operations"),
+        ],
+    },
 }
 
 
@@ -93,10 +132,18 @@ def detect_intent(command: str) -> str:
         return "run_marketing"
     if re.search(r"customer|support|reply|email|client", lower):
         return "customer_success"
-    if re.search(r"hire|recruit|team|employee", lower):
+    if re.search(r"hire|recruit|employee|developer|salesperson", lower):
         return "hiring"
-    if re.search(r"report|dashboard|summary|analytics", lower):
+    if re.search(r"report|dashboard|summary", lower):
         return "reporting"
+    if re.search(r"cash|flow|runway|forecast", lower):
+        return "cash_flow"
+    if re.search(r"vendor|fire|terminate|contract", lower):
+        return "vendor_management"
+    if re.search(r"meeting|schedule|calendar|book", lower):
+        return "scheduling"
+    if re.search(r"slack|message|team", lower):
+        return "communication"
     return "general_ops"
 
 

@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     # AI providers (optional — falls back to rule-based engine)
     openai_api_key: str = ""
     anthropic_api_key: str = ""
-    ai_provider: str = "auto"  # auto | openai | anthropic | rules
+    gemini_api_key: str = ""
+    ai_provider: str = "auto"  # auto | openai | anthropic | gemini | rules
 
     # Database (optional for Phase 1)
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/operatoros"

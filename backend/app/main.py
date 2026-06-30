@@ -9,11 +9,12 @@ from app.models import (
     HealthResponse,
 )
 from app.services.orchestrator import orchestrate_command
+from app.routers import auth, integrations
 
 app = FastAPI(
     title=settings.app_name,
-    description="AI Chief Operating Officer API",
-    version="0.1.0",
+    description="AI Chief Operating Officer API — autonomous business execution",
+    version="1.0.0",
 )
 
 app.add_middleware(
@@ -24,6 +25,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
+app.include_router(integrations.router)
+
 
 def _active_ai_provider() -> str:
     if settings.ai_provider == "rules":
@@ -32,6 +36,8 @@ def _active_ai_provider() -> str:
         return "openai"
     if settings.anthropic_api_key:
         return "anthropic"
+    if settings.gemini_api_key:
+        return "gemini"
     return "rules"
 
 
@@ -63,3 +69,13 @@ async def get_metrics():
         pending_tasks=14,
         ai_actions_today=127,
     )
+
+
+@app.get("/")
+async def root():
+    return {
+        "app": "OperatorOS",
+        "tagline": "Your AI Chief Operating Officer",
+        "docs": "/docs",
+        "stack": ["FastAPI", "PostgreSQL", "Redis", "GPT", "Claude", "Gemini", "n8n", "MCP"],
+    }

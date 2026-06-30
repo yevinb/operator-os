@@ -1,103 +1,67 @@
 # OperatorOS
 
-**Your AI Chief Operating Officer.** Say what you need. The AI runs your business.
+**Your AI Chief Operating Officer.** Say what you need. It runs your business.
 
-Not a chatbot. An autonomous employee.
+## Phase 1 — Complete
 
-## What it does
-
-You type or speak:
-> "Increase sales."
-
-OperatorOS:
-- Creates ads
-- Launches campaigns
-- Replies to customers
-- Books meetings
-- Writes newsletters
-- Tracks conversions
-- Improves itself
-
-## Tech stack
-
-| Layer | Stack |
-|-------|-------|
-| Frontend | Next.js, React, Tailwind |
-| Backend | Python, FastAPI |
-| AI | GPT, Claude (optional), rule-based fallback |
-| Memory | PostgreSQL, Redis (docker-compose ready) |
-| Automation | n8n, MCP (Phase 2) |
-| Hosting | Vercel (frontend), Railway (backend) |
+| Feature | Status |
+|---------|--------|
+| Landing + pricing | ✅ |
+| Sign up / login | ✅ |
+| Onboarding wizard | ✅ |
+| Command Center | ✅ |
+| Text commands (primary) | ✅ |
+| Voice assistant | ✅ (fix later) |
+| Activity log | ✅ |
+| Integrations (12 tools) | ✅ |
+| Billing ($99/$499/$5K) | ✅ |
+| Settings | ✅ |
+| AI orchestration (10+ intents) | ✅ |
+| FastAPI backend | ✅ |
+| GPT + Claude + Gemini router | ✅ |
+| PostgreSQL + Redis (docker) | ✅ ready |
 
 ## Quick start
 
-### 1. Frontend
-
 ```bash
-cd frontend
-cp .env.local.example .env.local
-npm install
-npm run dev
-```
+# Frontend
+cd frontend && npm install && npm run dev
 
-Open [http://localhost:3000](http://localhost:3000)
+# Backend
+cd backend && python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000
 
-### 2. Backend
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
-```
-
-API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-### 3. Database (optional, Phase 2)
-
-```bash
+# Database (optional)
 docker compose up -d
 ```
 
-## AI configuration
+## Live demo
 
-Add API keys to `backend/.env` for smarter command parsing:
+https://yevinb.github.io/operator-os/
 
-```
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-AI_PROVIDER=auto
-```
+1. Click **Start free trial**
+2. Create account → onboarding
+3. Command Center → type **"Increase sales"** → Execute
+4. Watch 7 autonomous actions run
 
-Without keys, the rule-based engine handles all commands with realistic action plans.
+## Revenue model
 
-## Pricing tiers
-
-| Plan | Price | Target |
-|------|-------|--------|
-| Starter | $99/mo | Solo founders |
-| Business | $499/mo | Growing companies |
-| Enterprise | $5,000/mo | Scale |
+- Starter: $99/mo
+- Business: $499/mo  
+- Enterprise: $5,000/mo
+- Target: 10,000 × $500 = **$5M/month**
 
 ## Roadmap
 
-- **Phase 1** (Week 1): Core app — command center, orchestration, landing
-- **Phase 2**: 10,000 paying customers, real integrations (Stripe, Slack, n8n)
+- **Phase 2**: 10,000 paying customers, real Stripe/Slack/n8n
 - **Phase 3**: Global expansion, KIB/WEYAY payments
-- **Phase 4**: Exit
+- **Phase 4**: Exit 🚀
 
-## Project structure
+## Stack
 
-```
-operator-os/
-├── frontend/          # Next.js app
-│   ├── src/app/       # Pages (landing, dashboard)
-│   └── src/components/
-├── backend/           # FastAPI API
-│   └── app/
-│       ├── main.py
-│       └── services/orchestrator.py
-└── docker-compose.yml
-```
+Frontend: Next.js, React, Tailwind  
+Backend: Python, FastAPI  
+AI: GPT, Claude, Gemini  
+Memory: PostgreSQL, Redis, Vector DB  
+Automation: n8n, MCP, Browser  
+Hosting: Vercel, Railway, Cloudflare

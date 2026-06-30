@@ -34,8 +34,36 @@ export interface BusinessMetrics {
 
 export interface ActivityItem {
   id: string;
-  type: "command" | "action" | "alert" | "success";
+  type: "command" | "action" | "alert" | "success" | "integration";
   message: string;
   timestamp: string;
   category?: string;
+  command?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  company: string;
+  plan: Plan;
+  onboarded: boolean;
+  createdAt: string;
+}
+
+export interface Integration {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  connected: boolean;
+  icon: string;
+}
+
+export interface PlanDetails {
+  id: Plan;
+  name: string;
+  price: number;
+  desc: string;
+  features: string[];
 }
