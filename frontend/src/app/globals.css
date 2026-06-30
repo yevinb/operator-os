@@ -84,4 +84,80 @@
     from { opacity: 0; transform: translateX(-12px); }
     to { opacity: 1; transform: translateX(0); }
   }
+
+  .siri-orb-gradient {
+    background: radial-gradient(circle at 35% 35%, #a5b4fc, #6366f1 45%, #4338ca 70%, #312e81);
+    box-shadow:
+      0 0 40px rgba(99, 102, 241, 0.6),
+      0 0 80px rgba(99, 102, 241, 0.3),
+      inset 0 -8px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .siri-orb-idle {
+    animation: siri-breathe 3s ease-in-out infinite;
+  }
+
+  .siri-orb-listening {
+    box-shadow:
+      0 0 60px rgba(99, 102, 241, 0.8),
+      0 0 120px rgba(129, 140, 248, 0.4);
+  }
+
+  .siri-orb-speaking {
+    animation: siri-speak-pulse 1.2s ease-in-out infinite;
+  }
+
+  .siri-orb-processing {
+    filter: brightness(0.85);
+  }
+
+  .siri-orb-error {
+    background: radial-gradient(circle at 35% 35%, #fca5a5, #ef4444 50%, #b91c1c);
+  }
+
+  @keyframes siri-breathe {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.04); opacity: 0.95; }
+  }
+
+  @keyframes siri-speak-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  .siri-ring-1 { animation: siri-ring-expand 2s ease-out infinite; }
+  .siri-ring-2 { animation: siri-ring-expand 2s ease-out 0.4s infinite; }
+  .siri-ring-3 { animation: siri-ring-expand 2s ease-out 0.8s infinite; }
+
+  @keyframes siri-ring-expand {
+    0% { transform: scale(0.85); opacity: 0.8; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+
+  .siri-spin {
+    animation: siri-spin 1s linear infinite;
+  }
+
+  @keyframes siri-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .siri-wave-bar {
+    height: 8px;
+    animation: siri-wave 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes siri-wave {
+    from { height: 6px; }
+    to { height: 22px; }
+  }
+
+  .siri-speak-dot {
+    animation: siri-dot 1s ease-in-out infinite;
+  }
+
+  @keyframes siri-dot {
+    0%, 100% { opacity: 0.4; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
 }
