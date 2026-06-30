@@ -3,19 +3,34 @@
 import { useState } from "react";
 import { Check, CreditCard } from "lucide-react";
 import { getSession, setPlan, PLANS } from "@/lib/auth";
+import { startCheckout, paymentsConfigured, getCheckoutUrl } from "@/lib/payments";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import type { Plan } from "@/lib/types";
 
 export default function BillingPage() {
   const user = getSession();
   const [currentPlan, setCurrentPlan] = useState(user?.plan ?? "starter");
-  const [upgraded, setUpgraded] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const selectPlan = (planId: typeof currentPlan) => {
-    setPlan(planId);
-    setCurrentPlan(planId);
-    setUpgraded(true);
-    setTimeout(() => setUpgraded(false), 3000);
+  const selectPlan = (planId: Plan) => {
+    if (currentPlan === planId) return;
+
+    const result = startCheckout(planId);
+    if (result === "redirect") {
+      setPlan(planId);
+      setCurrentPlan(planId);
+      setNotice("Checkout opened in a new tab. Your plan updates when payment completes.");
+    } else if (getCheckoutUrl(planId)) {
+      setNotice("Could not open checkout. Please try again.");
+    } else {
+      setNotice(
+        planId === "enterprise"
+          ? "Enterprise: email sales@operatoros.com to get started."
+          : "Online checkout coming soon. Contact hello@operatoros.com to subscribe."
+      );
+    }
+    setTimeout(() => setNotice(null), 5000);
   };
 
   return (
@@ -25,9 +40,9 @@ export default function BillingPage() {
         Current plan: <span className="text-accent capitalize font-medium">{currentPlan}</span>
       </p>
 
-      {upgraded && (
-        <div className="mb-6 p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm">
-          Plan updated! Payment via KIB or WEYAY coming in Phase 3.
+      {notice && (
+        <div className="mb-6 p-4 rounded-xl bg-accent/10 border border-accent/30 text-accent text-sm">
+          {notice}
         </div>
       )}
 
@@ -66,7 +81,11 @@ export default function BillingPage() {
               onClick={() => selectPlan(plan.id)}
               disabled={currentPlan === plan.id}
             >
-              {currentPlan === plan.id ? "Current plan" : `Upgrade to ${plan.name}`}
+              {currentPlan === plan.id
+                ? "Current plan"
+                : getCheckoutUrl(plan.id)
+                  ? `Subscribe — $${plan.price}/mo`
+                  : `Upgrade to ${plan.name}`}
             </Button>
           </div>
         ))}
@@ -79,17 +98,16 @@ export default function BillingPage() {
         </div>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="p-4 rounded-xl bg-surface-2 border border-border">
-            <p className="font-medium">KIB (Kuwait International Bank)</p>
-            <p className="text-sm text-text-3 mt-1">Coming Phase 3 — Kuwait market</p>
+            <p className="font-medium">Card (Stripe)</p>
+            <p className="text-sm text-text-3 mt-1">
+              {paymentsConfigured() ? "Available at checkout" : "Configure Stripe links to go live"}
+            </p>
           </div>
           <div className="p-4 rounded-xl bg-surface-2 border border-border">
-            <p className="font-medium">WEYAY (NBK Digital Wallet)</p>
-            <p className="text-sm text-text-3 mt-1">Coming Phase 3 — Gulf payments</p>
+            <p className="font-medium">KIB & WEYAY</p>
+            <p className="text-sm text-text-3 mt-1">Kuwait & Gulf local payments — on roadmap</p>
           </div>
         </div>
-        <p className="text-xs text-text-3 mt-4">
-          10,000 customers × $500/mo = $5M/month revenue target
-        </p>
       </div>
     </div>
   );

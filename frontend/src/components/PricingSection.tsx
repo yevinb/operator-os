@@ -102,7 +102,7 @@ export function PricingSection() {
         </div>
 
         <p className="text-center text-sm text-text-3 mt-8">
-          10,000 customers × $500/month ≈ $5M/month revenue. KIB or WEYAY payments coming soon.
+          Cancel anytime. All plans include a 14-day trial when billing is enabled.
         </p>
       </div>
     </section>

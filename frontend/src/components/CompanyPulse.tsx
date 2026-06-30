@@ -2,23 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { TrendingUp, Users, DollarSign, Zap, Activity } from "lucide-react";
-import { getCompanyProgress, formatMoney, type CompanyProgress } from "@/lib/valuation";
+import { getCompanyMetrics, formatMoney, type CompanyMetrics } from "@/lib/business-metrics";
 
 export function CompanyPulse() {
-  const [progress, setProgress] = useState<CompanyProgress | null>(null);
+  const [metrics, setMetrics] = useState<CompanyMetrics | null>(null);
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
-    setProgress(getCompanyProgress());
+    setMetrics(getCompanyMetrics());
     const interval = setInterval(() => {
-      setProgress(getCompanyProgress());
+      setMetrics(getCompanyMetrics());
       setPulse(true);
       setTimeout(() => setPulse(false), 600);
     }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  if (!progress) return null;
+  if (!metrics) return null;
 
   return (
     <section className={`rounded-3xl overflow-hidden border border-white/10 transition-all duration-500 ${pulse ? "border-gold/40" : ""}`}>
@@ -39,10 +39,10 @@ export function CompanyPulse() {
 
       <div className="p-6 bg-black/40">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat icon={DollarSign} label="Monthly revenue" value={formatMoney(progress.mrr)} />
-          <Stat icon={Users} label="Customers" value={String(progress.customers)} />
-          <Stat icon={TrendingUp} label="Annual run rate" value={formatMoney(progress.arr)} />
-          <Stat icon={Zap} label="AI actions" value={String(progress.aiActionsTotal)} highlight />
+          <Stat icon={DollarSign} label="Monthly revenue" value={formatMoney(metrics.mrr)} />
+          <Stat icon={Users} label="Customers" value={String(metrics.customers)} />
+          <Stat icon={TrendingUp} label="Annual run rate" value={formatMoney(metrics.arr)} />
+          <Stat icon={Zap} label="AI actions" value={String(metrics.aiActionsTotal)} highlight />
         </div>
 
         <p className="text-center text-sm text-text-2 mt-4 flex items-center justify-center gap-2">

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { DEMO_METRICS, demoExecuteCommand } from "@/lib/demo";
 import { runCommand } from "@/lib/api";
 import { logCommand } from "@/lib/store";
-import { recordGrowth } from "@/lib/valuation";
+import { recordActivity } from "@/lib/business-metrics";
 import { CompanyPulse } from "@/components/CompanyPulse";
 import type { CommandResponse } from "@/lib/types";
 
@@ -29,7 +29,7 @@ export default function CommandCenterPage() {
     setLastResponse(instant);
     setHistory((h) => [instant, ...h].slice(0, 20));
     logCommand(instant);
-    recordGrowth(instant.tasks.length);
+    recordActivity(instant.tasks.length);
     setTick((t) => t + 1);
     setBusy(false);
 

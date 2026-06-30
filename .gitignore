@@ -24,3 +24,6 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+
+# Founder-only strategy (never public)
+.founder/

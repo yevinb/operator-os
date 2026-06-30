@@ -8,7 +8,7 @@ import { runCommand } from "@/lib/api";
 import { TaskList } from "./TaskList";
 import { Button } from "./ui/Button";
 import type { CommandResponse } from "@/lib/types";
-import { recordGrowth } from "@/lib/valuation";
+import { recordActivity } from "@/lib/business-metrics";
 
 export function LiveCommandDemo() {
   const [cmd, setCmd] = useState("");
@@ -27,7 +27,7 @@ export function LiveCommandDemo() {
 
     const instant = demoExecuteCommand(trimmed);
     setResponse(instant);
-    recordGrowth(instant.tasks.length);
+    recordActivity(instant.tasks.length);
     setActionsRun(instant.tasks.length);
     setBusy(false);
     runningRef.current = false;
