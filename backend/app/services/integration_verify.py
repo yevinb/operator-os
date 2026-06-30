@@ -24,12 +24,12 @@ async def verify_stripe_key(secret_key: str) -> tuple[bool, str]:
 
 
 async def verify_slack_webhook(url: str) -> tuple[bool, str]:
-    ok, msg = await send_slack_message(url, "✅ OperatorOS connected to Slack.")
+    ok, msg = await send_slack_message(url, "✅ Nexa connected to Slack.")
     return ok, msg if ok else f"Slack failed: {msg}"
 
 
 async def verify_n8n_webhook(url: str) -> tuple[bool, str]:
-    ok, msg = await trigger_n8n(url, {"event": "operatoros.connect"})
+    ok, msg = await trigger_n8n(url, {"event": "nexa.connect"})
     return ok, msg if ok else f"n8n failed: {msg}"
 
 

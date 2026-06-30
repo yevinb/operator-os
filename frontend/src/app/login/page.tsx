@@ -39,7 +39,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
             <Zap size={20} className="text-white" />
           </div>
-          <span className="text-xl font-bold">OperatorOS</span>
+          <span className="text-xl font-bold">Nexa</span>
         </Link>
 
         <div className="p-8 rounded-2xl bg-surface border border-border">

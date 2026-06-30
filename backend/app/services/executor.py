@@ -120,7 +120,7 @@ async def _execute_single(
         if category in ("communication", "support", "operations", "reporting", "marketing") or "slack" in action:
             ok, msg = await send_slack_message(
                 slack_url,
-                f"OperatorOS | {company}\nCommand: {response.command}\nAction: {task.action}",
+                f"Nexa | {company}\nCommand: {response.command}\nAction: {task.action}",
             )
             if ok:
                 return ExecResult(TaskStatus.completed, msg, "slack")
@@ -130,7 +130,7 @@ async def _execute_single(
     n8n_url = data.get("n8n", {}).get("api_key", "")
     if n8n_url and "n8n" in connected:
         ok, msg = await trigger_n8n(n8n_url, {
-            "event": "operatoros.task",
+            "event": "nexa.task",
             "company": company,
             "command": response.command,
             "task": task.action,
@@ -151,7 +151,7 @@ async def _execute_single(
                     access,
                     to=recipient,
                     subject=f"[{company}] {response.command[:60]}",
-                    body=f"Command: {response.command}\n\n{task.action}\n\n— OperatorOS",
+                    body=f"Command: {response.command}\n\n{task.action}\n\n— Nexa",
                 )
                 if ok:
                     return ExecResult(TaskStatus.completed, msg, "gmail")
@@ -257,7 +257,7 @@ async def _execute_single(
         ok, msg = await post_json_webhook(mcp_url, {
             "jsonrpc": "2.0",
             "method": "tools/call",
-            "params": {"name": "operatoros_execute", "arguments": {"task": task.action, "company": company}},
+            "params": {"name": "nexa_execute", "arguments": {"task": task.action, "company": company}},
             "id": 1,
         })
         if ok:

@@ -14,18 +14,18 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OperatorOS — Your AI Chief Operating Officer",
+  title: "Nexa — Your AI Chief Operating Officer",
   description:
     "Type 'Increase sales.' Your AI COO executes — ads, customers, hiring, reports. Autonomous business operations.",
-  keywords: ["AI COO", "business automation", "autonomous AI", "OperatorOS"],
+  keywords: ["AI COO", "business automation", "autonomous AI", "Nexa"],
   metadataBase: new URL("https://yevinb.github.io"),
   alternates: {
     canonical: "/operator-os/",
   },
   openGraph: {
-    title: "OperatorOS — Your AI Chief Operating Officer",
+    title: "Nexa — Your AI Chief Operating Officer",
     description:
-      "Say what you need. OperatorOS runs your business. Not a chatbot. An autonomous employee.",
+      "Say what you need. Nexa runs your business. Not a chatbot. An autonomous employee.",
     url: "https://yevinb.github.io/operator-os/",
     type: "website",
   },

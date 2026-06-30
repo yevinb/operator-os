@@ -13,7 +13,7 @@ export default function Home() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold to-amber-600 flex items-center justify-center">
               <Zap size={18} className="text-black" />
             </div>
-            <span className="font-bold text-lg">OperatorOS</span>
+            <span className="font-bold text-lg">Nexa</span>
           </Link>
           <div className="hidden md:flex items-center gap-8 text-sm text-text-2">
             <a href="#demo" className="hover:text-gold transition-colors font-medium">Preview</a>
@@ -40,7 +40,7 @@ export default function Home() {
             Chief Operating Officer
           </h1>
           <p className="text-xl md:text-2xl text-text-2 max-w-2xl mx-auto mb-4">
-            Type a command. OperatorOS runs it against{" "}
+            Type a command. Nexa runs it against{" "}
             <span className="text-white font-semibold">your real tools</span> — Stripe, Slack, Gmail, HubSpot, n8n, and more.
           </p>
         </div>
@@ -133,7 +133,7 @@ export default function Home() {
       </section>
 
       <footer className="py-8 text-center text-text-3 text-sm border-t border-white/10">
-        OperatorOS · AI Chief Operating Officer · Kuwait → Global
+        Nexa · AI Chief Operating Officer · Kuwait → Global
       </footer>
     </div>
   );

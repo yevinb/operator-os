@@ -2,7 +2,7 @@
 set -e
 cd "$(dirname "$0")"
 
-echo "Starting OperatorOS..."
+echo "Starting Nexa..."
 
 # Backend
 if [ ! -d "backend/.venv" ]; then
@@ -27,7 +27,7 @@ FRONTEND_PID=$!
 trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null" EXIT
 
 echo ""
-echo "OperatorOS is running:"
+echo "Nexa is running:"
 echo "  Landing:   http://localhost:3000"
 echo "  Dashboard: http://localhost:3000/dashboard"
 echo "  API:       http://localhost:8000/docs"

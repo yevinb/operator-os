@@ -179,7 +179,7 @@ export default function OnboardingPage() {
               disabled={(step === 0 && (!company || !industry)) || (step === 1 && !goal) || (step === 2 && !market) || saving}
               onClick={() => (step < STEPS.length - 1 ? setStep(step + 1) : finish())}
             >
-              {saving ? "Saving…" : step < STEPS.length - 1 ? "Continue" : "Launch OperatorOS"}
+              {saving ? "Saving…" : step < STEPS.length - 1 ? "Continue" : "Launch Nexa"}
               <ArrowRight size={16} />
             </Button>
           </div>

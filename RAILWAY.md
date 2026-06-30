@@ -6,7 +6,7 @@ Your backend is on Railway. The frontend needs its **public URL**.
 
 In Railway dashboard:
 
-1. Open your **OperatorOS** service
+1. Open your **Nexa** service
 2. **Settings** → **Networking** → **Public Networking**
 3. Copy the domain (example: `https://operator-os-xxxx.up.railway.app`)
 

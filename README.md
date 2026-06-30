@@ -1,4 +1,4 @@
-# OperatorOS — Phase 2 Complete
+# Nexa — AI Chief Operating Officer
 
 **Your AI Chief Operating Officer.** Connect your business. Command it. It executes.
 

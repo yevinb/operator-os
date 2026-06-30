@@ -40,7 +40,7 @@ export function FeaturesSection() {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">One command. Entire company.</h2>
           <p className="text-text-2 max-w-xl mx-auto">
-            A CEO says &ldquo;Run my company.&rdquo; OperatorOS checks revenue, manages projects,
+            A CEO says &ldquo;Run my company.&rdquo; Nexa checks revenue, manages projects,
             negotiates vendors, and creates reports — autonomously.
           </p>
         </div>

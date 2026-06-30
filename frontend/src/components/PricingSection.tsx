@@ -88,7 +88,7 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              <Link href={plan.cta === "Contact sales" ? "mailto:sales@operatoros.com" : "/signup"}>
+              <Link href={plan.cta === "Contact sales" ? "mailto:sales@nexa.com" : "/signup"}>
                 <Button
                   variant={plan.highlighted ? "primary" : "secondary"}
                   className="w-full"

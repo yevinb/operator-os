@@ -165,7 +165,7 @@ async def get_metrics(user: User = Depends(get_current_user), db: AsyncSession =
 @app.get("/")
 async def root():
     return {
-        "app": "OperatorOS",
+        "app": "Nexa",
         "version": "2.0.0",
         "tagline": "Your AI Chief Operating Officer",
         "docs": "/docs",

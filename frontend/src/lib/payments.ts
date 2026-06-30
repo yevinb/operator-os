@@ -19,7 +19,7 @@ export function startCheckout(plan: Plan): "redirect" | "contact" {
     return "redirect";
   }
   if (plan === "enterprise") {
-    window.location.href = "mailto:sales@operatoros.com?subject=OperatorOS%20Enterprise";
+    window.location.href = "mailto:sales@nexa.com?subject=Nexa%20Enterprise";
     return "contact";
   }
   return "contact";

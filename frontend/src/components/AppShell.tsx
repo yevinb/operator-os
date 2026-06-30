@@ -66,7 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Zap size={16} className="text-white" />
           </div>
           <div>
-            <span className="font-semibold block">OperatorOS</span>
+            <span className="font-semibold block">Nexa</span>
             <span className="text-xs text-text-3">AI COO</span>
           </div>
         </Link>

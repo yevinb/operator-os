@@ -11,7 +11,7 @@ def _default_database_url() -> str:
 
 
 class Settings(BaseSettings):
-    app_name: str = "OperatorOS"
+    app_name: str = "Nexa"
     debug: bool = False
     cors_origins: list[str] = [
         "http://localhost:3000",

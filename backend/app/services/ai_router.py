@@ -4,7 +4,7 @@ from app.config import settings
 
 async def route_to_ai(command: str, provider: str = "auto") -> dict | None:
     """Route command to GPT, Claude, or Gemini. Returns parsed JSON or None."""
-    system = """You are OperatorOS, an AI Chief Operating Officer.
+    system = """You are Nexa, an AI Chief Operating Officer.
 Return JSON: {"intent": "snake_case", "summary": "one sentence", "tasks": [{"action": "...", "category": "..."}]}
 Categories: marketing, support, analytics, hr, finance, communication, operations, reporting, sales"""
 

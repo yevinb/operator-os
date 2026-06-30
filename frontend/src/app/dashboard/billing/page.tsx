@@ -26,8 +26,8 @@ export default function BillingPage() {
     } else {
       setNotice(
         planId === "enterprise"
-          ? "Enterprise: email sales@operatoros.com to get started."
-          : "Online checkout coming soon. Contact hello@operatoros.com to subscribe."
+          ? "Enterprise: email sales@nexa.com to get started."
+          : "Online checkout coming soon. Contact hello@nexa.com to subscribe."
       );
     }
     setTimeout(() => setNotice(null), 5000);

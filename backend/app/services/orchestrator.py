@@ -142,7 +142,7 @@ async def execute_with_ai(
 ) -> CommandResponse | None:
     """Try AI-powered intent parsing. Returns None if unavailable."""
     business_block = context.to_prompt_block() if context else "No business profile yet."
-    system_prompt = f"""You are OperatorOS, an AI Chief Operating Officer.
+    system_prompt = f"""You are Nexa, an AI Chief Operating Officer.
 You know this business:
 {business_block}
 
