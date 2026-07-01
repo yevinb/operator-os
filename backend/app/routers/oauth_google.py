@@ -1,3 +1,4 @@
+import json
 import secrets
 from urllib.parse import urlencode
 
@@ -14,32 +15,38 @@ from app.deps import get_current_user
 
 router = APIRouter(prefix="/api/v1/oauth/google", tags=["oauth"])
 
-GOOGLE_SCOPES = " ".join([
-    "openid",
-    "email",
-    "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/calendar.events",
-    "https://www.googleapis.com/auth/adwords",
-])
-
 _pending_states: dict[str, str] = {}
 
 
 @router.get("/start")
-async def google_oauth_start(user: User = Depends(get_current_user)):
+async def google_oauth_start(
+    integration_id: str = Query("gmail"),
+    user: User = Depends(get_current_user),
+):
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(
             status_code=503,
             detail="Google OAuth not configured on server. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on Railway.",
         )
+    if integration_id not in {"gmail", "calendar"}:
+        raise HTTPException(status_code=400, detail="integration_id must be gmail or calendar")
     state = secrets.token_urlsafe(24)
-    _pending_states[state] = user.id
+    _pending_states[state] = json.dumps({"user_id": user.id, "integration_id": integration_id})
+    scopes = [
+        "openid",
+        "email",
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.readonly",
+    ] if integration_id == "gmail" else [
+        "openid",
+        "email",
+        "https://www.googleapis.com/auth/calendar.events",
+    ]
     params = {
         "client_id": settings.google_client_id,
         "redirect_uri": settings.google_redirect_uri,
         "response_type": "code",
-        "scope": GOOGLE_SCOPES,
+        "scope": " ".join(scopes),
         "access_type": "offline",
         "prompt": "consent",
         "state": state,
@@ -54,9 +61,15 @@ async def google_oauth_callback(
     state: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = _pending_states.pop(state, None)
-    if not user_id or not code:
+    state_payload = _pending_states.pop(state, None)
+    if not state_payload or not code:
         return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?error=oauth_failed")
+    try:
+        payload = json.loads(state_payload)
+        user_id = payload["user_id"]
+        integration_id = payload["integration_id"]
+    except Exception:
+        return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?error=oauth_state_invalid")
 
     async with httpx.AsyncClient(timeout=20) as client:
         token_resp = await client.post(
@@ -80,18 +93,15 @@ async def google_oauth_callback(
         "expires_in": tokens.get("expires_in", 3600),
     }
 
-    for integration_id in ("gmail", "calendar"):
-        await _upsert_integration(db, user_id, integration_id, tokens.get("access_token", ""), config)
+    await _upsert_integration(db, user_id, integration_id, tokens.get("access_token", ""), config)
 
     await db.commit()
-    return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?connected=google")
+    return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?connected={integration_id}")
 
 
 async def _upsert_integration(
     db: AsyncSession, user_id: str, integration_id: str, api_key: str, config: dict
 ) -> None:
-    import json
-
     result = await db.execute(
         select(IntegrationConnection).where(
             IntegrationConnection.user_id == user_id,

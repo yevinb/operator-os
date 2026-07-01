@@ -38,6 +38,20 @@ const CONFIG_LABELS: Record<string, string> = {
 };
 
 const CATEGORIES = ["all", "marketing", "sales", "finance", "support", "hr", "operations", "automation", "communication"];
+const FALLBACK_META: Record<string, ApiIntegration> = {
+  stripe: { id: "stripe", name: "Stripe", category: "finance", description: "Live revenue, balance & customers", connected: false, needs_key: true, auth_type: "api_key", key_hint: "sk_test_... or sk_live_...", config_fields: [] },
+  slack: { id: "slack", name: "Slack", category: "communication", description: "Post COO updates to Slack", connected: false, needs_key: true, auth_type: "webhook", key_hint: "https://hooks.slack.com/services/...", config_fields: [] },
+  n8n: { id: "n8n", name: "n8n", category: "automation", description: "Trigger workflows on commands", connected: false, needs_key: true, auth_type: "webhook", key_hint: "https://your-n8n.app/webhook/...", config_fields: [] },
+  gmail: { id: "gmail", name: "Gmail", category: "support", description: "Send customer emails via Gmail API", connected: false, needs_key: false, auth_type: "google_oauth", key_hint: "", config_fields: ["default_to"] },
+  calendar: { id: "calendar", name: "Google Calendar", category: "operations", description: "Book meetings on your calendar", connected: false, needs_key: false, auth_type: "google_oauth", key_hint: "", config_fields: [] },
+  "google-ads": { id: "google-ads", name: "Google Ads", category: "marketing", description: "Manage ad campaigns", connected: false, needs_key: true, auth_type: "google_ads", key_hint: "Developer token", config_fields: ["customer_id"] },
+  meta: { id: "meta", name: "Meta Ads", category: "marketing", description: "Facebook & Instagram ads", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Long-lived access token", config_fields: ["ad_account_id"] },
+  hubspot: { id: "hubspot", name: "HubSpot", category: "sales", description: "CRM contacts & pipeline", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Private app token (pat-...)", config_fields: [] },
+  notion: { id: "notion", name: "Notion", category: "operations", description: "Create pages & docs", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Integration token (secret_...)", config_fields: ["database_id"] },
+  quickbooks: { id: "quickbooks", name: "QuickBooks", category: "finance", description: "Accounting & expenses", connected: false, needs_key: true, auth_type: "api_key", key_hint: "OAuth access token", config_fields: ["realm_id"] },
+  linkedin: { id: "linkedin", name: "LinkedIn", category: "hr", description: "Hiring & B2B outreach", connected: false, needs_key: true, auth_type: "api_key", key_hint: "LinkedIn access token", config_fields: [] },
+  mcp: { id: "mcp", name: "MCP Servers", category: "automation", description: "Model Context Protocol tools", connected: false, needs_key: true, auth_type: "webhook", key_hint: "MCP server URL", config_fields: [] },
+};
 
 export default function IntegrationsContent() {
   const searchParams = useSearchParams();
@@ -59,7 +73,7 @@ export default function IntegrationsContent() {
     if (!(await hasApiConfigured())) return;
     try {
       const list = await apiFetch<ApiIntegration[]>("/api/v1/integrations");
-      const meta: Record<string, ApiIntegration> = {};
+      const meta: Record<string, ApiIntegration> = { ...FALLBACK_META };
       list.forEach((i) => { meta[i.id] = i; });
       setApiMeta(meta);
       setIntegrations((prev) =>
@@ -70,14 +84,18 @@ export default function IntegrationsContent() {
       );
       saveBusinessProfile({ connectedIntegrations: list.filter((i) => i.connected).map((i) => i.id) });
     } catch {
-      // ignore
+      setApiMeta(FALLBACK_META);
     }
   };
 
   useEffect(() => {
     loadFromApi();
-    if (searchParams.get("connected") === "google") {
-      setSuccess("Google connected — Gmail & Calendar ready");
+    const connectedGoogle = searchParams.get("connected");
+    if (connectedGoogle === "gmail") {
+      setSuccess("Gmail connected");
+      setTimeout(() => setSuccess(""), 6000);
+    } else if (connectedGoogle === "calendar") {
+      setSuccess("Google Calendar connected");
       setTimeout(() => setSuccess(""), 6000);
     }
     if (searchParams.get("error")) {
@@ -85,11 +103,11 @@ export default function IntegrationsContent() {
     }
   }, [searchParams]);
 
-  const connectGoogle = async () => {
+  const connectGoogle = async (integrationId: "gmail" | "calendar") => {
     setGoogleLoading(true);
     setError("");
     try {
-      const res = await apiFetch<{ url: string }>("/api/v1/oauth/google/start");
+      const res = await apiFetch<{ url: string }>(`/api/v1/oauth/google/start?integration_id=${integrationId}`);
       window.location.href = res.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Google OAuth not configured on server");
@@ -98,6 +116,10 @@ export default function IntegrationsContent() {
   };
 
   const openModal = (id: string) => {
+    if (!apiMeta[id] && !FALLBACK_META[id]) {
+      setError("Integration details unavailable. Refresh and try again.");
+      return;
+    }
     setKeyModal(id);
     setApiKey("");
     setConfigFields({});
@@ -171,7 +193,7 @@ export default function IntegrationsContent() {
 
   const filtered = filter === "all" ? integrations : integrations.filter((i) => i.category === filter);
   const connected = integrations.filter((i) => i.connected).length;
-  const modalMeta = keyModal ? apiMeta[keyModal] : null;
+  const modalMeta = keyModal ? (apiMeta[keyModal] || FALLBACK_META[keyModal]) : null;
   const gmailConnected = integrations.find((i) => i.id === "gmail")?.connected;
 
   const isGoogleOAuth = (id: string) => {
@@ -256,7 +278,13 @@ export default function IntegrationsContent() {
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => (int.connected ? disconnect(int.id) : isGoogle ? connectGoogle() : openModal(int.id))}
+                  onClick={() =>
+                    (int.connected
+                      ? disconnect(int.id)
+                      : isGoogle
+                        ? connectGoogle(int.id === "calendar" ? "calendar" : "gmail")
+                        : openModal(int.id))
+                  }
                   className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white")}
                 >
                   <Plug size={14} />
