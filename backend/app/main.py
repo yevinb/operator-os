@@ -15,7 +15,18 @@ from app.models import (
     CommandResponse,
     HealthResponse,
 )
-from app.routers import auth, business, control, integrations, nexa, oauth_google, profile
+from app.routers import (
+    auth,
+    business,
+    control,
+    integrations,
+    nexa,
+    oauth_google,
+    oauth_meta,
+    oauth_quickbooks,
+    oauth_shopify,
+    profile,
+)
 from app.services.business_context import build_business_context
 from app.services.executor import execute_tasks
 from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_active_plan
@@ -52,6 +63,9 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(integrations.router)
 app.include_router(oauth_google.router)
+app.include_router(oauth_meta.router)
+app.include_router(oauth_shopify.router)
+app.include_router(oauth_quickbooks.router)
 app.include_router(nexa.router)
 app.include_router(control.router)
 app.include_router(business.router)

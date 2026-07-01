@@ -30,6 +30,10 @@ type IntegrationTestResult = {
 };
 
 const GOOGLE_OAUTH_IDS = new Set(["gmail", "calendar"]);
+const GOOGLE_ADS_OAUTH = "google-ads";
+const META_OAUTH_IDS = new Set(["instagram"]);
+const SHOPIFY_OAUTH_IDS = new Set(["shopify"]);
+const QUICKBOOKS_OAUTH_IDS = new Set(["quickbooks"]);
 const CONFIG_LABELS: Record<string, string> = {
   database_id: "Notion database ID",
   realm_id: "QuickBooks Realm ID",
@@ -48,21 +52,22 @@ const FALLBACK_META: Record<string, ApiIntegration> = {
   n8n: { id: "n8n", name: "n8n", category: "automation", description: "Trigger workflows on commands", connected: false, needs_key: true, auth_type: "webhook", key_hint: "https://your-n8n.app/webhook/...", config_fields: [] },
   gmail: { id: "gmail", name: "Gmail", category: "support", description: "Send customer emails via Gmail API", connected: false, needs_key: false, auth_type: "google_oauth", key_hint: "", config_fields: ["default_to"] },
   calendar: { id: "calendar", name: "Google Calendar", category: "operations", description: "Book meetings on your calendar", connected: false, needs_key: false, auth_type: "google_oauth", key_hint: "", config_fields: [] },
-  "google-ads": { id: "google-ads", name: "Google Ads", category: "marketing", description: "Manage ad campaigns", connected: false, needs_key: true, auth_type: "google_ads", key_hint: "Developer token", config_fields: ["customer_id"] },
+  "google-ads": { id: "google-ads", name: "Google Ads", category: "marketing", description: "Connect with Google + developer token & customer ID", connected: false, needs_key: true, auth_type: "google_ads", key_hint: "Google Ads developer token", config_fields: ["customer_id"] },
   meta: { id: "meta", name: "Meta Ads", category: "marketing", description: "Facebook & Instagram ads", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Long-lived access token", config_fields: ["ad_account_id"] },
   hubspot: { id: "hubspot", name: "HubSpot", category: "sales", description: "CRM contacts & pipeline", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Private app token (pat-...)", config_fields: [] },
   notion: { id: "notion", name: "Notion", category: "operations", description: "Create pages & docs", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Integration token (secret_...)", config_fields: ["database_id"] },
-  quickbooks: { id: "quickbooks", name: "QuickBooks", category: "finance", description: "Accounting & expenses", connected: false, needs_key: true, auth_type: "api_key", key_hint: "OAuth access token", config_fields: ["realm_id"] },
+  quickbooks: { id: "quickbooks", name: "QuickBooks", category: "finance", description: "One-click Intuit connect — live P&L and expenses", connected: false, needs_key: false, auth_type: "quickbooks_oauth", key_hint: "", config_fields: [] },
   linkedin: { id: "linkedin", name: "LinkedIn", category: "hr", description: "Hiring & B2B outreach", connected: false, needs_key: true, auth_type: "api_key", key_hint: "LinkedIn access token", config_fields: [] },
-  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "Full store — orders, products, customers, inventory, fulfillments", connected: false, needs_key: true, auth_type: "api_key", key_hint: "shpat_... with read/write orders, products, customers, inventory", config_fields: ["shop_domain"] },
-  instagram: { id: "instagram", name: "Instagram", category: "marketing", description: "Publish posts, insights, reply to comments", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Meta token: instagram_basic + instagram_content_publish + instagram_manage_comments", config_fields: ["default_image_url", "page_id", "instagram_account_id"] },
+  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "One-click connect — orders, products, customers, inventory", connected: false, needs_key: false, auth_type: "shopify_oauth", key_hint: "", config_fields: [] },
+  instagram: { id: "instagram", name: "Instagram", category: "marketing", description: "One-click connect — publish posts, insights, reply to comments", connected: false, needs_key: false, auth_type: "meta_oauth", key_hint: "", config_fields: ["default_image_url"] },
   mcp: { id: "mcp", name: "MCP Servers", category: "automation", description: "Model Context Protocol tools", connected: false, needs_key: true, auth_type: "webhook", key_hint: "MCP server URL", config_fields: [] },
 };
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  oauth_failed: "Google sign-in was cancelled or expired. Click Connect with Google again.",
-  oauth_state_invalid: "Google connection expired. Please try connecting again.",
-  token_exchange_failed: "Google token exchange failed. Check Railway GOOGLE_REDIRECT_URI includes /api/v1/oauth/google/callback",
+  oauth_failed: "Sign-in was cancelled or expired. Please try connecting again.",
+  oauth_state_invalid: "Connection expired. Please try connecting again.",
+  token_exchange_failed: "Token exchange failed. Check server OAuth redirect URI settings.",
+  meta_oauth_failed: "Instagram connection failed. Ensure your IG is Business/Creator and linked to a Facebook Page.",
 };
 
 const WORKS_WITH: Record<string, string[]> = {
@@ -88,17 +93,6 @@ const INTEGRATION_ICONS: Record<string, string> = {
   shopify: "🛒", instagram: "📸",
 };
 
-const INSTAGRAM_SETUP = [
-  "Switch Instagram to Business or Creator (not personal)",
-  "Create a Facebook Page (facebook.com/pages/create) if you don't have one",
-  "Link IG to that Page: Instagram app → Settings → Account → Sharing to other apps → Facebook",
-  "Go to developers.facebook.com → My Apps → Create App → Business",
-  "Add products: Instagram Graph API + Facebook Login",
-  "Graph API Explorer → Generate User Token with: instagram_basic, pages_show_list, pages_read_engagement, instagram_content_publish",
-  "Extend to long-lived token (Access Token Debugger → Extend)",
-  "Paste that token below in Nexa → Connect & verify",
-];
-
 export default function IntegrationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -110,8 +104,13 @@ export default function IntegrationsContent() {
   const [configFields, setConfigFields] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [googleLoadingId, setGoogleLoadingId] = useState<string | null>(null);
+  const [oauthLoadingId, setOauthLoadingId] = useState<string | null>(null);
   const [gmailTo, setGmailTo] = useState("");
+  const [igImageUrl, setIgImageUrl] = useState("");
+  const [shopDomain, setShopDomain] = useState("");
+  const [googleAdsDevToken, setGoogleAdsDevToken] = useState("");
+  const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState("");
+  const [shopifyModal, setShopifyModal] = useState(false);
   const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
   const [testAllLoading, setTestAllLoading] = useState(false);
@@ -137,36 +136,70 @@ export default function IntegrationsContent() {
         })
       );
       saveBusinessProfile({ connectedIntegrations: list.filter((i) => i.connected).map((i) => i.id) });
+      await loadSavedConfigs(list.filter((i) => i.connected).map((i) => i.id));
     } catch {
       setApiMeta(FALLBACK_META);
     }
   };
 
+  const loadSavedConfigs = async (connectedIds: string[]) => {
+    for (const id of connectedIds) {
+      try {
+        const row = await apiFetch<{ config: Record<string, string> }>(`/api/v1/integrations/${id}/config`);
+        const cfg = row.config || {};
+        if (id === "gmail" && cfg.default_to) setGmailTo(cfg.default_to);
+        if (id === "instagram" && cfg.default_image_url) setIgImageUrl(cfg.default_image_url);
+        if (id === "google-ads" && cfg.customer_id) setGoogleAdsCustomerId(cfg.customer_id);
+        if (id === "shopify" && cfg.shop_domain) setShopDomain(cfg.shop_domain);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   useEffect(() => {
     loadFromApi();
-    const connectedGoogle = searchParams.get("connected");
-    if (connectedGoogle === "gmail") {
+    const connected = searchParams.get("connected");
+    if (connected === "gmail") {
       setSuccess("Gmail connected — add a recipient below if you want emails sent elsewhere");
       setTimeout(() => setSuccess(""), 8000);
       void loadFromApi();
-    } else if (connectedGoogle === "calendar") {
+    } else if (connected === "calendar") {
       setSuccess("Google Calendar connected");
       setTimeout(() => setSuccess(""), 6000);
       void loadFromApi();
+    } else if (connected === "instagram") {
+      setSuccess("Instagram connected — add a default image URL below if you want Nexa to post without a link in the command");
+      setTimeout(() => setSuccess(""), 8000);
+      void loadFromApi();
+    } else if (connected === "shopify") {
+      setSuccess("Shopify store connected");
+      setTimeout(() => setSuccess(""), 6000);
+      void loadFromApi();
+    } else if (connected === "quickbooks") {
+      setSuccess("QuickBooks connected");
+      setTimeout(() => setSuccess(""), 6000);
+      void loadFromApi();
+    } else if (connected === "google-ads") {
+      setSuccess("Google Ads authorized — add your developer token and customer ID below");
+      setTimeout(() => setSuccess(""), 8000);
+      void loadFromApi();
     }
     const oauthError = searchParams.get("error");
+    const oauthDetail = searchParams.get("detail");
     if (oauthError) {
-      setError(OAUTH_ERROR_MESSAGES[oauthError] || "Google connection failed — check Railway Google OAuth settings");
+      const base = OAUTH_ERROR_MESSAGES[oauthError] || "Connection failed — check server OAuth settings";
+      setError(oauthDetail ? `${base} (${oauthDetail})` : base);
     }
   }, [searchParams]);
 
-  const connectGoogle = async (integrationId: "gmail" | "calendar") => {
+  const connectGoogle = async (integrationId: "gmail" | "calendar" | "google-ads") => {
     if (!getToken()) {
       setError("Please sign in first, then connect Gmail.");
       router.push("/login");
       return;
     }
-    setGoogleLoadingId(integrationId);
+    setOauthLoadingId(integrationId);
     setError("");
     try {
       const res = await apiFetch<{ url: string }>(`/api/v1/oauth/google/start?integration_id=${integrationId}`);
@@ -177,8 +210,75 @@ export default function IntegrationsContent() {
       setError(msg.includes("401") || msg.toLowerCase().includes("credentials")
         ? "Session expired — sign in again, then connect Gmail."
         : msg);
-      setGoogleLoadingId(null);
+      setOauthLoadingId(null);
     }
+  };
+
+  const connectMeta = async (integrationId: "instagram") => {
+    if (!getToken()) {
+      setError("Please sign in first, then connect Instagram.");
+      router.push("/login");
+      return;
+    }
+    setOauthLoadingId(integrationId);
+    setError("");
+    try {
+      const res = await apiFetch<{ url: string }>(`/api/v1/oauth/meta/start?integration_id=${integrationId}`);
+      if (!res.url) throw new Error("No Instagram OAuth URL returned from server");
+      window.location.href = res.url;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Instagram OAuth not configured on server";
+      setError(msg.includes("401") || msg.toLowerCase().includes("credentials")
+        ? "Session expired — sign in again, then connect Instagram."
+        : msg);
+      setOauthLoadingId(null);
+    }
+  };
+
+  const connectShopify = async () => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    const shop = shopDomain.trim();
+    if (!shop) {
+      setShopifyModal(true);
+      return;
+    }
+    setOauthLoadingId("shopify");
+    setError("");
+    try {
+      const res = await apiFetch<{ url: string }>(
+        `/api/v1/oauth/shopify/start?shop=${encodeURIComponent(shop)}`
+      );
+      if (!res.url) throw new Error("No Shopify OAuth URL returned");
+      window.location.href = res.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Shopify OAuth not configured on server");
+      setOauthLoadingId(null);
+    }
+  };
+
+  const connectQuickBooks = async () => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    setOauthLoadingId("quickbooks");
+    setError("");
+    try {
+      const res = await apiFetch<{ url: string }>("/api/v1/oauth/quickbooks/start");
+      if (!res.url) throw new Error("No QuickBooks OAuth URL returned");
+      window.location.href = res.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "QuickBooks OAuth not configured on server");
+      setOauthLoadingId(null);
+    }
+  };
+
+  const saveGoogleAdsSettings = async () => {
+    if (!googleAdsDevToken.trim() || !googleAdsCustomerId.trim()) return;
+    await doConnect("google-ads", googleAdsDevToken.trim(), { customer_id: googleAdsCustomerId.trim() });
   };
 
   const openModal = (id: string) => {
@@ -211,6 +311,11 @@ export default function IntegrationsContent() {
   const saveGmailRecipient = async () => {
     if (!gmailTo.trim()) return;
     await doConnect("gmail", "", { default_to: gmailTo.trim() });
+  };
+
+  const saveInstagramImage = async () => {
+    if (!igImageUrl.trim()) return;
+    await doConnect("instagram", "", { default_image_url: igImageUrl.trim() });
   };
 
   const disconnect = async (id: string) => {
@@ -261,10 +366,47 @@ export default function IntegrationsContent() {
   const connected = integrations.filter((i) => i.connected).length;
   const modalMeta = keyModal ? (apiMeta[keyModal] || FALLBACK_META[keyModal]) : null;
   const gmailConnected = integrations.find((i) => i.id === "gmail")?.connected;
+  const instagramConnected = integrations.find((i) => i.id === "instagram")?.connected;
+  const googleAdsConnected = integrations.find((i) => i.id === "google-ads")?.connected;
 
   const isGoogleOAuth = (id: string) => {
     const meta = apiMeta[id];
     return meta?.auth_type === "google_oauth" || GOOGLE_OAUTH_IDS.has(id);
+  };
+
+  const isGoogleAdsOAuth = (id: string) => id === GOOGLE_ADS_OAUTH;
+
+  const isMetaOAuth = (id: string) => {
+    const meta = apiMeta[id];
+    return meta?.auth_type === "meta_oauth" || META_OAUTH_IDS.has(id);
+  };
+
+  const isShopifyOAuth = (id: string) => {
+    const meta = apiMeta[id];
+    return meta?.auth_type === "shopify_oauth" || SHOPIFY_OAUTH_IDS.has(id);
+  };
+
+  const isQuickBooksOAuth = (id: string) => {
+    const meta = apiMeta[id];
+    return meta?.auth_type === "quickbooks_oauth" || QUICKBOOKS_OAUTH_IDS.has(id);
+  };
+
+  const connectLabel = (id: string) => {
+    if (isGoogleOAuth(id)) return "Connect with Google";
+    if (isGoogleAdsOAuth(id)) return "Connect with Google";
+    if (isMetaOAuth(id)) return "Connect with Instagram";
+    if (isShopifyOAuth(id)) return "Connect store";
+    if (isQuickBooksOAuth(id)) return "Connect with QuickBooks";
+    return "Connect";
+  };
+
+  const handleConnect = (id: string) => {
+    if (isGoogleOAuth(id)) return connectGoogle(id === "calendar" ? "calendar" : "gmail");
+    if (isGoogleAdsOAuth(id)) return connectGoogle("google-ads");
+    if (isMetaOAuth(id)) return connectMeta("instagram");
+    if (isShopifyOAuth(id)) return connectShopify();
+    if (isQuickBooksOAuth(id)) return connectQuickBooks();
+    return openModal(id);
   };
 
   return (
@@ -272,7 +414,7 @@ export default function IntegrationsContent() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-1">Integrations</h1>
-          <p className="text-text-2 text-sm">Connect your keys or Google account — commands run against real APIs.</p>
+          <p className="text-text-2 text-sm">One-click OAuth for Google, Instagram, Shopify, QuickBooks — or API keys for Stripe, Slack, HubSpot, and more.</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-accent">{connected}</p>
@@ -290,23 +432,39 @@ export default function IntegrationsContent() {
       {success && <div className="mb-4 p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm">{success}</div>}
       {error && !keyModal && <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
 
-      {(filter === "all" || filter === "marketing") && !integrations.find((i) => i.id === "instagram")?.connected && (
-        <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/20">
-          <h2 className="font-bold text-white mb-2">How to connect Instagram to Nexa</h2>
-          <p className="text-sm text-text-2 mb-3">
-            Instagram cannot connect with your IG password alone — you need a Business account, Facebook Page, and Meta API token.
-          </p>
-          <ol className="text-sm text-text-2 space-y-2 list-decimal list-inside">
-            {INSTAGRAM_SETUP.map((step, i) => (
-              <li key={i}>{step}</li>
-            ))}
-          </ol>
-          <button
-            type="button"
-            onClick={() => openModal("instagram")}
-            className="mt-4 px-4 py-2 rounded-xl bg-accent text-white text-sm font-medium"
-          >
-            Open Instagram connect
+      {googleAdsConnected && (
+        <div className="mb-6 p-4 rounded-xl bg-surface border border-border space-y-3">
+          <p className="text-sm text-text-2">Google Ads: add your developer token and customer ID to pull live campaign data.</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              value={googleAdsDevToken}
+              onChange={(e) => setGoogleAdsDevToken(e.target.value)}
+              placeholder="Google Ads developer token"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-void border border-border text-sm"
+            />
+            <input
+              value={googleAdsCustomerId}
+              onChange={(e) => setGoogleAdsCustomerId(e.target.value)}
+              placeholder="Customer ID (e.g. 123-456-7890)"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-void border border-border text-sm"
+            />
+            <button onClick={saveGoogleAdsSettings} className="px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-medium">
+              Save Ads settings
+            </button>
+          </div>
+        </div>
+      )}
+
+      {instagramConnected && (
+        <div className="mb-6 p-4 rounded-xl bg-surface border border-border flex flex-col sm:flex-row gap-3">
+          <input
+            value={igImageUrl}
+            onChange={(e) => setIgImageUrl(e.target.value)}
+            placeholder="Default public image URL for Instagram posts (optional)"
+            className="flex-1 px-4 py-2.5 rounded-xl bg-void border border-border text-sm"
+          />
+          <button onClick={saveInstagramImage} className="px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-medium">
+            Save image URL
           </button>
         </div>
       )}
@@ -335,7 +493,6 @@ export default function IntegrationsContent() {
 
       <div className="grid md:grid-cols-2 gap-4">
         {filtered.map((int) => {
-          const isGoogle = isGoogleOAuth(int.id);
           return (
             <div key={int.id} className={cn("p-5 rounded-2xl border", int.connected ? "bg-success/5 border-success/30" : "bg-surface border-border")}>
               <div className="flex items-start gap-4">
@@ -375,24 +532,16 @@ export default function IntegrationsContent() {
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
-                  onClick={() =>
-                    (int.connected
-                      ? disconnect(int.id)
-                      : isGoogle
-                        ? connectGoogle(int.id === "calendar" ? "calendar" : "gmail")
-                        : openModal(int.id))
-                  }
-                  disabled={googleLoadingId === int.id}
+                  onClick={() => (int.connected ? disconnect(int.id) : handleConnect(int.id))}
+                  disabled={oauthLoadingId === int.id}
                   className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white disabled:opacity-60")}
                 >
                   <Plug size={14} />
-                  {googleLoadingId === int.id
+                  {oauthLoadingId === int.id
                     ? "Redirecting…"
                     : int.connected
                       ? "Disconnect"
-                      : isGoogle
-                        ? "Connect with Google"
-                        : "Connect"}
+                      : connectLabel(int.id)}
                 </button>
                 <button
                   onClick={() => testOne(int.id)}
@@ -407,6 +556,30 @@ export default function IntegrationsContent() {
         })}
       </div>
 
+      {shopifyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="w-full max-w-md p-6 rounded-2xl bg-surface border border-border">
+            <h3 className="font-bold text-lg mb-2">Connect Shopify store</h3>
+            <p className="text-sm text-text-2 mb-4">Enter your store domain to authorize Nexa.</p>
+            <input
+              value={shopDomain}
+              onChange={(e) => setShopDomain(e.target.value)}
+              placeholder="mystore or mystore.myshopify.com"
+              className="w-full px-4 py-3 rounded-xl bg-void border border-border mb-4"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShopifyModal(false)} className="flex-1 py-2 rounded-xl border border-border">Cancel</button>
+              <button
+                onClick={() => { setShopifyModal(false); void connectShopify(); }}
+                className="flex-1 py-2 rounded-xl bg-accent text-white font-medium"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {keyModal && modalMeta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className={cn(
@@ -414,15 +587,7 @@ export default function IntegrationsContent() {
             keyModal === "instagram" ? "max-w-lg" : "max-w-md"
           )}>
             <h3 className="font-bold text-lg mb-2">Connect {modalMeta.name}</h3>
-            <p className="text-sm text-text-2 mb-4">{modalMeta.key_hint}</p>
-            {keyModal === "instagram" && (
-              <div className="mb-4 p-3 rounded-xl bg-void border border-border text-xs text-text-2 space-y-1">
-                <p className="font-semibold text-text">Quick checklist:</p>
-                <p>✓ IG is Business/Creator (not personal)</p>
-                <p>✓ IG linked to a Facebook Page you admin</p>
-                <p>✓ Token from Graph API Explorer (long-lived)</p>
-              </div>
-            )}
+            {modalMeta.key_hint ? <p className="text-sm text-text-2 mb-4">{modalMeta.key_hint}</p> : null}
             {modalMeta.needs_key && (
               <input
                 type="password"

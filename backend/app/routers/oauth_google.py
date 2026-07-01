@@ -23,20 +23,29 @@ async def google_oauth_start(
             status_code=503,
             detail="Google OAuth not configured on server. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on Railway.",
         )
-    if integration_id not in {"gmail", "calendar"}:
-        raise HTTPException(status_code=400, detail="integration_id must be gmail or calendar")
+    if integration_id not in {"gmail", "calendar", "google-ads"}:
+        raise HTTPException(status_code=400, detail="integration_id must be gmail, calendar, or google-ads")
 
-    state = create_oauth_state(user.id, integration_id)
-    scopes = [
-        "openid",
-        "email",
-        "https://www.googleapis.com/auth/gmail.send",
-        "https://www.googleapis.com/auth/gmail.readonly",
-    ] if integration_id == "gmail" else [
-        "openid",
-        "email",
-        "https://www.googleapis.com/auth/calendar.events",
-    ]
+    state = create_oauth_state(user.id, integration_id, "google_oauth")
+    if integration_id == "gmail":
+        scopes = [
+            "openid",
+            "email",
+            "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.readonly",
+        ]
+    elif integration_id == "calendar":
+        scopes = [
+            "openid",
+            "email",
+            "https://www.googleapis.com/auth/calendar.events",
+        ]
+    else:
+        scopes = [
+            "openid",
+            "email",
+            "https://www.googleapis.com/auth/adwords",
+        ]
     from urllib.parse import urlencode
 
     params = {
@@ -58,7 +67,7 @@ async def google_oauth_callback(
     state: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ):
-    decoded = decode_oauth_state(state) if state else None
+    decoded = decode_oauth_state(state, "google_oauth") if state else None
     if not decoded or not code:
         return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?error=oauth_failed")
 

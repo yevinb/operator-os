@@ -18,6 +18,7 @@ from app.services.integrations.providers import (
 )
 from app.services.instagram_integration import instagram_snapshot
 from app.services.shopify_integration import fetch_shopify_snapshot
+from app.services.stripe_integration import fetch_stripe_snapshot
 
 IntegrationData = dict[str, dict]
 
@@ -178,7 +179,7 @@ async def _fetch_instagram(data: IntegrationData) -> tuple[dict, dict]:
     if not token:
         return {}, {}
     account_id = ig.get("config", {}).get("instagram_account_id", "")
-    snap = await instagram_snapshot(token, account_id)
+    snap = await instagram_snapshot(token, account_id, ig.get("config", {}))
     if not snap:
         return {}, {}
     return {

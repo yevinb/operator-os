@@ -6,6 +6,8 @@ import re
 
 import httpx
 
+from app.config import settings
+
 GRAPH = "https://graph.facebook.com/v19.0"
 
 REQUIRED_SCOPES = (
@@ -120,12 +122,27 @@ async def instagram_resolve(
     return {"ig_id": ig_id, "username": username, "page_id": resolved_page_id, "page_token": page_token}
 
 
+async def instagram_resolve_from_config(token: str, config: dict | None = None) -> dict | None:
+    cfg = config or {}
+    if cfg.get("instagram_account_id") and cfg.get("page_access_token"):
+        return {
+            "ig_id": str(cfg["instagram_account_id"]),
+            "username": cfg.get("username", ""),
+            "page_id": cfg.get("page_id", ""),
+            "page_token": cfg["page_access_token"],
+        }
+    return await instagram_resolve(token, cfg.get("instagram_account_id", ""), cfg.get("page_id", ""))
+
+
 async def instagram_token_scopes(token: str) -> list[str]:
     try:
+        app_token = f"{settings.meta_app_id}|{settings.meta_app_secret}"
+        if not settings.meta_app_id or not settings.meta_app_secret:
+            app_token = token
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(
                 f"{GRAPH}/debug_token",
-                params={"input_token": token, "access_token": token},
+                params={"input_token": token, "access_token": app_token},
             )
             if r.status_code != 200:
                 return []
@@ -134,13 +151,14 @@ async def instagram_token_scopes(token: str) -> list[str]:
         return []
 
 
-async def verify_instagram(token: str, account_id: str = "") -> tuple[bool, str]:
+async def verify_instagram(token: str, account_id: str = "", config: dict | None = None) -> tuple[bool, str]:
     if not token:
-        return False, "Meta access token required — paste a long-lived User access token from developers.facebook.com"
-    if len(token) < 50:
-        return False, "Token looks too short — use a long-lived User access token from the Graph API Explorer"
+        return False, "Instagram not connected — click Connect with Instagram on the Integrations page"
+    cfg = dict(config or {})
+    if account_id:
+        cfg["instagram_account_id"] = account_id
 
-    ctx = await instagram_resolve(token, account_id)
+    ctx = await instagram_resolve_from_config(token, cfg)
     if not ctx:
         _, _, bundle = await instagram_discover_account(token)
         if bundle.get("error"):
@@ -183,8 +201,11 @@ async def verify_instagram(token: str, account_id: str = "") -> tuple[bool, str]
         return False, str(e)
 
 
-async def instagram_snapshot(token: str, account_id: str = "") -> dict | None:
-    ctx = await instagram_resolve(token, account_id)
+async def instagram_snapshot(token: str, account_id: str = "", config: dict | None = None) -> dict | None:
+    cfg = dict(config or {})
+    if account_id:
+        cfg["instagram_account_id"] = account_id
+    ctx = await instagram_resolve_from_config(token, cfg)
     if not ctx:
         return None
     try:
@@ -209,8 +230,13 @@ async def instagram_snapshot(token: str, account_id: str = "") -> dict | None:
         return None
 
 
-async def instagram_media_insights(token: str, account_id: str = "") -> tuple[bool, str, dict]:
-    ctx = await instagram_resolve(token, account_id)
+async def instagram_media_insights(
+    token: str, account_id: str = "", config: dict | None = None
+) -> tuple[bool, str, dict]:
+    cfg = dict(config or {})
+    if account_id:
+        cfg["instagram_account_id"] = account_id
+    ctx = await instagram_resolve_from_config(token, cfg)
     if not ctx:
         return False, "Instagram Business account not found", {}
     try:
@@ -268,8 +294,14 @@ async def instagram_publish_post(
     image_url: str,
     account_id: str = "",
     page_id: str = "",
+    config: dict | None = None,
 ) -> tuple[bool, str, dict]:
-    ctx = await instagram_resolve(token, account_id, page_id)
+    cfg = dict(config or {})
+    if account_id:
+        cfg["instagram_account_id"] = account_id
+    if page_id:
+        cfg["page_id"] = page_id
+    ctx = await instagram_resolve_from_config(token, cfg)
     if not ctx:
         return False, "Instagram account not resolved", {}
     if not image_url:
@@ -316,8 +348,12 @@ async def instagram_reply_latest_comment(
     token: str,
     reply_text: str,
     account_id: str = "",
+    config: dict | None = None,
 ) -> tuple[bool, str, dict]:
-    ctx = await instagram_resolve(token, account_id)
+    cfg = dict(config or {})
+    if account_id:
+        cfg["instagram_account_id"] = account_id
+    ctx = await instagram_resolve_from_config(token, cfg)
     if not ctx:
         return False, "Instagram account not found", {}
     reply_text = (reply_text or "Thanks for your comment!")[:500]
@@ -378,13 +414,13 @@ async def instagram_execute_action(
         if caption.lower().startswith("post "):
             caption = caption[5:].strip()
         image_url = _extract_url(command) or _extract_url(action) or default_image
-        return await instagram_publish_post(token, caption, image_url, account_id, page_id)
+        return await instagram_publish_post(token, caption, image_url, account_id, page_id, cfg)
 
     if any(k in lower for k in ("reply", "comment", "respond")):
         reply = command if "reply" in lower or "comment" in lower else action
         reply = re.sub(r"(?i)reply to comment|reply on instagram|respond to", "", reply).strip()
         if len(reply) < 3:
             reply = f"Thanks for connecting with {company}!"
-        return await instagram_reply_latest_comment(token, reply, account_id)
+        return await instagram_reply_latest_comment(token, reply, account_id, cfg)
 
-    return await instagram_media_insights(token, account_id)
+    return await instagram_media_insights(token, account_id, cfg)

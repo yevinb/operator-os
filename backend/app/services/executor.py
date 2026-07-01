@@ -8,12 +8,8 @@ from app.services.business_context import BusinessContext
 from app.services.business_snapshot import build_business_snapshot
 from app.services.execution_bundle import ExecutionBundle
 from app.services.integration_map import INTEGRATION_LABELS, missing_integration_hint
-from app.services.integrations.google import (
-    create_calendar_event,
-    google_ads_campaign_stats,
-    resolve_google_access,
-    send_gmail,
-)
+from app.services.integrations.google import create_calendar_event, google_ads_campaign_stats, send_gmail
+from app.services.integrations.google_store import resolve_and_persist_google
 from app.services.instagram_integration import instagram_execute_action
 from app.services.shopify_integration import shopify_execute_action
 from app.services.integrations.providers import (
@@ -83,15 +79,31 @@ class ExecResult:
     proof: dict | None = None
 
 
-async def _integration_access(data: IntegrationData, integration_id: str, *, gmail: bool = False) -> tuple[str, str]:
+async def _integration_access(
+    data: IntegrationData,
+    integration_id: str,
+    *,
+    gmail: bool = False,
+    db: "AsyncSession | None" = None,
+    user_id: str | None = None,
+) -> tuple[str, str]:
     cfg = data.get(integration_id, {}).get("config", {})
     if not cfg:
         return "", ""
-    access, updated = await resolve_google_access(cfg, gmail=gmail)
+    if db and user_id:
+        access, updated = await resolve_and_persist_google(db, user_id, integration_id, cfg, gmail=gmail)
+        data[integration_id]["config"] = updated
+    else:
+        from app.services.integrations.google import resolve_google_access
+        access, updated = await resolve_google_access(cfg, gmail=gmail)
     return access, updated.get("email", "")
 
 
-async def _google_ads_creds(data: IntegrationData) -> tuple[str, str, str]:
+async def _google_ads_creds(
+    data: IntegrationData,
+    db: "AsyncSession | None" = None,
+    user_id: str | None = None,
+) -> tuple[str, str, str]:
     """Returns developer_token, customer_id, access_token."""
     ads = data.get("google-ads", {})
     cfg = ads.get("config", {})
@@ -99,10 +111,16 @@ async def _google_ads_creds(data: IntegrationData) -> tuple[str, str, str]:
     customer = cfg.get("customer_id", "")
     oauth = cfg.get("google_oauth", {})
     if oauth:
-        access, _ = await resolve_google_access(oauth, gmail=False)
+        if db and user_id:
+            access, updated = await resolve_and_persist_google(db, user_id, "google-ads", oauth, gmail=False)
+            cfg["google_oauth"] = updated
+            data["google-ads"]["config"] = cfg
+        else:
+            from app.services.integrations.google import resolve_google_access
+            access, _ = await resolve_google_access(oauth, gmail=False)
         if access:
             return dev, customer, access
-    access, _ = await _integration_access(data, "gmail", gmail=False)
+    access, _ = await _integration_access(data, "gmail", gmail=False, db=db, user_id=user_id)
     return dev, customer, access
 
 
@@ -137,7 +155,8 @@ async def execute_tasks(
 
     for task in response.tasks:
         result = await _execute_single(
-            task, context, stripe_data, integration_data, response, bundle
+            task, context, stripe_data, integration_data, response, bundle,
+            db=db, user_id=user_id,
         )
         bundle.absorb(result.integration, result.detail, result.proof, result.verified)
         executed.append(
@@ -197,6 +216,9 @@ async def _execute_single(
     data: IntegrationData,
     response: CommandResponse,
     bundle: ExecutionBundle,
+    *,
+    db: "AsyncSession | None" = None,
+    user_id: str | None = None,
 ) -> ExecResult:
     company = context.company or "your company"
     action = task.action.lower()
@@ -282,7 +304,7 @@ async def _execute_single(
     cmd_lower = response.command.lower()
     email_cmd = any(k in cmd_lower for k in ("email", "gmail", "send"))
     if "gmail" in connected and email_cmd:
-        access, sender = await _integration_access(data, "gmail", gmail=True)
+        access, sender = await _integration_access(data, "gmail", gmail=True, db=db, user_id=user_id)
         default_to = gmail.get("config", {}).get("default_to", "")
         recipient = _recipient_from_command(response.command, default_to)
         email_intent = any(
@@ -317,7 +339,7 @@ async def _execute_single(
 
     # Calendar
     if "calendar" in connected:
-        access, _ = await _integration_access(data, "calendar", gmail=False)
+        access, _ = await _integration_access(data, "calendar", gmail=False, db=db, user_id=user_id)
         if access and category in ("operations", "sales", "hr") and any(
             k in action for k in ("meeting", "schedule", "calendar", "book", "interview", "standup")
         ):
@@ -493,8 +515,14 @@ async def _execute_single(
         cfg = qb.get("config", {})
         realm = cfg.get("realm_id", "")
         if not realm:
-            return ExecResult(TaskStatus.failed, "QuickBooks connected — add Realm ID in Integrations", "quickbooks")
-        ok, msg, proof = await quickbooks_finance_snapshot(qb["api_key"], realm)
+            return ExecResult(TaskStatus.failed, "QuickBooks connected — reconnect via Connect with QuickBooks", "quickbooks")
+        token = qb["api_key"]
+        if db and user_id:
+            from app.services.integrations.quickbooks_store import persist_quickbooks_tokens
+            token, cfg = await persist_quickbooks_tokens(db, user_id, token, cfg)
+            data["quickbooks"]["api_key"] = token
+            data["quickbooks"]["config"] = cfg
+        ok, msg, proof = await quickbooks_finance_snapshot(token, realm)
         if ok:
             return ExecResult(
                 TaskStatus.completed,
@@ -503,7 +531,7 @@ async def _execute_single(
                 verified=True,
                 proof={"source": "quickbooks_pnl", **proof},
             )
-        name = await quickbooks_company_name(qb["api_key"], realm)
+        name = await quickbooks_company_name(token, realm)
         if name:
             return ExecResult(
                 TaskStatus.completed,
@@ -518,7 +546,7 @@ async def _execute_single(
     if "google-ads" in connected and (
         category == "marketing" or any(k in action for k in ("google ads", "google-ads", "ad campaign", "ppc"))
     ):
-        dev, customer, access = await _google_ads_creds(data)
+        dev, customer, access = await _google_ads_creds(data, db=db, user_id=user_id)
         if dev and customer and access:
             ok, msg, proof = await google_ads_campaign_stats(dev, customer, access)
             if ok:
@@ -532,7 +560,7 @@ async def _execute_single(
             return ExecResult(TaskStatus.failed, msg, "google-ads")
         return ExecResult(
             TaskStatus.failed,
-            "Google Ads: connect Gmail + add developer token and customer ID",
+            "Google Ads: connect with Google + add developer token and customer ID",
             "google-ads",
         )
 

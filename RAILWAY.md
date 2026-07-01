@@ -43,6 +43,15 @@ Commit and push.
 | `GOOGLE_CLIENT_ID` | from Google Cloud Console |
 | `GOOGLE_CLIENT_SECRET` | from Google Cloud Console |
 | `GOOGLE_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/google/callback` |
+| `META_APP_ID` | Meta Developer app ID (Instagram one-click) |
+| `META_APP_SECRET` | Meta app secret |
+| `META_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/meta/callback` |
+| `SHOPIFY_API_KEY` | Shopify app API key (Custom app → Client ID) |
+| `SHOPIFY_API_SECRET` | Shopify app API secret |
+| `SHOPIFY_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/shopify/callback` |
+| `INTUIT_CLIENT_ID` | QuickBooks / Intuit app Client ID |
+| `INTUIT_CLIENT_SECRET` | Intuit Client Secret |
+| `QUICKBOOKS_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/quickbooks/callback` |
 | `FRONTEND_URL` | `https://yevinb.github.io/operator-os` |
 | `GROQ_API_KEY` | Groq API key (AI brain) |
 | `AI_PROVIDER` | `groq` or `auto` |

@@ -41,19 +41,22 @@ def decode_token(token: str) -> str | None:
         return None
 
 
-def create_oauth_state(user_id: str, integration_id: str) -> str:
+def create_oauth_state(user_id: str, integration_id: str, oauth_type: str = "google_oauth") -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     return jwt.encode(
-        {"sub": user_id, "integration_id": integration_id, "type": "google_oauth", "exp": expire},
+        {"sub": user_id, "integration_id": integration_id, "type": oauth_type, "exp": expire},
         settings.jwt_secret,
         algorithm=ALGORITHM,
     )
 
 
-def decode_oauth_state(state: str) -> tuple[str, str] | None:
+def decode_oauth_state(state: str, expected_type: str | None = None) -> tuple[str, str] | None:
     try:
         payload = jwt.decode(state, settings.jwt_secret, algorithms=[ALGORITHM])
-        if payload.get("type") != "google_oauth":
+        oauth_type = payload.get("type")
+        if expected_type and oauth_type != expected_type:
+            return None
+        if oauth_type not in ("google_oauth", "meta_oauth", "shopify_oauth", "quickbooks_oauth"):
             return None
         user_id = payload.get("sub")
         integration_id = payload.get("integration_id")

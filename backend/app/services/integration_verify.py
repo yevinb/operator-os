@@ -10,6 +10,7 @@ from app.services.integrations.providers import (
 )
 from app.services.instagram_integration import verify_instagram
 from app.services.shopify_integration import verify_shopify
+from app.services.stripe_integration import fetch_stripe_snapshot
 from app.services.webhooks import send_slack_message, trigger_n8n
 
 
@@ -56,7 +57,9 @@ async def verify_integration(
     if integration_id == "linkedin":
         return await verify_linkedin(api_key)
     if integration_id == "quickbooks":
-        return await verify_quickbooks(api_key, config.get("realm_id", ""))
+        from app.services.integrations.quickbooks_oauth import resolve_quickbooks_access
+        access, cfg = await resolve_quickbooks_access(api_key, config)
+        return await verify_quickbooks(access, cfg.get("realm_id", ""))
     if integration_id == "mcp":
         return await verify_mcp(api_key)
     if integration_id in ("gmail", "calendar"):
@@ -77,6 +80,6 @@ async def verify_integration(
     if integration_id == "shopify":
         return await verify_shopify(config.get("shop_domain", ""), api_key)
     if integration_id == "instagram":
-        return await verify_instagram(api_key, config.get("instagram_account_id", ""))
+        return await verify_instagram(api_key, config.get("instagram_account_id", ""), config)
 
     return True, "Connected"
