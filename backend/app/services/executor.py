@@ -5,12 +5,24 @@ import re
 from app.models import CommandResponse, Task, TaskStatus
 from app.services.business_context import BusinessContext
 from app.services.integration_map import INTEGRATION_LABELS, missing_integration_hint
-from app.services.integrations.google import create_calendar_event, resolve_google_access, send_gmail
+from app.services.integrations.google import (
+    create_calendar_event,
+    google_ads_campaign_stats,
+    resolve_google_access,
+    send_gmail,
+)
 from app.services.integrations.providers import (
+    hubspot_log_note,
     hubspot_snapshot,
+    linkedin_profile_snapshot,
+    linkedin_share_update,
+    meta_account_insights,
     meta_ad_account_name,
+    meta_first_ad_account,
     notion_create_note,
+    notion_find_database,
     quickbooks_company_name,
+    quickbooks_finance_snapshot,
 )
 from app.services.stripe_integration import fetch_stripe_snapshot
 from app.services.webhooks import post_json_webhook, send_slack_message, trigger_n8n
@@ -57,15 +69,27 @@ class ExecResult:
     proof: dict | None = None
 
 
-async def _google_access(data: IntegrationData) -> tuple[str, str]:
-    for key in ("gmail", "calendar", "google-ads"):
-        cfg = data.get(key, {}).get("config", {})
-        if not cfg:
-            continue
-        access, _ = await resolve_google_access(cfg, gmail=(key == "gmail"))
+async def _integration_access(data: IntegrationData, integration_id: str, *, gmail: bool = False) -> tuple[str, str]:
+    cfg = data.get(integration_id, {}).get("config", {})
+    if not cfg:
+        return "", ""
+    access, updated = await resolve_google_access(cfg, gmail=gmail)
+    return access, updated.get("email", "")
+
+
+async def _google_ads_creds(data: IntegrationData) -> tuple[str, str, str]:
+    """Returns developer_token, customer_id, access_token."""
+    ads = data.get("google-ads", {})
+    cfg = ads.get("config", {})
+    dev = cfg.get("developer_token") or ads.get("api_key", "")
+    customer = cfg.get("customer_id", "")
+    oauth = cfg.get("google_oauth", {})
+    if oauth:
+        access, _ = await resolve_google_access(oauth, gmail=False)
         if access:
-            return access, cfg.get("email", "")
-    return "", ""
+            return dev, customer, access
+    access, _ = await _integration_access(data, "gmail", gmail=False)
+    return dev, customer, access
 
 
 async def execute_tasks(
@@ -194,7 +218,7 @@ async def _execute_single(
     cmd_lower = response.command.lower()
     email_cmd = any(k in cmd_lower for k in ("email", "gmail", "send"))
     if "gmail" in connected and email_cmd:
-        access, sender = await _google_access(data)
+        access, sender = await _integration_access(data, "gmail", gmail=True)
         default_to = gmail.get("config", {}).get("default_to", "")
         recipient = _recipient_from_command(response.command, default_to)
         email_intent = any(
@@ -227,7 +251,7 @@ async def _execute_single(
 
     # Calendar
     if "calendar" in connected:
-        access, _ = await _google_access(data)
+        access, _ = await _integration_access(data, "calendar", gmail=False)
         if access and category in ("operations", "sales", "hr") and any(
             k in action for k in ("meeting", "schedule", "calendar", "book", "interview", "standup")
         ):
@@ -245,6 +269,26 @@ async def _execute_single(
     # HubSpot
     hs_key = data.get("hubspot", {}).get("api_key", "")
     if hs_key and "hubspot" in connected and category in ("sales", "analytics", "support"):
+        if any(k in action for k in ("log", "note", "crm", "sync", "contact", "pull")):
+            ok, msg = await hubspot_log_note(hs_key, f"{task.action}\n\nCommand: {response.command}", company)
+            if ok:
+                return ExecResult(
+                    TaskStatus.completed,
+                    msg,
+                    "hubspot",
+                    verified=True,
+                    proof={"source": "hubspot_note", "message": msg},
+                )
+            snap = await hubspot_snapshot(hs_key)
+            if snap:
+                return ExecResult(
+                    TaskStatus.completed,
+                    f"HubSpot: {snap.get('hubspot_contacts', 0)} contacts in CRM",
+                    "hubspot",
+                    verified=True,
+                    proof={"source": "hubspot_snapshot", "contacts": snap.get("hubspot_contacts", 0)},
+                )
+            return ExecResult(TaskStatus.failed, msg, "hubspot")
         snap = await hubspot_snapshot(hs_key)
         if snap:
             return ExecResult(
@@ -262,7 +306,13 @@ async def _execute_single(
         cfg = notion.get("config", {})
         db_id = cfg.get("database_id", "")
         if not db_id:
-            return ExecResult(TaskStatus.planned, "Notion connected — add database ID in Integrations", "notion")
+            db_id = await notion_find_database(notion["api_key"]) or ""
+        if not db_id:
+            return ExecResult(
+                TaskStatus.failed,
+                "Notion: no database found — share a database with your integration",
+                "notion",
+            )
         ok, msg = await notion_create_note(
             notion["api_key"],
             db_id,
@@ -275,20 +325,26 @@ async def _execute_single(
                 msg,
                 "notion",
                 verified=True,
-                proof={"source": "notion_create_note", "message": msg},
+                proof={"source": "notion_create_note", "message": msg, "database_id": db_id},
             )
         return ExecResult(TaskStatus.failed, msg, "notion")
 
-    # Meta — read-only verify unless write keywords
+    # Meta Ads — live insights + account status
     meta = data.get("meta", {})
     if meta.get("api_key") and "meta" in connected and category == "marketing":
-        if is_write:
-            return ExecResult(
-                TaskStatus.planned,
-                "Meta connected — campaign creation runs in Ads Manager; use n8n for automation",
-                "meta",
-            )
         cfg = meta.get("config", {})
+        acct_id = cfg.get("ad_account_id", "") or await meta_first_ad_account(meta["api_key"]) or ""
+        if acct_id:
+            ok, msg, proof = await meta_account_insights(meta["api_key"], acct_id)
+            if ok:
+                return ExecResult(
+                    TaskStatus.completed,
+                    msg,
+                    "meta",
+                    verified=True,
+                    proof={"source": "meta_insights", **proof},
+                )
+            return ExecResult(TaskStatus.failed, msg, "meta")
         name = await meta_ad_account_name(meta["api_key"], cfg.get("ad_account_id", ""))
         if name:
             return ExecResult(
@@ -298,16 +354,42 @@ async def _execute_single(
                 verified=True,
                 proof={"source": "meta_account_lookup", "account_name": name},
             )
-        return ExecResult(TaskStatus.planned, "Add Meta ad account ID in Integrations", "meta")
+        return ExecResult(TaskStatus.failed, "Add Meta ad account ID or grant ads_read permission", "meta")
 
-    # LinkedIn
+    # LinkedIn — profile + optional post for hiring/outreach
     li_key = data.get("linkedin", {}).get("api_key", "")
     if li_key and "linkedin" in connected and category == "hr":
-        return ExecResult(
-            TaskStatus.planned,
-            "LinkedIn integration is connected, but live HR actions are not implemented yet",
-            "linkedin",
-        )
+        if is_write or any(k in action for k in ("post", "share", "outreach", "hire", "recruit")):
+            post_text = f"{company}: {task.action}"[:500]
+            ok, msg = await linkedin_share_update(li_key, post_text)
+            if ok:
+                return ExecResult(
+                    TaskStatus.completed,
+                    msg,
+                    "linkedin",
+                    verified=True,
+                    proof={"source": "linkedin_ugc_post"},
+                )
+            ok2, msg2, proof = await linkedin_profile_snapshot(li_key)
+            if ok2:
+                return ExecResult(
+                    TaskStatus.completed,
+                    f"{msg2} (post skipped: {msg[:80]})",
+                    "linkedin",
+                    verified=True,
+                    proof={"source": "linkedin_profile", **proof},
+                )
+            return ExecResult(TaskStatus.failed, msg, "linkedin")
+        ok, msg, proof = await linkedin_profile_snapshot(li_key)
+        if ok:
+            return ExecResult(
+                TaskStatus.completed,
+                msg,
+                "linkedin",
+                verified=True,
+                proof={"source": "linkedin_profile", **proof},
+            )
+        return ExecResult(TaskStatus.failed, msg, "linkedin")
 
     # QuickBooks
     qb = data.get("quickbooks", {})
@@ -315,7 +397,16 @@ async def _execute_single(
         cfg = qb.get("config", {})
         realm = cfg.get("realm_id", "")
         if not realm:
-            return ExecResult(TaskStatus.planned, "QuickBooks connected — add Realm ID", "quickbooks")
+            return ExecResult(TaskStatus.failed, "QuickBooks connected — add Realm ID in Integrations", "quickbooks")
+        ok, msg, proof = await quickbooks_finance_snapshot(qb["api_key"], realm)
+        if ok:
+            return ExecResult(
+                TaskStatus.completed,
+                msg,
+                "quickbooks",
+                verified=True,
+                proof={"source": "quickbooks_pnl", **proof},
+            )
         name = await quickbooks_company_name(qb["api_key"], realm)
         if name:
             return ExecResult(
@@ -327,11 +418,25 @@ async def _execute_single(
             )
         return ExecResult(TaskStatus.failed, "QuickBooks API error", "quickbooks")
 
-    # Google Ads
-    if "google-ads" in connected and category == "marketing":
+    # Google Ads — live campaign metrics
+    if "google-ads" in connected and (
+        category == "marketing" or any(k in action for k in ("google ads", "google-ads", "ad campaign", "ppc"))
+    ):
+        dev, customer, access = await _google_ads_creds(data)
+        if dev and customer and access:
+            ok, msg, proof = await google_ads_campaign_stats(dev, customer, access)
+            if ok:
+                return ExecResult(
+                    TaskStatus.completed,
+                    msg,
+                    "google-ads",
+                    verified=True,
+                    proof={"source": "google_ads_search", **proof},
+                )
+            return ExecResult(TaskStatus.failed, msg, "google-ads")
         return ExecResult(
-            TaskStatus.planned,
-            "Google Ads integration is connected, but live campaign actions need developer token + customer ID setup",
+            TaskStatus.failed,
+            "Google Ads: connect Gmail + add developer token and customer ID",
             "google-ads",
         )
 

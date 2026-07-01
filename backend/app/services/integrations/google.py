@@ -1,5 +1,6 @@
 import base64
 import json
+from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 
 import httpx
@@ -138,7 +139,20 @@ async def send_gmail(
         return False, str(e)
 
 
-async def create_calendar_event(access_token: str, title: str, description: str) -> tuple[bool, str]:
+async def create_calendar_event(
+    access_token: str,
+    title: str,
+    description: str,
+    *,
+    start_iso: str | None = None,
+    end_iso: str | None = None,
+) -> tuple[bool, str]:
+    if not start_iso or not end_iso:
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        start = start.replace(hour=10, minute=0, second=0, microsecond=0)
+        end = start + timedelta(hours=1)
+        start_iso = start.isoformat()
+        end_iso = end.isoformat()
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             r = await client.post(
@@ -147,15 +161,59 @@ async def create_calendar_event(access_token: str, title: str, description: str)
                 json={
                     "summary": title[:200],
                     "description": description[:2000],
-                    "start": {"dateTime": "2026-07-02T10:00:00+03:00"},
-                    "end": {"dateTime": "2026-07-02T11:00:00+03:00"},
+                    "start": {"dateTime": start_iso, "timeZone": "UTC"},
+                    "end": {"dateTime": end_iso, "timeZone": "UTC"},
                 },
             )
             if r.status_code in (200, 201):
-                return True, f"Calendar event created: {title[:40]}"
-            return False, r.text[:120]
+                data = r.json()
+                link = data.get("htmlLink", "")
+                return True, f"Calendar event booked: {title[:40]} ({start_iso[:10]})"
+            return False, _parse_google_error(r.text, r.status_code)
     except Exception as e:
         return False, str(e)
+
+
+async def google_ads_campaign_stats(
+    developer_token: str,
+    customer_id: str,
+    access_token: str,
+) -> tuple[bool, str, dict]:
+    cid = customer_id.replace("-", "")
+    query = (
+        "SELECT campaign.name, metrics.impressions, metrics.clicks, metrics.cost_micros "
+        "FROM campaign WHERE segments.date DURING LAST_30_DAYS LIMIT 10"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            r = await client.post(
+                f"https://googleads.googleapis.com/v17/customers/{cid}/googleAds:search",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "developer-token": developer_token,
+                    "Content-Type": "application/json",
+                },
+                json={"query": query},
+            )
+            if r.status_code != 200:
+                return False, _parse_google_error(r.text, r.status_code), {}
+            rows = r.json().get("results", [])
+            if not rows:
+                return True, "Google Ads connected — no campaign data in last 30 days", {"campaigns": 0}
+            total_spend = 0.0
+            names = []
+            for row in rows[:5]:
+                camp = row.get("campaign", {})
+                metrics = row.get("metrics", {})
+                names.append(camp.get("name", "Campaign"))
+                total_spend += int(metrics.get("costMicros", 0) or 0) / 1_000_000
+            return (
+                True,
+                f"Google Ads: {len(rows)} campaign(s), ~${total_spend:.2f} spend (30d)",
+                {"campaigns": len(rows), "spend_usd": round(total_spend, 2), "names": names},
+            )
+    except Exception as e:
+        return False, str(e), {}
 
 
 async def verify_google_ads(developer_token: str, customer_id: str, access_token: str) -> tuple[bool, str]:
