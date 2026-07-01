@@ -69,7 +69,8 @@ async def control_status(
         },
         "connected_integrations": context.connected_integrations,
         "live_metrics": context.live_metrics,
-        "cursor_hint": "Use nexa_run, nexa_email, nexa_chat, nexa_autopilot MCP tools or POST /api/v1/control/*",
+        "powered_by": "cursor",
+        "engine": "cursor_agent",
     }
 
 

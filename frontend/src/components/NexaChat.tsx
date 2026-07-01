@@ -23,7 +23,7 @@ const STARTERS = [
 const DEFAULT_WELCOME: ChatMessage = {
   id: "welcome",
   role: "nexa",
-  content: "Hey — I'm Nexa, your autonomous AI operator. Talk naturally — I'll write emails, run your tools, and execute outcomes on my own.",
+  content: "Hey — I'm Nexa, powered by Cursor. Talk naturally — I control your email, revenue, marketing, and ops automatically.",
   timestamp: new Date().toISOString(),
 };
 
@@ -40,7 +40,7 @@ function loadHistory(): ChatMessage[] {
   const company = ctx.company || getSession()?.company || "your business";
   return [{
     ...DEFAULT_WELCOME,
-    content: `Hey — I'm Nexa, your autonomous AI operator for ${company}. Talk naturally — I'll write emails, run your tools, and execute on my own.`,
+    content: `Hey — I'm Nexa for ${company}, powered by Cursor. I run your business automatically — email, sales, finance, marketing.`,
   }];
 }
 
@@ -144,7 +144,7 @@ export function NexaChat({ compact = false }: { compact?: boolean }) {
         </div>
         <div>
           <p className="font-bold text-white">Nexa AI Chat</p>
-          <p className="text-xs text-text-2">Your business operator — chat & execute live</p>
+          <p className="text-xs text-text-2">Powered by Cursor · runs your business live</p>
         </div>
       </div>
 

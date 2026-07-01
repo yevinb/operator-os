@@ -1,0 +1,295 @@
+"""
+Cursor Engine — Nexa's brain.
+
+Every Nexa user message flows through here. Cursor-style agent loop:
+plan → call real business tools → respond. Users talk to Nexa; Cursor logic runs everything.
+"""
+
+import json
+from typing import Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.db_models import CommandLog, User
+from app.services.autopilot import run_autopilot
+from app.services.business_context import BusinessContext, build_business_context
+from app.services.chat import format_execution_reply
+from app.services.email_dispatch import try_direct_gmail_send
+from app.services.nexa_intelligence import analyze_message
+
+NEXA_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "send_email",
+            "description": "Send a real Gmail email immediately. Use for any outreach, follow-up, or customer email.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "instruction": {
+                        "type": "string",
+                        "description": "Full email intent including recipient email if known",
+                    }
+                },
+                "required": ["instruction"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "execute_command",
+            "description": "Run a business command across Stripe, Slack, HubSpot, ads, Calendar, Notion, n8n, etc.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "What to execute"},
+                },
+                "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_autopilot",
+            "description": "Run a full autonomous business cycle across all connected tools.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "type": "string",
+                        "enum": ["growth", "sales", "full", "ops"],
+                        "description": "Autopilot mode",
+                    }
+                },
+                "required": ["mode"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "reply_only",
+            "description": "Answer the user conversationally without executing tools.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "description": "Your reply to the user"},
+                },
+                "required": ["message"],
+            },
+        },
+    },
+]
+
+
+def _system_prompt(context: BusinessContext) -> str:
+    connected = ", ".join(context.connected_integrations) if context.connected_integrations else "Gmail (via Google sign-in)"
+    return f"""You are Nexa — an autonomous AI business operator powered by Cursor.
+
+You control the user's real company through live integrations. You MUST use tools to take action — never pretend you sent email or ran commands without calling a tool.
+
+Business:
+{context.to_prompt_block()}
+
+Connected tools: {connected}
+
+Rules:
+- User wants email → call send_email
+- User wants revenue, leads, marketing, ops, checks → call execute_command or run_autopilot
+- Questions only → call reply_only
+- Be decisive. One tool call per turn when possible.
+- After tools run, summarize what happened with verified results."""
+
+
+async def _groq_agent_turn(
+    message: str,
+    history: list[dict],
+    context: BusinessContext,
+) -> dict | None:
+    if not settings.groq_api_key:
+        return None
+    try:
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(
+            api_key=settings.groq_api_key,
+            base_url="https://api.groq.com/openai/v1",
+        )
+        messages: list[dict[str, Any]] = [{"role": "system", "content": _system_prompt(context)}]
+        for item in history[-8:]:
+            role = "assistant" if item.get("role") == "nexa" else "user"
+            messages.append({"role": role, "content": item.get("content", "")})
+        messages.append({"role": "user", "content": message})
+
+        model = settings.groq_model or "llama-3.3-70b-versatile"
+        for _ in range(3):
+            r = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                tools=NEXA_TOOLS,
+                tool_choice="auto",
+                max_tokens=800,
+                temperature=0.4,
+            )
+            choice = r.choices[0]
+            if not choice.message.tool_calls:
+                text = (choice.message.content or "").strip()
+                return {"action": "reply", "reply": text} if text else None
+
+            messages.append(choice.message.model_dump())
+            for tc in choice.message.tool_calls:
+                name = tc.function.name
+                try:
+                    args = json.loads(tc.function.arguments or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                return {"action": name, "args": args, "tool_call_id": tc.id}
+
+        return None
+    except Exception:
+        return None
+
+
+async def _execute_tool(
+    action: str,
+    args: dict,
+    message: str,
+    history: list[dict],
+    user: User,
+    db: AsyncSession,
+    context: BusinessContext,
+) -> dict:
+    from app.services.chat import _run_execution
+
+    if action == "send_email":
+        instruction = args.get("instruction") or message
+        analysis = await analyze_message(instruction, history, context)
+        result = await try_direct_gmail_send(
+            instruction,
+            user.id,
+            context.company,
+            db,
+            context=context,
+            history=history,
+            analysis=analysis,
+            sender_name=user.name,
+        )
+        if result:
+            return result
+        return {"reply": "Could not send email — check Gmail is connected.", "executed": False}
+
+    if action == "execute_command":
+        cmd = args.get("command") or message
+        payload = await _run_execution(cmd, user, db, context)
+        return payload
+
+    if action == "run_autopilot":
+        mode = args.get("mode", "growth")
+        ap = await run_autopilot(mode, user, db)
+        lines = [ap["summary"]]
+        for r in ap.get("results", [])[:4]:
+            if r.get("executed"):
+                lines.append(f"✓ {r['command'][:60]}")
+        return {
+            "reply": "\n".join(lines),
+            "executed": ap.get("verified_actions", 0) > 0,
+            "command_response": {
+                "command": f"autopilot:{mode}",
+                "intent": "autopilot",
+                "summary": ap["summary"],
+                "tasks": [],
+                "executed_count": ap.get("verified_actions", 0),
+                "mode": "live",
+            },
+        }
+
+    if action == "reply_only":
+        return {"reply": args.get("message", ""), "executed": False}
+
+    return {"reply": "I'm ready — tell me what to run.", "executed": False}
+
+
+async def _fallback_turn(
+    message: str,
+    history: list[dict],
+    user: User,
+    db: AsyncSession,
+    context: BusinessContext,
+) -> dict:
+    """Rule + intelligence path when agent loop unavailable."""
+    from app.services.chat import _run_execution, ai_chat_reply, rule_chat_reply, should_execute
+
+    analysis = await analyze_message(message, history, context)
+    if analysis.get("action") == "send_email":
+        result = await try_direct_gmail_send(
+            message,
+            user.id,
+            context.company,
+            db,
+            context=context,
+            history=history,
+            analysis=analysis,
+            sender_name=user.name,
+        )
+        if result:
+            return result
+    if should_execute(message, analysis):
+        return await _run_execution(message, user, db, context)
+    reply = await ai_chat_reply(message, context, history) or rule_chat_reply(message, context)
+    return {"reply": reply, "executed": False}
+
+
+async def _log_if_executed(result: dict, user: User, db: AsyncSession) -> None:
+    if result.get("executed") and result.get("command_response"):
+        cr = result["command_response"]
+        db.add(
+            CommandLog(
+                user_id=user.id,
+                command=cr.get("command", ""),
+                intent=cr.get("intent", "cursor_engine"),
+                summary=cr.get("summary", ""),
+                tasks_json=json.dumps(cr.get("tasks", [])),
+            )
+        )
+
+
+async def handle_cursor_turn(
+    message: str,
+    history: list[dict],
+    user: User,
+    db: AsyncSession,
+) -> dict:
+    """Single entry point for all Nexa user interactions — Cursor controls everything."""
+    text = message.strip()
+    if not text:
+        return {"reply": "Tell me what you want — I'll run it.", "executed": False, "powered_by": "cursor"}
+
+    context = await build_business_context(user, db)
+    agent = await _groq_agent_turn(text, history, context)
+
+    if agent and agent.get("action") == "reply":
+        return {"reply": agent["reply"], "executed": False, "powered_by": "cursor"}
+
+    if agent and agent.get("action") in ("send_email", "execute_command", "run_autopilot", "reply_only"):
+        result = await _execute_tool(
+            agent["action"],
+            agent.get("args", {}),
+            text,
+            history,
+            user,
+            db,
+            context,
+        )
+        result["powered_by"] = "cursor"
+        await _log_if_executed(result, user, db)
+        await db.commit()
+        return result
+
+    result = await _fallback_turn(text, history, user, db, context)
+    result["powered_by"] = "cursor"
+    await _log_if_executed(result, user, db)
+    await db.commit()
+    return result

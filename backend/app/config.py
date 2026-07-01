@@ -78,7 +78,8 @@ class Settings(BaseSettings):
 
     # Cursor / agent control — full business API access without browser login
     nexa_control_key: str = ""
-    nexa_control_email: str = ""  # default user email for Cursor/agent commands
+    nexa_control_email: str = ""
+    cursor_api_key: str = ""  # optional Cursor Cloud for heavy background jobs
 
     # Google OAuth (Gmail, Calendar, Google Ads)
     google_client_id: str = ""

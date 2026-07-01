@@ -219,46 +219,6 @@ async def handle_chat(
     user: User,
     db: AsyncSession,
 ) -> dict:
-    context = await build_business_context(user, db)
-    text = message.strip()
-    if not text:
-        return {"reply": "Tell me what you want — I'll run it.", "executed": False}
+    from app.services.cursor_engine import handle_cursor_turn
 
-    analysis = await analyze_message(text, history, context)
-
-    # Autonomous email — intelligent composition + send
-    if analysis.get("action") == "send_email":
-        direct_email = await try_direct_gmail_send(
-            text,
-            user.id,
-            context.company,
-            db,
-            context=context,
-            history=history,
-            analysis=analysis,
-            sender_name=user.name,
-        )
-        if direct_email:
-            from app.db_models import CommandLog
-
-            if direct_email.get("executed") and direct_email.get("command_response"):
-                cr = direct_email["command_response"]
-                db.add(
-                    CommandLog(
-                        user_id=user.id,
-                        command=cr["command"],
-                        intent=cr["intent"],
-                        summary=cr["summary"],
-                        tasks_json=json.dumps(cr["tasks"]),
-                    )
-                )
-            await db.commit()
-            return direct_email
-
-    # Autonomous business execution
-    if should_execute(text, analysis):
-        return await _run_execution(text, user, db, context)
-
-    ai_reply = await ai_chat_reply(text, context, history)
-    reply = ai_reply or rule_chat_reply(text, context)
-    return {"reply": reply, "executed": False}
+    return await handle_cursor_turn(message, history, user, db)
