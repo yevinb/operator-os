@@ -97,7 +97,7 @@ async def google_auth_start():
         "response_type": "code",
         "scope": GOOGLE_OAUTH_SCOPES,
         "access_type": "offline",
-        "prompt": "consent",
+        "prompt": "select_account",
         "state": state,
     }
     return {"url": f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"}

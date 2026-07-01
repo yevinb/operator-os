@@ -82,19 +82,37 @@ export function isAuthError(message: string): boolean {
   );
 }
 
-/** Validate JWT against backend — clears stale sessions after Railway DB resets. */
+/** Validate JWT against backend — clears session only on real auth failure. */
 export async function validateSession(): Promise<User | null> {
   const token = getToken();
   if (!token) return null;
+
+  const cached = getSession();
+
   try {
     await initApiConfig();
-    const data = await apiFetch<Record<string, unknown>>("/api/v1/auth/me");
-    const user = mapApiUser(data);
+    const base = (await import("./api-config")).getApiUrlSync();
+    const res = await fetch(`${base}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.status === 401) {
+      clearSession();
+      return null;
+    }
+
+    if (!res.ok) {
+      // Backend hiccup — keep existing session so you stay signed in
+      return cached;
+    }
+
+    const data = await res.json();
+    const user = mapApiUser(data as Record<string, unknown>);
     setSession(user);
     return restoreOnboardingIfKnown(user);
   } catch {
-    clearSession();
-    return null;
+    // Network timeout / offline — don't wipe your session
+    return cached;
   }
 }
 

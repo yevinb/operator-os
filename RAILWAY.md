@@ -37,7 +37,7 @@ Commit and push.
 
 | Variable | Value |
 |----------|--------|
-| `JWT_SECRET` | long random string |
+| `JWT_SECRET` | long random string — **must stay the same** or everyone gets signed out |
 | `DATABASE_URL` | **Add Railway Postgres** — keeps accounts & Gmail connections after deploys |
 | `CORS_ORIGINS` | `["https://yevinb.github.io"]` |
 | `GOOGLE_CLIENT_ID` | from Google Cloud Console |
@@ -60,7 +60,7 @@ Commit and push.
 
 See `CURSOR_CONTROL.md`. Set `NEXA_CONTROL_KEY` + `NEXA_CONTROL_EMAIL` on Railway, then enable MCP in Cursor (`.cursor/mcp.json`).
 
-**Persistent accounts:** Without `DATABASE_URL`, SQLite is stored in `/app/data` (better than `/tmp`, but Postgres is recommended).
+**Stay signed in:** Nexa stores a login token in your browser for 90 days. For Google sign-in to persist across deploys, set a stable `JWT_SECRET` and link **Postgres** (`DATABASE_URL`). Without Postgres, Railway redeploys can wipe your account and sign you out.
 
 **Add Postgres on Railway:** Project → **+ New** → **Database** → **PostgreSQL** → link to your Nexa service (Railway sets `DATABASE_URL` automatically).
 

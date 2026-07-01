@@ -52,7 +52,7 @@ class Settings(BaseSettings):
 
     # Auth
     jwt_secret: str = "change-me-in-production-operatoros-secret"
-    jwt_expire_days: int = 30
+    jwt_expire_days: int = 90
 
     # AI providers (optional — falls back to rule-based engine)
     openai_api_key: str = ""

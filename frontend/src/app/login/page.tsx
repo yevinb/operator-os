@@ -34,35 +34,44 @@ function LoginContent() {
       setError("Google sign-in failed. Please try again.");
       return;
     }
-    if (!token) return;
+    if (token) {
+      (async () => {
+        try {
+          setToken(token);
+          const me = await fetch(`${getApiUrl()}/api/v1/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!me.ok) throw new Error("Google session invalid");
+          const raw = await me.json();
+          let session: User = {
+            id: String(raw.id),
+            email: String(raw.email),
+            name: String(raw.name),
+            company: String(raw.company),
+            plan: (raw.plan || "starter") as Plan,
+            onboarded: Boolean(raw.onboarded),
+            createdAt: new Date().toISOString(),
+            industry: String(raw.industry || ""),
+            goal: String(raw.goal || ""),
+            market: String(raw.market || ""),
+            niche_mode: String(raw.niche_mode || "general"),
+          };
+          markEmailOnboarded(session.email);
+          setSession(session);
+          session = await restoreOnboardingIfKnown(session);
+          router.replace("/dashboard");
+        } catch {
+          setError("Google sign-in failed. Please try again.");
+        }
+      })();
+      return;
+    }
+
+    // Already signed in — skip login screen
     (async () => {
-      try {
-        setToken(token);
-        const me = await fetch(`${getApiUrl()}/api/v1/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!me.ok) throw new Error("Google session invalid");
-        const raw = await me.json();
-        let session: User = {
-          id: String(raw.id),
-          email: String(raw.email),
-          name: String(raw.name),
-          company: String(raw.company),
-          plan: (raw.plan || "starter") as Plan,
-          onboarded: Boolean(raw.onboarded),
-          createdAt: new Date().toISOString(),
-          industry: String(raw.industry || ""),
-          goal: String(raw.goal || ""),
-          market: String(raw.market || ""),
-          niche_mode: String(raw.niche_mode || "general"),
-        };
-        markEmailOnboarded(session.email);
-        setSession(session);
-        session = await restoreOnboardingIfKnown(session);
-        router.replace("/dashboard");
-      } catch {
-        setError("Google sign-in failed. Please try again.");
-      }
+      const { validateSession } = await import("@/lib/auth");
+      const session = await validateSession();
+      if (session) router.replace("/dashboard");
     })();
   }, [search, router]);
 
