@@ -156,8 +156,18 @@ export default function Home() {
         </Link>
       </section>
 
-      <footer className="py-8 text-center text-text-3 text-sm border-t border-white/10">
-        Nexa v3 · <a href="https://yevinb.github.io/operator-os/" className="text-gold hover:underline">yevinb.github.io/operator-os</a> · Kuwait → Global
+      <footer className="py-10 px-6 text-center text-text-3 text-sm border-t border-white/10 space-y-2">
+        <p className="text-text-2">
+          Nexa — AI business operating system by{" "}
+          <a href="mailto:yevin.bollegala@gmail.com" className="text-gold hover:underline">
+            yevin.bollegala@gmail.com
+          </a>
+        </p>
+        <p>
+          <Link href="/privacy" className="text-gold hover:underline">Privacy Policy</Link>
+          {" · "}
+          <a href="https://yevinb.github.io/operator-os/" className="hover:underline">yevinb.github.io/operator-os</a>
+        </p>
       </footer>
     </div>
   );

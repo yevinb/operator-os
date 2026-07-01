@@ -32,7 +32,10 @@ export default function PrivacyPage() {
         </p>
         <h2 className="text-lg font-semibold text-text pt-2">Contact</h2>
         <p>
-          Questions: contact the Nexa team via the email listed on your Google Cloud OAuth consent screen.
+          Operator: Yevin Bollegala —{" "}
+          <a href="mailto:yevin.bollegala@gmail.com" className="text-accent hover:underline">
+            yevin.bollegala@gmail.com
+          </a>
         </p>
       </div>
     </div>

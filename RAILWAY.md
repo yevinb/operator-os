@@ -117,7 +117,24 @@ https://operator-os-production-2a8a.up.railway.app/api/v1/auth/google/callback
 https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/google/callback
 ```
 
-After deploy, users: **Sign in with Google** → then **Integrations** → **Connect Gmail** for email features.
+Until verified, add emails under **Audience** → **Test users** for Gmail connect only.
+
+### Homepage “not registered to you” (verification rejected)
+
+Google does **not** use GitHub ownership. It uses **Google Search Console** with the **same Google account** as Cloud Console (`yevin.bollegala@gmail.com`).
+
+1. Open [Google Search Console](https://search.google.com/search-console) — sign in as **yevin.bollegala@gmail.com**
+2. **Add property** → **URL prefix** → `https://yevinb.github.io/operator-os/`
+3. Verify ownership (pick one):
+   - **HTML file:** download `googlexxxxx.html` → put it in `frontend/public/` → commit & deploy → click Verify in Search Console
+   - **HTML tag:** add the meta tag Search Console gives you to `frontend/src/app/layout.tsx` in `<head>` → deploy → Verify
+4. In **Google Auth Platform** → **Branding** → **Authorized domains** → ensure `github.io` is listed
+5. **Application home page:** `https://yevinb.github.io/operator-os/`
+6. **Privacy policy:** `https://yevinb.github.io/operator-os/privacy`
+7. Homepage must link to privacy policy (Nexa footer does this after latest deploy)
+8. Resubmit in **Verification center**
+
+**Important:** Search Console account email must match the Google Cloud developer account.
 
 ## 6. Verify
 
