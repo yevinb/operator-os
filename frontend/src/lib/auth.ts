@@ -6,41 +6,88 @@ import { syncUserToProfile } from "./business-context";
 const USER_KEY = "operatoros_user";
 const SESSION_KEY = "operatoros_session";
 const TOKEN_KEY = "operatoros_token";
+const REMEMBER_KEY = "operatoros_remember_me";
 const ONBOARDED_EMAILS_KEY = "nexa_onboarded_emails";
 
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+function isBrowser() {
+  return typeof window !== "undefined";
 }
 
-export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+/** Default true — stay signed in across browser restarts. */
+export function getRememberMe(): boolean {
+  if (!isBrowser()) return true;
+  return localStorage.getItem(REMEMBER_KEY) !== "0";
+}
+
+export function setRememberMe(remember: boolean) {
+  if (!isBrowser()) return;
+  localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
+}
+
+function pickStorage(remember?: boolean): Storage {
+  const usePersistent = remember ?? getRememberMe();
+  return usePersistent ? localStorage : sessionStorage;
+}
+
+function clearAuthStorage() {
+  if (!isBrowser()) return;
+  for (const store of [localStorage, sessionStorage]) {
+    store.removeItem(TOKEN_KEY);
+    store.removeItem(SESSION_KEY);
+    store.removeItem(USER_KEY);
+  }
+}
+
+export function getToken(): string | null {
+  if (!isBrowser()) return null;
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string, remember?: boolean) {
+  if (!isBrowser()) return;
+  if (remember !== undefined) setRememberMe(remember);
+  clearAuthStorage();
+  pickStorage(remember).setItem(TOKEN_KEY, token);
 }
 
 export function getSession(): User | null {
-  if (typeof window === "undefined") return null;
+  if (!isBrowser()) return null;
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw =
+      localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
-export function setSession(user: User) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+export function setSession(user: User, remember?: boolean) {
+  if (!isBrowser()) return;
+  if (remember !== undefined) setRememberMe(remember);
+  const store = pickStorage(remember);
+  const json = JSON.stringify(user);
+  store.setItem(SESSION_KEY, json);
+  store.setItem(USER_KEY, json);
+  syncUserToProfile(user);
+}
+
+export function persistAuth(token: string, user: User, remember = true) {
+  setRememberMe(remember);
+  clearAuthStorage();
+  const store = pickStorage(remember);
+  store.setItem(TOKEN_KEY, token);
+  const json = JSON.stringify(user);
+  store.setItem(SESSION_KEY, json);
+  store.setItem(USER_KEY, json);
   syncUserToProfile(user);
 }
 
 export function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(TOKEN_KEY);
+  clearAuthStorage();
 }
 
 function getOnboardedEmails(): string[] {
-  if (typeof window === "undefined") return [];
+  if (!isBrowser()) return [];
   try {
     const raw = localStorage.getItem(ONBOARDED_EMAILS_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -102,7 +149,6 @@ export async function validateSession(): Promise<User | null> {
     }
 
     if (!res.ok) {
-      // Backend hiccup — keep existing session so you stay signed in
       return cached;
     }
 
@@ -111,7 +157,6 @@ export async function validateSession(): Promise<User | null> {
     setSession(user);
     return restoreOnboardingIfKnown(user);
   } catch {
-    // Network timeout / offline — don't wipe your session
     return cached;
   }
 }
@@ -132,23 +177,32 @@ function mapApiUser(data: Record<string, unknown>): User {
   };
 }
 
-export async function login(email: string, password: string): Promise<User> {
+export async function login(
+  email: string,
+  password: string,
+  rememberMe = true
+): Promise<User> {
   await initApiConfig();
   try {
     const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
       "/api/v1/auth/login",
       { method: "POST", body: JSON.stringify({ email: email.trim(), password }) }
     );
-    setToken(data.token);
     const user = mapApiUser(data.user);
-    setSession(user);
+    persistAuth(data.token, user, rememberMe);
     return user;
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Login failed");
   }
 }
 
-export async function signup(email: string, name: string, company: string, password: string): Promise<User> {
+export async function signup(
+  email: string,
+  name: string,
+  company: string,
+  password: string,
+  rememberMe = true
+): Promise<User> {
   await initApiConfig();
   try {
     const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
@@ -163,9 +217,8 @@ export async function signup(email: string, name: string, company: string, passw
         }),
       }
     );
-    setToken(data.token);
     const user = mapApiUser(data.user);
-    setSession(user);
+    persistAuth(data.token, user, rememberMe);
     return user;
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Signup failed");

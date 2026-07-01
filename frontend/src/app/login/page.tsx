@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { Plan, User } from "@/lib/types";
-import { login, setSession, setToken, restoreOnboardingIfKnown, markEmailOnboarded } from "@/lib/auth";
+import { login, persistAuth, getRememberMe, setRememberMe, restoreOnboardingIfKnown, markEmailOnboarded, validateSession } from "@/lib/auth";
 import { getApiUrl } from "@/lib/api";
 import { NexaLogo } from "@/components/NexaLogo";
 
@@ -26,6 +26,11 @@ function LoginContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
+
+  useEffect(() => {
+    setKeepSignedIn(getRememberMe());
+  }, []);
 
   useEffect(() => {
     const token = search.get("google_token");
@@ -37,7 +42,6 @@ function LoginContent() {
     if (token) {
       (async () => {
         try {
-          setToken(token);
           const me = await fetch(`${getApiUrl()}/api/v1/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -57,7 +61,7 @@ function LoginContent() {
             niche_mode: String(raw.niche_mode || "general"),
           };
           markEmailOnboarded(session.email);
-          setSession(session);
+          persistAuth(token, session, getRememberMe());
           session = await restoreOnboardingIfKnown(session);
           router.replace("/dashboard");
         } catch {
@@ -69,7 +73,6 @@ function LoginContent() {
 
     // Already signed in — skip login screen
     (async () => {
-      const { validateSession } = await import("@/lib/auth");
       const session = await validateSession();
       if (session) router.replace("/dashboard");
     })();
@@ -78,6 +81,7 @@ function LoginContent() {
   const handleGoogle = async () => {
     setError("");
     setGoogleLoading(true);
+    setRememberMe(keepSignedIn);
     try {
       const res = await fetch(`${getApiUrl()}/api/v1/auth/google/start`);
       const data = await res.json();
@@ -102,7 +106,7 @@ function LoginContent() {
     setError("");
     setLoading(true);
     try {
-      const user = await login(email, password);
+      const user = await login(email, password, keepSignedIn);
       const session = await restoreOnboardingIfKnown(user);
       router.push(session.onboarded ? "/dashboard" : "/onboarding");
     } catch (err) {
@@ -146,6 +150,15 @@ function LoginContent() {
                 className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
               />
             </div>
+            <label className="flex items-center gap-2 text-sm text-text-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={keepSignedIn}
+                onChange={(e) => setKeepSignedIn(e.target.checked)}
+                className="rounded border-border accent-accent"
+              />
+              Keep me signed in for 90 days
+            </label>
             {error && <p className="text-danger text-sm">{error}</p>}
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}

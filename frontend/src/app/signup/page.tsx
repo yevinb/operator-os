@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { signup } from "@/lib/auth";
+import { signup, setRememberMe } from "@/lib/auth";
 import { getApiUrl } from "@/lib/api";
 import { NexaLogo } from "@/components/NexaLogo";
 
@@ -18,10 +18,12 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
 
   const handleGoogle = async () => {
     setError("");
     setGoogleLoading(true);
+    setRememberMe(keepSignedIn);
     try {
       const res = await fetch(`${getApiUrl()}/api/v1/auth/google/start`);
       const data = await res.json();
@@ -46,7 +48,7 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
     try {
-      await signup(email, name, company, password);
+      await signup(email, name, company, password, keepSignedIn);
       router.push("/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed. Try again.");
@@ -100,6 +102,15 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
             />
+            <label className="flex items-center gap-2 text-sm text-text-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={keepSignedIn}
+                onChange={(e) => setKeepSignedIn(e.target.checked)}
+                className="rounded border-border accent-accent"
+              />
+              Keep me signed in for 90 days
+            </label>
             {error && <p className="text-danger text-sm">{error}</p>}
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? "Creating account…" : "Create account"}
