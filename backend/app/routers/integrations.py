@@ -26,6 +26,8 @@ CATALOG = [
     {"id": "notion", "name": "Notion", "category": "operations", "description": "Create pages & docs", "needs_key": True, "auth_type": "api_key", "key_hint": "Integration token (secret_...)", "config_fields": ["database_id"]},
     {"id": "quickbooks", "name": "QuickBooks", "category": "finance", "description": "Accounting & expenses", "needs_key": True, "auth_type": "api_key", "key_hint": "OAuth access token", "config_fields": ["realm_id"]},
     {"id": "linkedin", "name": "LinkedIn", "category": "hr", "description": "Hiring & B2B outreach", "needs_key": True, "auth_type": "api_key", "key_hint": "LinkedIn access token", "config_fields": []},
+    {"id": "shopify", "name": "Shopify", "category": "finance", "description": "Orders, revenue & products", "needs_key": True, "auth_type": "api_key", "key_hint": "shpat_... Admin API access token", "config_fields": ["shop_domain"]},
+    {"id": "instagram", "name": "Instagram", "category": "marketing", "description": "Followers, posts & social insights", "needs_key": True, "auth_type": "api_key", "key_hint": "Meta long-lived access token (instagram_basic)", "config_fields": []},
     {"id": "mcp", "name": "MCP Servers", "category": "automation", "description": "Model Context Protocol tools", "needs_key": True, "auth_type": "webhook", "key_hint": "MCP server URL", "config_fields": []},
 ]
 

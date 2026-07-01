@@ -28,6 +28,11 @@ const METRIC_LABELS: Record<string, string> = {
   meta_spend: "Meta spend (30d)",
   google_ads_spend: "Google Ads spend",
   quickbooks_income: "QuickBooks income",
+  shopify_orders: "Shopify orders",
+  shopify_revenue_usd: "Shopify revenue",
+  shopify_products: "Products",
+  instagram_followers: "Instagram followers",
+  instagram_posts: "Instagram posts",
   linkedin_name: "LinkedIn",
 };
 
@@ -43,6 +48,8 @@ const INTEGRATION_LABELS: Record<string, string> = {
   calendar: "Calendar",
   quickbooks: "QuickBooks",
   linkedin: "LinkedIn",
+  shopify: "Shopify",
+  instagram: "Instagram",
   mcp: "MCP",
 };
 

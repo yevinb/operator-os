@@ -8,7 +8,8 @@ from app.services.integrations.providers import (
     verify_notion,
     verify_quickbooks,
 )
-from app.services.stripe_integration import fetch_stripe_snapshot
+from app.services.instagram_integration import verify_instagram
+from app.services.shopify_integration import verify_shopify
 from app.services.webhooks import send_slack_message, trigger_n8n
 
 
@@ -73,5 +74,9 @@ async def verify_integration(
             config.get("customer_id", ""),
             access,
         )
+    if integration_id == "shopify":
+        return await verify_shopify(config.get("shop_domain", ""), api_key)
+    if integration_id == "instagram":
+        return await verify_instagram(api_key, config.get("instagram_account_id", ""))
 
     return True, "Connected"

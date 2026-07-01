@@ -1,14 +1,14 @@
 """Maps task categories to integrations that can execute them."""
 
 CATEGORY_INTEGRATIONS: dict[str, list[str]] = {
-    "finance": ["stripe", "quickbooks", "n8n"],
-    "marketing": ["meta", "google-ads", "n8n", "slack"],
+    "finance": ["stripe", "shopify", "quickbooks", "n8n"],
+    "marketing": ["instagram", "meta", "google-ads", "n8n", "slack"],
     "sales": ["hubspot", "gmail", "n8n"],
     "support": ["gmail", "hubspot", "notion", "n8n"],
     "communication": ["slack", "gmail", "n8n"],
     "operations": ["calendar", "notion", "n8n", "mcp"],
     "hr": ["linkedin", "notion", "n8n"],
-    "analytics": ["stripe", "hubspot", "n8n"],
+    "analytics": ["stripe", "shopify", "hubspot", "n8n"],
     "reporting": ["notion", "slack", "n8n"],
 }
 
@@ -24,6 +24,8 @@ INTEGRATION_LABELS: dict[str, str] = {
     "notion": "Notion",
     "quickbooks": "QuickBooks",
     "linkedin": "LinkedIn",
+    "shopify": "Shopify",
+    "instagram": "Instagram",
     "mcp": "MCP Server",
 }
 
@@ -42,21 +44,21 @@ def missing_integration_hint(category: str, connected: list[str]) -> str:
 
 # Preferred integration order for cross-tool workflows (data flows left → right)
 WORKFLOW_CHAINS: dict[str, list[str]] = {
-    "grow_revenue": ["stripe", "hubspot", "slack", "notion", "n8n"],
-    "run_company": ["stripe", "slack", "calendar", "notion", "n8n"],
-    "run_marketing": ["meta", "google-ads", "slack", "n8n"],
+    "grow_revenue": ["stripe", "shopify", "hubspot", "slack", "notion", "n8n"],
+    "run_company": ["stripe", "shopify", "slack", "calendar", "notion", "n8n"],
+    "run_marketing": ["instagram", "meta", "google-ads", "slack", "n8n"],
     "customer_success": ["gmail", "hubspot", "slack", "n8n"],
     "send_email": ["gmail"],
     "hiring": ["linkedin", "calendar", "notion", "slack"],
-    "reporting": ["stripe", "hubspot", "notion", "gmail", "slack"],
-    "general_ops": ["stripe", "hubspot", "n8n", "notion", "slack"],
+    "reporting": ["stripe", "shopify", "hubspot", "notion", "gmail", "slack"],
+    "general_ops": ["stripe", "shopify", "hubspot", "n8n", "notion", "slack"],
     "cash_flow": ["stripe", "quickbooks", "slack", "n8n"],
     "vendor_management": ["notion", "slack", "n8n"],
     "scheduling": ["calendar", "gmail", "slack"],
     "communication": ["slack", "gmail", "n8n"],
-    "outcome_leads": ["hubspot", "gmail", "meta", "google-ads", "slack", "n8n"],
-    "outcome_sales": ["stripe", "hubspot", "gmail", "notion", "n8n"],
-    "outcome_growth": ["meta", "google-ads", "slack", "calendar", "n8n"],
+    "outcome_leads": ["hubspot", "gmail", "instagram", "meta", "google-ads", "slack", "n8n"],
+    "outcome_sales": ["stripe", "shopify", "hubspot", "gmail", "notion", "n8n"],
+    "outcome_growth": ["instagram", "meta", "google-ads", "shopify", "slack", "calendar", "n8n"],
 }
 
 # Map task action keywords to primary integration for workflow ordering
@@ -79,6 +81,12 @@ TASK_INTEGRATION_HINTS: list[tuple[str, str]] = [
     ("google-ads", "google-ads"),
     ("quickbooks", "quickbooks"),
     ("linkedin", "linkedin"),
+    ("shopify", "shopify"),
+    ("store", "shopify"),
+    ("orders", "shopify"),
+    ("products", "shopify"),
+    ("instagram", "instagram"),
+    ("followers", "instagram"),
     ("n8n", "n8n"),
     ("workflow", "n8n"),
     ("mcp", "mcp"),

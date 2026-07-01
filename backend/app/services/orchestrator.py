@@ -11,9 +11,10 @@ from app.services.niche_modes import get_niche
 
 INTENT_TEMPLATES: dict[str, dict] = {
     "grow_revenue": {
-        "summary": "Sales acceleration — runs against your connected Stripe, ads, CRM, and automation tools.",
+        "summary": "Sales acceleration — runs against your connected Stripe, Shopify, ads, CRM, and automation tools.",
         "tasks": [
             ("Pull live revenue from Stripe", "finance"),
+            ("Pull Shopify orders and store revenue", "finance"),
             ("Post sales update to Slack", "communication"),
             ("Sync warm leads from HubSpot", "sales"),
             ("Trigger sales workflow in n8n", "operations"),
@@ -31,8 +32,9 @@ INTENT_TEMPLATES: dict[str, dict] = {
         ],
     },
     "run_marketing": {
-        "summary": "Marketing actions via Meta, Google Ads, Slack, and n8n.",
+        "summary": "Marketing actions via Instagram, Meta, Google Ads, Slack, and n8n.",
         "tasks": [
+            ("Check Instagram followers and engagement", "marketing"),
             ("Check Meta ad account status", "marketing"),
             ("Check Google Ads connection", "marketing"),
             ("Post campaign update to Slack", "communication"),
@@ -165,6 +167,10 @@ def detect_intent(command: str) -> str:
         return "run_company"
     if re.search(r"market|ads|campaign|newsletter|social", lower):
         return "run_marketing"
+    if re.search(r"shopify|store|ecommerce|e-commerce|orders", lower):
+        return "grow_revenue"
+    if re.search(r"instagram|followers|ig\b", lower):
+        return "outcome_growth"
     if re.search(r"customer|support|reply|email|client", lower):
         return "customer_success"
     if re.search(r"hire|recruit|employee|developer|salesperson", lower):

@@ -55,6 +55,9 @@ class ExecutionBundle:
             "meta_spend",
             "google_ads_spend",
             "quickbooks_income",
+            "shopify_orders",
+            "shopify_revenue_usd",
+            "instagram_followers",
         ):
             if key in self.metrics:
                 label = key.replace("_", " ")
@@ -155,6 +158,10 @@ class ExecutionBundle:
                 parts.append(f"Stripe (${self.metrics['stripe_balance_usd']})")
             elif iid == "hubspot" and "hubspot_contacts" in self.metrics:
                 parts.append(f"HubSpot ({self.metrics['hubspot_contacts']} contacts)")
+            elif iid == "shopify" and "shopify_orders" in self.metrics:
+                parts.append(f"Shopify ({self.metrics['shopify_orders']} orders)")
+            elif iid == "instagram" and "instagram_followers" in self.metrics:
+                parts.append(f"Instagram ({self.metrics['instagram_followers']} followers)")
             else:
                 parts.append(iid.title())
         return "Verified using " + ", ".join(parts)

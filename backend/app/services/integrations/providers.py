@@ -129,6 +129,9 @@ async def notion_find_database(token: str) -> str | None:
     except Exception:
         pass
     return None
+
+
+async def verify_meta(token: str, ad_account_id: str = "") -> tuple[bool, str]:
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(

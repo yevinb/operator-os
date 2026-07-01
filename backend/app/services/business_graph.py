@@ -75,8 +75,20 @@ INTEGRATION_RELATIONSHIPS: dict[str, dict] = {
     "linkedin": {
         "label": "LinkedIn",
         "category": "hr",
-        "works_with": ["gmail", "notion", "calendar"],
+        "works_with": ["gmail", "notion", "calendar", "instagram"],
         "goals": ["hr", "sales"],
+    },
+    "shopify": {
+        "label": "Shopify",
+        "category": "finance",
+        "works_with": ["stripe", "slack", "notion", "gmail", "instagram"],
+        "goals": ["finance", "ecommerce", "sales"],
+    },
+    "instagram": {
+        "label": "Instagram",
+        "category": "marketing",
+        "works_with": ["meta", "slack", "notion", "shopify", "gmail"],
+        "goals": ["marketing", "followers", "brand"],
     },
     "mcp": {
         "label": "MCP Server",
@@ -123,6 +135,10 @@ def _suggested_commands(connected: list[str], goal: str) -> list[str]:
         cmds.append("Pull HubSpot contacts and log update in Notion")
     if "gmail" in connected:
         cmds.append("Send follow-up email about growing revenue")
+    if "shopify" in connected and "slack" in connected:
+        cmds.append("Pull Shopify orders and post summary to Slack")
+    if "instagram" in connected:
+        cmds.append("Check Instagram followers and engagement")
     if "meta" in connected or "google-ads" in connected:
         cmds.append("Check ad campaign performance and post to Slack")
     if len(connected) >= 3:

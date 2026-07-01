@@ -48,7 +48,7 @@ NEXA_TOOLS = [
         "type": "function",
         "function": {
             "name": "execute_command",
-            "description": "Run a business command across Stripe, Slack, HubSpot, ads, Calendar, Notion, n8n, etc.",
+            "description": "Run a business command across Stripe, Shopify, Instagram, Slack, HubSpot, ads, Calendar, Notion, n8n, etc.",
             "parameters": {
                 "type": "object",
                 "properties": {

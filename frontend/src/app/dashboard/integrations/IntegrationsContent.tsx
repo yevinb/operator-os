@@ -35,7 +35,8 @@ const CONFIG_LABELS: Record<string, string> = {
   realm_id: "QuickBooks Realm ID",
   ad_account_id: "Meta ad account ID",
   customer_id: "Google Ads customer ID",
-  default_to: "Default recipient email",
+  shop_domain: "Shopify store domain",
+  instagram_account_id: "Instagram account ID (optional)",
 };
 
 const CATEGORIES = ["all", "marketing", "sales", "finance", "support", "hr", "operations", "automation", "communication"];
@@ -51,6 +52,8 @@ const FALLBACK_META: Record<string, ApiIntegration> = {
   notion: { id: "notion", name: "Notion", category: "operations", description: "Create pages & docs", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Integration token (secret_...)", config_fields: ["database_id"] },
   quickbooks: { id: "quickbooks", name: "QuickBooks", category: "finance", description: "Accounting & expenses", connected: false, needs_key: true, auth_type: "api_key", key_hint: "OAuth access token", config_fields: ["realm_id"] },
   linkedin: { id: "linkedin", name: "LinkedIn", category: "hr", description: "Hiring & B2B outreach", connected: false, needs_key: true, auth_type: "api_key", key_hint: "LinkedIn access token", config_fields: [] },
+  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "Orders, revenue & products", connected: false, needs_key: true, auth_type: "api_key", key_hint: "shpat_... Admin API access token", config_fields: ["shop_domain"] },
+  instagram: { id: "instagram", name: "Instagram", category: "marketing", description: "Followers, posts & social insights", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Meta long-lived token (instagram_basic)", config_fields: [] },
   mcp: { id: "mcp", name: "MCP Servers", category: "automation", description: "Model Context Protocol tools", connected: false, needs_key: true, auth_type: "webhook", key_hint: "MCP server URL", config_fields: [] },
 };
 
@@ -72,7 +75,15 @@ const WORKS_WITH: Record<string, string[]> = {
   calendar: ["Gmail", "Slack", "HubSpot"],
   quickbooks: ["Stripe", "Slack", "Notion"],
   linkedin: ["Gmail", "Notion", "Calendar"],
+  shopify: ["Stripe", "Slack", "Instagram", "Gmail", "Notion"],
+  instagram: ["Meta", "Shopify", "Slack", "Gmail", "Notion"],
   mcp: ["n8n", "Notion"],
+};
+
+const INTEGRATION_ICONS: Record<string, string> = {
+  stripe: "💳", slack: "💬", "google-ads": "📢", meta: "📱", gmail: "✉️", calendar: "📅",
+  n8n: "⚡", mcp: "🔌", notion: "📝", hubspot: "🎯", quickbooks: "📊", linkedin: "👔",
+  shopify: "🛒", instagram: "📸",
 };
 
 export default function IntegrationsContent() {
@@ -99,10 +110,17 @@ export default function IntegrationsContent() {
       const meta: Record<string, ApiIntegration> = { ...FALLBACK_META };
       list.forEach((i) => { meta[i.id] = i; });
       setApiMeta(meta);
-      setIntegrations((prev) =>
-        prev.map((p) => {
-          const api = list.find((i) => i.id === p.id);
-          return api ? { ...p, connected: api.connected, description: api.description } : p;
+      setIntegrations(
+        list.map((api) => {
+          const prev = integrations.find((p) => p.id === api.id);
+          return {
+            id: api.id,
+            name: api.name,
+            description: api.description,
+            category: api.category,
+            connected: api.connected,
+            icon: prev?.icon || INTEGRATION_ICONS[api.id] || "🔌",
+          };
         })
       );
       saveBusinessProfile({ connectedIntegrations: list.filter((i) => i.connected).map((i) => i.id) });

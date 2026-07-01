@@ -16,6 +16,8 @@ export const DEFAULT_INTEGRATIONS: Integration[] = [
   { id: "hubspot", name: "HubSpot", description: "CRM & sales pipeline", category: "sales", connected: false, icon: "🎯" },
   { id: "quickbooks", name: "QuickBooks", description: "Accounting & expenses", category: "finance", connected: false, icon: "📊" },
   { id: "linkedin", name: "LinkedIn", description: "Hiring & B2B outreach", category: "hr", connected: false, icon: "👔" },
+  { id: "shopify", name: "Shopify", description: "Orders, revenue & products", category: "finance", connected: false, icon: "🛒" },
+  { id: "instagram", name: "Instagram", description: "Followers, posts & insights", category: "marketing", connected: false, icon: "📸" },
 ];
 
 export function getActivity(): ActivityItem[] {

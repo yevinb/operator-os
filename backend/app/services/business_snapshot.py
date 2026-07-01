@@ -16,7 +16,8 @@ from app.services.integrations.providers import (
     meta_first_ad_account,
     quickbooks_finance_snapshot,
 )
-from app.services.stripe_integration import fetch_stripe_snapshot
+from app.services.instagram_integration import instagram_snapshot
+from app.services.shopify_integration import fetch_shopify_snapshot
 
 IntegrationData = dict[str, dict]
 
@@ -58,6 +59,13 @@ def _build_narrative(company: str, metrics: dict, connected: list[str]) -> str:
         parts.append(f"QuickBooks income {metrics['quickbooks_income']}")
     if metrics.get("linkedin_name"):
         parts.append(f"LinkedIn: {metrics['linkedin_name']}")
+    if metrics.get("shopify_orders") is not None:
+        parts.append(f"Shopify {metrics['shopify_orders']} orders")
+    if metrics.get("shopify_revenue_usd") is not None:
+        parts.append(f"${metrics['shopify_revenue_usd']} store revenue")
+    if metrics.get("instagram_followers") is not None:
+        user = metrics.get("instagram_username", "IG")
+        parts.append(f"@{user} {metrics['instagram_followers']} followers")
 
     if not parts:
         tools = ", ".join(connected) if connected else "no tools"
@@ -143,6 +151,39 @@ async def _fetch_quickbooks(data: IntegrationData) -> tuple[dict, dict]:
     return {"quickbooks_income": income}, {"quickbooks": proof}
 
 
+async def _fetch_shopify(data: IntegrationData) -> tuple[dict, dict]:
+    shop = data.get("shopify", {})
+    token = shop.get("api_key", "")
+    domain = shop.get("config", {}).get("shop_domain", "")
+    if not (token and domain):
+        return {}, {}
+    snap = await fetch_shopify_snapshot(domain, token)
+    if not snap or snap.get("shopify_status") == "error":
+        return {}, {}
+    return {
+        "shopify_orders": snap.get("shopify_orders", 0),
+        "shopify_revenue_usd": snap.get("shopify_revenue_usd", 0),
+        "shopify_products": snap.get("shopify_products", 0),
+        "shopify_store": snap.get("shopify_store", ""),
+    }, {"shopify": snap}
+
+
+async def _fetch_instagram(data: IntegrationData) -> tuple[dict, dict]:
+    ig = data.get("instagram", {})
+    token = ig.get("api_key", "")
+    if not token:
+        return {}, {}
+    account_id = ig.get("config", {}).get("instagram_account_id", "")
+    snap = await instagram_snapshot(token, account_id)
+    if not snap:
+        return {}, {}
+    return {
+        "instagram_username": snap.get("instagram_username", ""),
+        "instagram_followers": snap.get("instagram_followers", 0),
+        "instagram_posts": snap.get("instagram_posts", 0),
+    }, {"instagram": snap}
+
+
 async def _fetch_linkedin(data: IntegrationData) -> tuple[dict, dict]:
     token = data.get("linkedin", {}).get("api_key", "")
     if not token:
@@ -179,6 +220,10 @@ async def build_business_snapshot(
         fetchers.append(("google-ads", _fetch_google_ads(integration_data)))
     if "quickbooks" in connected:
         fetchers.append(("quickbooks", _fetch_quickbooks(integration_data)))
+    if "shopify" in connected:
+        fetchers.append(("shopify", _fetch_shopify(integration_data)))
+    if "instagram" in connected:
+        fetchers.append(("instagram", _fetch_instagram(integration_data)))
     if "linkedin" in connected:
         fetchers.append(("linkedin", _fetch_linkedin(integration_data)))
 
