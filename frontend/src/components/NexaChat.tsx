@@ -14,16 +14,16 @@ import { cn } from "@/lib/utils";
 const STORAGE_KEY = "nexa_chat_history";
 
 const STARTERS = [
-  "Send email to yenara.bollegala@gmail.com",
+  "Follow up with yenara.bollegala@gmail.com about our agency services",
   "Get me 50 leads this month",
-  "What can you do for my business?",
-  "Check my Stripe balance",
+  "Check my Stripe balance and post to Slack",
+  "What should I focus on to grow revenue?",
 ];
 
 const DEFAULT_WELCOME: ChatMessage = {
   id: "welcome",
   role: "nexa",
-  content: "Hey — I'm Nexa, your AI operator. Chat naturally, or tell me an outcome and I'll build the plan and run it live.",
+  content: "Hey — I'm Nexa, your autonomous AI operator. Talk naturally — I'll write emails, run your tools, and execute outcomes on my own.",
   timestamp: new Date().toISOString(),
 };
 
@@ -40,7 +40,7 @@ function loadHistory(): ChatMessage[] {
   const company = ctx.company || getSession()?.company || "your business";
   return [{
     ...DEFAULT_WELCOME,
-    content: `Hey — I'm Nexa, your AI operator for ${company}. Chat naturally, or tell me an outcome and I'll build the plan and run it live.`,
+    content: `Hey — I'm Nexa, your autonomous AI operator for ${company}. Talk naturally — I'll write emails, run your tools, and execute on my own.`,
   }];
 }
 

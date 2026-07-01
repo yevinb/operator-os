@@ -1,4 +1,4 @@
-"""Direct Gmail send — bypass multi-task plans for simple email commands."""
+"""Direct Gmail send — intelligent composition and autonomous delivery."""
 
 import json
 import re
@@ -7,10 +7,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db_models import IntegrationConnection
+from app.services.business_context import BusinessContext
 from app.services.integrations.google import resolve_google_access, send_gmail
 from app.services.integrations.providers import parse_config
-
-EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+from app.services.nexa_intelligence import (
+    EMAIL_RE,
+    compose_email,
+    wants_email_action,
+)
 
 EMAIL_COMMAND_HINTS = (
     "send email",
@@ -23,32 +27,49 @@ EMAIL_COMMAND_HINTS = (
     "business email",
     "via gmail",
     "through gmail",
+    "reach out",
+    "follow up",
+    "follow-up",
+    "cold email",
+    "message them",
+    "notify",
+    "introduce",
     "gmail",
 )
 
 
-def is_email_command(message: str) -> bool:
+def is_email_command(message: str, analysis: dict | None = None) -> bool:
+    if analysis and analysis.get("action") == "send_email":
+        return True
+    if wants_email_action(message, analysis):
+        return True
     lower = message.lower()
     return any(h in lower for h in EMAIL_COMMAND_HINTS) or (
         "send" in lower and "email" in lower
     )
 
 
-def _compose_body(company: str, command: str) -> tuple[str, str]:
-    subject = f"[{company}] Message from Nexa"
-    if "business" in command.lower():
-        subject = f"[{company}] Introduction — let's connect"
-    body = f"""Hello,
-
-I'm reaching out from {company}.
-
-{command}
-
-Best regards,
-{company}
-
-— Sent via Nexa on your behalf"""
-    return subject, body
+def _resolve_recipient(
+    message: str,
+    config: dict,
+    history: list[dict],
+    analysis: dict | None,
+) -> str:
+    emails = EMAIL_RE.findall(message)
+    if emails:
+        return emails[-1]
+    if analysis and analysis.get("recipient_email"):
+        return str(analysis["recipient_email"]).strip()
+    if config.get("default_to"):
+        return config["default_to"]
+    for item in reversed(history[-12:]):
+        found = EMAIL_RE.findall(item.get("content", ""))
+        if found:
+            return found[-1]
+    recent = config.get("recent_recipients") or []
+    if recent:
+        return recent[-1]
+    return ""
 
 
 async def try_direct_gmail_send(
@@ -56,9 +77,15 @@ async def try_direct_gmail_send(
     user_id: str,
     company: str,
     db: AsyncSession,
+    *,
+    context: BusinessContext | None = None,
+    history: list[dict] | None = None,
+    analysis: dict | None = None,
+    sender_name: str = "",
 ) -> dict | None:
-    """Send one Gmail immediately when user asks — returns None if not an email command."""
-    if not is_email_command(message):
+    """Send one Gmail immediately — returns None if not an email command."""
+    history = history or []
+    if not is_email_command(message, analysis):
         return None
 
     result = await db.execute(
@@ -72,10 +99,8 @@ async def try_direct_gmail_send(
     if not gmail_conn:
         return {
             "reply": (
-                "Gmail is not connected on the server yet.\n\n"
-                "1. Open Integrations in the sidebar\n"
-                "2. Click Gmail → Connect with Google\n"
-                "3. Then say: Send email to someone@example.com"
+                "Gmail isn't connected yet. Sign in with Google again to grant Gmail permission, "
+                "or open Integrations → Gmail → Connect."
             ),
             "executed": False,
         }
@@ -89,38 +114,55 @@ async def try_direct_gmail_send(
 
     if not access:
         return {
-            "reply": "Gmail token expired — go to Integrations → Gmail → Connect with Google again, then retry.",
+            "reply": "Gmail token expired — sign in with Google again or reconnect in Integrations.",
             "executed": False,
         }
 
-    emails = EMAIL_RE.findall(message)
-    recipient = emails[-1] if emails else config.get("default_to", "")
+    recipient = _resolve_recipient(message, config, history, analysis)
     if not recipient:
-        # Vague "send an email" with no address — use last known default or prompt
         return {
             "reply": (
-                "I can send that via Gmail — who should receive it?\n\n"
-                "Say: Send email to yenara.bollegala@gmail.com"
+                "I'll send that via Gmail — who should receive it? "
+                "You can say a name + email, or just: email yenara.bollegala@gmail.com about our services"
             ),
             "executed": False,
         }
 
-    if emails:
-        config["default_to"] = recipient
-        gmail_conn.config_json = json.dumps(config)
-        await db.flush()
+    purpose = (analysis or {}).get("email_purpose", "")
+    subject, body = await compose_email(
+        message,
+        company or "your company",
+        context,
+        history,
+        sender_name=sender_name or config.get("email", ""),
+        purpose=purpose,
+    )
 
-    subject, body = _compose_body(company or "your company", message)
+    config["default_to"] = recipient
+    recent = list(config.get("recent_recipients") or [])
+    if recipient not in recent:
+        recent.append(recipient)
+    config["recent_recipients"] = recent[-10:]
+    gmail_conn.config_json = json.dumps(config)
+    await db.flush()
+
     sender = config.get("email", "")
-    ok, detail = await send_gmail(access, to=recipient, subject=subject, body=body, from_email=sender)
+    ok, detail = await send_gmail(
+        access, to=recipient, subject=subject, body=body, from_email=sender
+    )
     if ok:
+        preview = body[:120].replace("\n", " ") + ("…" if len(body) > 120 else "")
         return {
-            "reply": f"✅ Email sent live to {recipient}.\n{detail}",
+            "reply": (
+                f"✅ Email sent to {recipient}\n"
+                f"Subject: {subject}\n"
+                f"Preview: {preview}"
+            ),
             "executed": True,
             "command_response": {
                 "command": message,
                 "intent": "send_email",
-                "summary": f"Email sent to {recipient}",
+                "summary": f"Intelligent email sent to {recipient}",
                 "tasks": [
                     {
                         "id": "gmail-direct",
@@ -130,7 +172,11 @@ async def try_direct_gmail_send(
                         "detail": detail,
                         "integration": "gmail",
                         "verified": True,
-                        "proof": {"source": "gmail_send", "recipient": recipient},
+                        "proof": {
+                            "source": "gmail_send",
+                            "recipient": recipient,
+                            "subject": subject,
+                        },
                     }
                 ],
                 "executed_count": 1,
@@ -141,6 +187,6 @@ async def try_direct_gmail_send(
         }
 
     return {
-        "reply": f"Gmail send failed: {detail}\n\nTry reconnecting Gmail in Integrations.",
+        "reply": f"Gmail send failed: {detail}\n\nTry signing in with Google again.",
         "executed": False,
     }

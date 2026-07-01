@@ -1,4 +1,4 @@
-"""Nexa conversational chat — talk naturally, execute outcomes when ready."""
+"""Nexa conversational chat — autonomous intelligence + live execution."""
 
 import json
 import re
@@ -9,14 +9,13 @@ from app.config import settings
 from app.db_models import User
 from app.models import CommandResponse
 from app.services.business_context import BusinessContext, build_business_context
+from app.services.email_dispatch import try_direct_gmail_send
 from app.services.executor import execute_tasks
 from app.services.integrations.providers import parse_config
-from app.services.email_dispatch import try_direct_gmail_send
 from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_active_plan
+from app.services.nexa_intelligence import EMAIL_RE, analyze_message
 from app.services.niche_modes import get_niche
 from app.services.orchestrator import orchestrate_command
-
-EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 
 EXECUTE_PATTERNS = [
     r"\bget me\b",
@@ -29,7 +28,6 @@ EXECUTE_PATTERNS = [
     r"\bhire\b",
     r"\bemail\b",
     r"\bwrite\b",
-    r"\bgmail\b",
     r"\bpost\b",
     r"\brun\b",
     r"\bcreate\b",
@@ -39,15 +37,17 @@ EXECUTE_PATTERNS = [
     r"\bsync\b",
     r"\bschedule\b",
     r"\bexecute\b",
-    r"\bcontrol\b",
+    r"\bautomate\b",
 ]
 
 QUESTION_STARTERS = ("what ", "how ", "why ", "can you ", "do you ", "who ", "when ", "where ", "is ", "are ", "should ")
 
 
-def should_execute(message: str) -> bool:
+def should_execute(message: str, analysis: dict | None = None) -> bool:
+    if analysis and analysis.get("action") == "execute":
+        return True
     lower = message.lower().strip()
-    if not lower or len(lower) < 8:
+    if not lower or len(lower) < 6:
         return False
     if any(re.search(p, lower) for p in EXECUTE_PATTERNS):
         return True
@@ -63,55 +63,56 @@ def rule_chat_reply(message: str, context: BusinessContext) -> str:
     company = context.company or "your business"
     niche = get_niche(getattr(context, "niche_mode", None) or "general")
     sample = niche.sample_outcomes[0] if niche.sample_outcomes else "Get me 30 leads this month"
+    connected = context.connected_integrations or []
 
     if any(g in lower for g in ("hi", "hello", "hey", "morning", "evening")):
+        tools = f" ({len(connected)} tools connected)" if connected else ""
         return (
-            f"Hey — I'm Nexa, your operator for {company}. "
-            f"Tell me an outcome and I'll build the plan and run it against your connected tools."
+            f"Hey — I'm Nexa, running {company}{tools}. "
+            f"Tell me what you want in plain English — email a client, check revenue, grow leads — I'll handle it."
         )
 
-    if "help" in lower or "what can you" in lower or "what do you" in lower:
-        connected = len(context.connected_integrations or [])
+    if "help" in lower or "what can you" in lower:
         return (
-            f"I run marketing, sales, finance, and ops for {company}.\n\n"
-            f"• Connected integrations: {connected}\n"
-            f"• Try: \"{sample}\"\n"
-            f"• Or ask how something works — I'll guide you."
+            f"I'm your autonomous COO for {company}. I execute live against your integrations.\n\n"
+            f"• Email: \"Follow up with yenara.bollegala@gmail.com about our agency services\"\n"
+            f"• Ops: \"{sample}\"\n"
+            f"• Connected: {', '.join(connected) if connected else 'Sign in with Google for Gmail'}"
         )
 
     if "integration" in lower or "connect" in lower:
         return (
-            "Open Integrations in the sidebar to connect Gmail, Stripe, Slack, Calendar, and more. "
-            "Once connected, I execute tasks live with verified proof."
+            "Gmail connects automatically when you sign in with Google. "
+            "Add Stripe, Slack, HubSpot, and more in Integrations — then I run everything autonomously."
         )
 
     if "thank" in lower:
-        return "Anytime. What's the next outcome I should run for you?"
-
-    if "plan" in lower and "marketing" in lower:
-        return "Open Marketing Plan in the sidebar to see your active 4-week plan, or tell me a new outcome to generate one."
-
-    if lower.endswith("?"):
-        return (
-            f"Good question. For {company}, the fastest path is to give me one clear outcome — "
-            f"like \"{sample}\" — and I'll execute it step by step."
-        )
+        return "Anytime. What should I run next?"
 
     return (
-        f"Got it. If you want me to take action, phrase it as an outcome — e.g. \"{sample}\". "
-        f"I'll build your plan and run it live."
+        f"Understood. Say what you want done — e.g. \"email a client about {context.goal or 'our offer'}\" "
+        f"or \"{sample}\" — and I'll execute it."
     )
 
 
 async def ai_chat_reply(message: str, context: BusinessContext, history: list[dict]) -> str | None:
-    system = (
-        f"You are Nexa, a premium AI Chief Operating Officer for {context.company or 'the user'}. "
-        f"Industry: {context.industry or 'general'}. Goal: {context.goal or 'growth'}. "
-        "Be warm, concise, and action-oriented. Under 4 sentences. "
-        "Encourage clear outcomes. Never pretend you executed something unless the user gave a command."
-    )
+    connected = ", ".join(context.connected_integrations) if context.connected_integrations else "Gmail (via Google sign-in)"
+    system = f"""You are Nexa — an elite autonomous AI Chief Operating Officer.
+
+Business:
+{context.to_prompt_block()}
+
+Connected tools: {connected}
+
+You think like a world-class operator: strategic, proactive, concise. You:
+- Answer business questions with specific, actionable advice for THIS company
+- Suggest the exact command you'll run when they want action ("Say: email X about Y")
+- Never claim you executed something unless the system already did
+- Keep replies under 5 sentences unless they ask for detail
+- Sound human and confident, not generic"""
+
     messages = [{"role": "system", "content": system}]
-    for item in history[-8:]:
+    for item in history[-10:]:
         role = "assistant" if item.get("role") == "nexa" else "user"
         messages.append({"role": role, "content": item.get("content", "")})
     messages.append({"role": "user", "content": message})
@@ -124,7 +125,8 @@ async def ai_chat_reply(message: str, context: BusinessContext, history: list[di
             r = await client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=280,
+                max_tokens=450,
+                temperature=0.7,
             )
             text = (r.choices[0].message.content or "").strip()
             return text or None
@@ -138,11 +140,30 @@ async def ai_chat_reply(message: str, context: BusinessContext, history: list[di
             client = AsyncAnthropic(api_key=settings.anthropic_api_key)
             r = await client.messages.create(
                 model="claude-3-5-haiku-latest",
-                max_tokens=280,
+                max_tokens=450,
                 system=system,
                 messages=[m for m in messages if m["role"] != "system"],
             )
             return (r.content[0].text or "").strip() or None
+        except Exception:
+            pass
+
+    if settings.gemini_api_key:
+        try:
+            import httpx
+
+            hist = "\n".join(f"{m['role']}: {m['content']}" for m in messages[-8:])
+            url = (
+                "https://generativelanguage.googleapis.com/v1beta/models/"
+                f"gemini-1.5-flash:generateContent?key={settings.gemini_api_key}"
+            )
+            async with httpx.AsyncClient(timeout=25) as client:
+                r = await client.post(
+                    url,
+                    json={"contents": [{"parts": [{"text": f"{system}\n\n{hist}"}]}]},
+                )
+                data = r.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"].strip() or None
         except Exception:
             pass
 
@@ -162,12 +183,83 @@ def format_execution_reply(response: CommandResponse) -> str:
     if failed:
         lines.append(f"⚠️ {failed} failed — check Integrations and retry.")
 
-    completed_tasks = [t for t in response.tasks if t.status == "completed"][:3]
-    for t in completed_tasks:
+    for t in [x for x in response.tasks if x.status == "completed"][:3]:
         if t.detail:
             lines.append(f"• {t.action}: {t.detail}")
 
     return "\n".join(lines)
+
+
+async def _run_execution(
+    text: str,
+    user: User,
+    db: AsyncSession,
+    context: BusinessContext,
+) -> dict:
+    from sqlalchemy import select as sa_select
+    from app.db_models import IntegrationConnection, CommandLog
+
+    emails = EMAIL_RE.findall(text)
+    if emails:
+        for conn in user.integrations:
+            if conn.integration_id == "gmail" and conn.connected:
+                cfg = parse_config(conn.config_json)
+                cfg["default_to"] = emails[-1]
+                conn.config_json = json.dumps(cfg)
+                await db.flush()
+                break
+
+    response = await orchestrate_command(
+        command=text,
+        ai_provider=settings.ai_provider,
+        openai_key=settings.openai_api_key,
+        anthropic_key=settings.anthropic_api_key,
+        context=context,
+    )
+
+    fresh = await db.execute(
+        sa_select(IntegrationConnection).where(
+            IntegrationConnection.user_id == user.id,
+            IntegrationConnection.connected == True,  # noqa: E712
+        )
+    )
+    integration_data = {
+        c.integration_id: {
+            "api_key": c.api_key or "",
+            "config": parse_config(c.config_json),
+        }
+        for c in fresh.scalars().all()
+    }
+    context = await build_business_context(user, db)
+    executed = await execute_tasks(response, context, integration_data)
+    outcome = parse_outcome(text)
+    marketing_plan = build_marketing_plan(text, context, outcome)
+    plan = await save_active_plan(db, user.id, executed.command, executed, outcome, marketing_plan)
+    executed = executed.model_copy(
+        update={
+            "marketing_plan": marketing_plan,
+            "plan_id": plan.id,
+            "outcome": outcome,
+            "summary": executed.summary,
+        }
+    )
+
+    db.add(
+        CommandLog(
+            user_id=user.id,
+            command=executed.command,
+            intent=executed.intent,
+            summary=executed.summary,
+            tasks_json=json.dumps([t.model_dump() for t in executed.tasks]),
+        )
+    )
+    await db.commit()
+
+    return {
+        "reply": format_execution_reply(executed),
+        "executed": True,
+        "command_response": executed.model_dump(),
+    }
 
 
 async def handle_chat(
@@ -179,93 +271,42 @@ async def handle_chat(
     context = await build_business_context(user, db)
     text = message.strip()
     if not text:
-        return {"reply": "Tell me what you want to achieve — I'm ready to run it.", "executed": False}
+        return {"reply": "Tell me what you want — I'll run it.", "executed": False}
 
-    # Fast path: send one real Gmail when user asks (no multi-tool plan)
-    direct_email = await try_direct_gmail_send(text, user.id, context.company, db)
-    if direct_email:
-        from app.db_models import CommandLog
+    analysis = await analyze_message(text, history, context)
 
-        if direct_email.get("executed") and direct_email.get("command_response"):
-            cr = direct_email["command_response"]
-            db.add(
-                CommandLog(
-                    user_id=user.id,
-                    command=cr["command"],
-                    intent=cr["intent"],
-                    summary=cr["summary"],
-                    tasks_json=json.dumps(cr["tasks"]),
-                )
-            )
-        await db.commit()
-        return direct_email
-
-    if should_execute(text):
-        # If user names a recipient in chat, persist for Gmail execution this session
-        emails = EMAIL_RE.findall(text)
-        if emails and "gmail" in [i.integration_id for i in user.integrations if i.connected]:
-            for conn in user.integrations:
-                if conn.integration_id == "gmail" and conn.connected:
-                    cfg = parse_config(conn.config_json)
-                    cfg["default_to"] = emails[-1]
-                    conn.config_json = json.dumps(cfg)
-                    await db.flush()
-                    break
-
-        response = await orchestrate_command(
-            command=text,
-            ai_provider=settings.ai_provider,
-            openai_key=settings.openai_api_key,
-            anthropic_key=settings.anthropic_api_key,
+    # Autonomous email — intelligent composition + send
+    if analysis.get("action") == "send_email":
+        direct_email = await try_direct_gmail_send(
+            text,
+            user.id,
+            context.company,
+            db,
             context=context,
+            history=history,
+            analysis=analysis,
+            sender_name=user.name,
         )
-        from sqlalchemy import select as sa_select
-        from app.db_models import IntegrationConnection
+        if direct_email:
+            from app.db_models import CommandLog
 
-        fresh = await db.execute(
-            sa_select(IntegrationConnection).where(
-                IntegrationConnection.user_id == user.id,
-                IntegrationConnection.connected == True,  # noqa: E712
-            )
-        )
-        integration_data = {
-            c.integration_id: {
-                "api_key": c.api_key or "",
-                "config": parse_config(c.config_json),
-            }
-            for c in fresh.scalars().all()
-        }
-        context = await build_business_context(user, db)
-        executed = await execute_tasks(response, context, integration_data)
-        outcome = parse_outcome(text)
-        marketing_plan = build_marketing_plan(text, context, outcome)
-        plan = await save_active_plan(db, user.id, executed.command, executed, outcome, marketing_plan)
-        executed = executed.model_copy(
-            update={
-                "marketing_plan": marketing_plan,
-                "plan_id": plan.id,
-                "outcome": outcome,
-                "summary": f"Here's your plan — I'm executing it. {executed.summary}",
-            }
-        )
+            if direct_email.get("executed") and direct_email.get("command_response"):
+                cr = direct_email["command_response"]
+                db.add(
+                    CommandLog(
+                        user_id=user.id,
+                        command=cr["command"],
+                        intent=cr["intent"],
+                        summary=cr["summary"],
+                        tasks_json=json.dumps(cr["tasks"]),
+                    )
+                )
+            await db.commit()
+            return direct_email
 
-        from app.db_models import CommandLog
-
-        log = CommandLog(
-            user_id=user.id,
-            command=executed.command,
-            intent=executed.intent,
-            summary=executed.summary,
-            tasks_json=json.dumps([t.model_dump() for t in executed.tasks]),
-        )
-        db.add(log)
-        await db.commit()
-
-        return {
-            "reply": format_execution_reply(executed),
-            "executed": True,
-            "command_response": executed.model_dump(),
-        }
+    # Autonomous business execution
+    if should_execute(text, analysis):
+        return await _run_execution(text, user, db, context)
 
     ai_reply = await ai_chat_reply(text, context, history)
     reply = ai_reply or rule_chat_reply(text, context)
