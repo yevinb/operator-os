@@ -44,7 +44,15 @@ Commit and push.
 | `GOOGLE_CLIENT_SECRET` | from Google Cloud Console |
 | `GOOGLE_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/google/callback` |
 | `FRONTEND_URL` | `https://yevinb.github.io/operator-os` |
+| `GROQ_API_KEY` | Groq API key (AI brain) |
+| `AI_PROVIDER` | `groq` or `auto` |
+| `NEXA_CONTROL_KEY` | long random secret — Cursor/MCP agent auth |
+| `NEXA_CONTROL_EMAIL` | your Nexa login email (e.g. `yevinbollegala@gmail.com`) |
 | `OPENAI_API_KEY` | optional |
+
+## Cursor controls Nexa
+
+See `CURSOR_CONTROL.md`. Set `NEXA_CONTROL_KEY` + `NEXA_CONTROL_EMAIL` on Railway, then enable MCP in Cursor (`.cursor/mcp.json`).
 
 **Persistent accounts:** Without `DATABASE_URL`, SQLite is stored in `/app/data` (better than `/tmp`, but Postgres is recommended).
 

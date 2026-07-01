@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "nexa-business": {
+      "command": "python3",
+      "args": ["nexa-mcp/server.py"],
+      "env": {
+        "NEXA_API_URL": "https://operator-os-production-2a8a.up.railway.app",
+        "NEXA_CONTROL_KEY": "${NEXA_CONTROL_KEY}",
+        "NEXA_CONTROL_EMAIL": "${NEXA_CONTROL_EMAIL}"
+      }
+    }
+  }
+}

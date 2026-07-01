@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # Optional automation webhooks
     n8n_webhook_url: str = ""
 
+    # Cursor / agent control — full business API access without browser login
+    nexa_control_key: str = ""
+    nexa_control_email: str = ""  # default user email for Cursor/agent commands
+
     # Google OAuth (Gmail, Calendar, Google Ads)
     google_client_id: str = ""
     google_client_secret: str = ""

@@ -1,0 +1,30 @@
+---
+description: Cursor controls Nexa — the autonomous AI business OS. Use Nexa MCP tools for all business operations.
+alwaysApply: true
+---
+
+# Nexa Business Control (Cursor → Nexa)
+
+You operate the user's real business through **Nexa** (`operator-os`). Cursor controls everything — email, sales, marketing, finance, ops.
+
+## Rules
+
+1. **Business actions go through Nexa** — never simulate Stripe/Gmail/Slack results. Use MCP tools or the control API.
+2. **Start with `nexa_status`** when beginning business work.
+3. **Execute aggressively** — `nexa_run`, `nexa_email`, `nexa_autopilot`, `nexa_batch`.
+4. **Email** — `nexa_email` with natural language.
+5. **Growth** — `nexa_autopilot` mode: `growth`, `sales`, `full`, or `ops`.
+
+## MCP Tools
+
+| Tool | Use for |
+|------|---------|
+| `nexa_status` | Company, integrations, metrics |
+| `nexa_run` | Any command on connected tools |
+| `nexa_email` | Send Gmail |
+| `nexa_chat` | Chat + auto-execute |
+| `nexa_autopilot` | Full business cycle |
+| `nexa_batch` | Multiple commands |
+| `nexa_test_integrations` | Verify connections |
+
+See `CURSOR_CONTROL.md` for Railway setup (`NEXA_CONTROL_KEY`, `NEXA_CONTROL_EMAIL`).
