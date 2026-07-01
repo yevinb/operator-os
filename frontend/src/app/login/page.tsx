@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { Plan, User } from "@/lib/types";
-import { login, setSession, setToken, restoreOnboardingIfKnown } from "@/lib/auth";
+import { login, setSession, setToken, restoreOnboardingIfKnown, markEmailOnboarded } from "@/lib/auth";
 import { getApiUrl } from "@/lib/api";
 import { NexaLogo } from "@/components/NexaLogo";
 
@@ -56,9 +56,10 @@ function LoginContent() {
           market: String(raw.market || ""),
           niche_mode: String(raw.niche_mode || "general"),
         };
+        markEmailOnboarded(session.email);
         setSession(session);
         session = await restoreOnboardingIfKnown(session);
-        router.replace(session.onboarded ? "/dashboard" : "/onboarding");
+        router.replace("/dashboard");
       } catch {
         setError("Google sign-in failed. Please try again.");
       }

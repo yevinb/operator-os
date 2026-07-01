@@ -11,6 +11,7 @@ class User(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    google_id: Mapped[str | None] = mapped_column(String(128), unique=True, index=True, nullable=True)
     name: Mapped[str] = mapped_column(String(255))
     company: Mapped[str] = mapped_column(String(255), default="My Company")
     password_hash: Mapped[str] = mapped_column(String(255), default="")

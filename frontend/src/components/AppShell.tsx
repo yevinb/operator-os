@@ -14,7 +14,7 @@ import {
   FileText,
   MessageCircle,
 } from "lucide-react";
-import { getSession, clearSession, validateSession } from "@/lib/auth";
+import { getSession, clearSession, validateSession, hasCompletedOnboardingLocally } from "@/lib/auth";
 import type { User } from "@/lib/types";
 import { BackendStatus } from "@/components/ApiBootstrap";
 import { NexaLogo } from "@/components/NexaLogo";
@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         router.replace("/login");
         return;
       }
-      if (!session.onboarded && pathname !== "/onboarding") {
+      if (!session.onboarded && !hasCompletedOnboardingLocally(session.email) && pathname !== "/onboarding") {
         router.replace("/onboarding");
         return;
       }

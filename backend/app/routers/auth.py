@@ -134,31 +134,54 @@ async def google_auth_callback(
     info = user_resp.json()
     email = (info.get("email") or "").lower().strip()
     name = (info.get("name") or "Google User").strip()
+    google_id = (info.get("sub") or "").strip()
     if not email:
         return RedirectResponse(f"{settings.frontend_url}/login?error=google_email_missing")
 
-    result = await db.execute(
-        select(User).where(User.email == email).options(selectinload(User.profile))
-    )
-    user = result.scalar_one_or_none()
+    user = None
+    if google_id:
+        result = await db.execute(
+            select(User)
+            .where(User.google_id == google_id)
+            .options(selectinload(User.profile))
+        )
+        user = result.scalar_one_or_none()
     if not user:
+        result = await db.execute(
+            select(User).where(User.email == email).options(selectinload(User.profile))
+        )
+        user = result.scalar_one_or_none()
+
+    is_new = user is None
+    if is_new:
         company_guess = ((email.split("@")[0] or "My")[:30] + " Company").strip()
         user = User(
             id=f"user_{uuid.uuid4().hex[:12]}",
             email=email,
+            google_id=google_id or None,
             name=name,
             company=company_guess,
             password_hash="",
             plan="starter",
-            onboarded=False,
+            onboarded=True,
         )
         db.add(user)
         await db.flush()
-        await ensure_profile(db, user.id)
+        profile = await ensure_profile(db, user.id)
+        if not profile.goal:
+            profile.goal = "Grow revenue"
+        if not profile.market:
+            profile.market = "Global"
+        if not profile.niche_mode:
+            profile.niche_mode = "general"
     else:
-        # Returning Google user — keep account, refresh display name
         if name and user.name != name:
             user.name = name
+        if google_id and not user.google_id:
+            user.google_id = google_id
+        # Google sign-in = skip onboarding wizard on every return
+        user.onboarded = True
+        await ensure_profile(db, user.id)
 
     await db.commit()
     await db.refresh(user, ["profile"])

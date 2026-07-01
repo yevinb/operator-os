@@ -62,11 +62,14 @@ export function hasCompletedOnboardingLocally(email: string): boolean {
   return getOnboardedEmails().includes(email.toLowerCase().trim());
 }
 
-/** If this Google/email user finished onboarding before, restore server flag. */
+/** Restore onboarded flag from local memory or ensure Google users skip the wizard. */
 export async function restoreOnboardingIfKnown(user: User): Promise<User> {
-  if (user.onboarded || !hasCompletedOnboardingLocally(user.email)) return user;
+  if (user.onboarded) return user;
+  if (!hasCompletedOnboardingLocally(user.email)) return user;
   const restored = await updateUser({ onboarded: true });
-  return restored || { ...user, onboarded: true };
+  const merged = restored || { ...user, onboarded: true };
+  setSession(merged);
+  return merged;
 }
 
 export function isAuthError(message: string): boolean {

@@ -29,11 +29,26 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    migrations = [
+        "ALTER TABLE business_profiles ADD COLUMN niche_mode VARCHAR(64) DEFAULT 'general'",
+        "ALTER TABLE users ADD COLUMN google_id VARCHAR(128)",
+    ]
     if "sqlite" in settings.database_url:
+        for sql in migrations:
+            try:
+                async with engine.begin() as conn:
+                    await conn.exec_driver_sql(sql)
+            except Exception:
+                pass
+    elif "postgresql" in settings.database_url:
         try:
             async with engine.begin() as conn:
                 await conn.exec_driver_sql(
-                    "ALTER TABLE business_profiles ADD COLUMN niche_mode VARCHAR(64) DEFAULT 'general'"
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(128)"
+                )
+                await conn.exec_driver_sql(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users (google_id) "
+                    "WHERE google_id IS NOT NULL"
                 )
         except Exception:
             pass
