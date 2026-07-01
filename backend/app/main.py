@@ -4,11 +4,13 @@ from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import init_db
+from app.database import get_db, init_db
 from app.deps import get_current_user, get_optional_user
-from app.db_models import User
+from app.db_models import CommandLog, User
 from app.models import (
     BusinessMetrics,
     CommandRequest,
@@ -16,6 +18,7 @@ from app.models import (
     HealthResponse,
 )
 from app.routers import (
+    activity,
     auth,
     business,
     control,
@@ -27,14 +30,7 @@ from app.routers import (
     profile,
 )
 from app.services.business_context import build_business_context
-from app.services.executor import execute_tasks
-from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_active_plan
-from app.services.orchestrator import orchestrate_command
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import get_db
-from app.db_models import CommandLog
-from app.services.integrations.providers import parse_config
+from app.services.command_pipeline import run_command_pipeline
 
 
 @asynccontextmanager
@@ -52,7 +48,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins + ["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,6 +63,7 @@ app.include_router(oauth_quickbooks.router)
 app.include_router(nexa.router)
 app.include_router(control.router)
 app.include_router(business.router)
+app.include_router(activity.router)
 
 
 from app.services.ai_clients import active_provider_name
@@ -74,7 +71,7 @@ from app.services.ai_clients import active_provider_name
 
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(status="ok", ai_provider=active_provider_name(), version="2.0.0")
+    return HealthResponse(status="ok", ai_provider=active_provider_name(), version="3.0.0")
 
 
 @app.post("/api/v1/command", response_model=CommandResponse)
@@ -83,50 +80,11 @@ async def execute_command(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    context = await build_business_context(user, db)
-
-    response = await orchestrate_command(
-        command=req.command.strip(),
-        ai_provider=settings.ai_provider,
-        openai_key=settings.openai_api_key,
-        anthropic_key=settings.anthropic_api_key,
-        context=context,
-    )
-
-    integration_data = {
-        i.integration_id: {
-            "api_key": i.api_key or "",
-            "config": parse_config(i.config_json),
-        }
-        for i in user.integrations
-        if i.connected
-    }
-
-    executed = await execute_tasks(response, context, integration_data, db=db, user_id=user.id)
-
-    outcome = parse_outcome(req.command.strip())
-    marketing_plan = build_marketing_plan(req.command.strip(), context, outcome)
-    plan = await save_active_plan(db, user.id, executed.command, executed, outcome, marketing_plan)
-
+    executed, _bundle = await run_command_pipeline(req.command.strip(), user, db, log=True)
     executed = executed.model_copy(
-        update={
-            "marketing_plan": marketing_plan,
-            "plan_id": plan.id,
-            "outcome": outcome,
-            "summary": f"Here's your plan — I'm executing it. {executed.summary}",
-        }
+        update={"summary": f"Here's your plan — I'm executing it. {executed.summary}"}
     )
-
-    log = CommandLog(
-        user_id=user.id,
-        command=executed.command,
-        intent=executed.intent,
-        summary=executed.summary,
-        tasks_json=json.dumps([t.model_dump() for t in executed.tasks]),
-    )
-    db.add(log)
     await db.commit()
-
     return executed
 
 
@@ -186,7 +144,7 @@ async def get_metrics(user: User = Depends(get_current_user), db: AsyncSession =
 async def root():
     return {
         "app": "Nexa",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "tagline": "Your AI Chief Operating Officer",
         "docs": "/docs",
     }

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Activity, Zap, CheckCircle2, AlertCircle, Plug } from "lucide-react";
-import { getActivity } from "@/lib/store";
-import type { ActivityItem } from "@/lib/types";
+import { useCallback, useEffect, useState } from "react";
+import { Activity, Zap, CheckCircle2, AlertCircle, Plug, RefreshCw } from "lucide-react";
+import { getActivity, type ActivityItem } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const ICONS = {
@@ -16,23 +15,55 @@ const ICONS = {
 
 export default function ActivityPage() {
   const [items, setItems] = useState<ActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      setError("");
+      const data = await getActivity(50);
+      setItems(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load activity");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setItems(getActivity());
-    const interval = setInterval(() => setItems(getActivity()), 3000);
+    load();
+    const interval = setInterval(load, 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [load]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-1">Activity Log</h1>
-      <p className="text-text-2 text-sm mb-8">Every command and autonomous action your AI COO takes.</p>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">Activity Log</h1>
+          <p className="text-text-2 text-sm">Every command and autonomous action Nexa takes — synced from your account.</p>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-border hover:border-accent/40 disabled:opacity-50"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          Refresh
+        </button>
+      </div>
 
-      {items.length === 0 ? (
+      {error && (
+        <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>
+      )}
+
+      {loading && items.length === 0 ? (
+        <div className="text-center py-16 text-text-2">Loading activity…</div>
+      ) : items.length === 0 ? (
         <div className="text-center py-16 rounded-2xl bg-surface border border-border">
           <Activity size={40} className="mx-auto text-text-3 mb-4" />
           <p className="text-text-2">No activity yet.</p>
-          <p className="text-text-3 text-sm mt-1">Go to Command Center and say &ldquo;Increase sales.&rdquo;</p>
+          <p className="text-text-3 text-sm mt-1">Run a command in Nexa Chat or Command Center.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -56,13 +87,22 @@ export default function ActivityPage() {
                   <Icon size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
+                  {item.command && item.command !== item.message && (
+                    <p className="text-xs text-text-3 mb-1 truncate">&ldquo;{item.command}&rdquo;</p>
+                  )}
                   <p className="text-sm text-text">{item.message}</p>
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex flex-wrap gap-2 mt-1">
                     {item.category && (
                       <span className="text-xs text-text-3 capitalize">{item.category}</span>
                     )}
+                    {typeof item.completed === "number" && item.completed > 0 && (
+                      <span className="text-xs text-success">{item.completed} verified</span>
+                    )}
+                    {typeof item.failed === "number" && item.failed > 0 && (
+                      <span className="text-xs text-danger">{item.failed} failed</span>
+                    )}
                     <span className="text-xs text-text-3">
-                      {new Date(item.timestamp).toLocaleString()}
+                      {item.timestamp ? new Date(item.timestamp).toLocaleString() : ""}
                     </span>
                   </div>
                 </div>

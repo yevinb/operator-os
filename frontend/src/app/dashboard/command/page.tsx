@@ -12,6 +12,7 @@ import { CompanyPulse } from "@/components/CompanyPulse";
 import { getBusinessContext, saveBusinessProfile } from "@/lib/business-context";
 import { getSession, updateUser } from "@/lib/auth";
 import type { CommandResponse, NicheMode } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { NexaDice } from "@/components/NexaDice";
 import { DailyCheckIn } from "@/components/DailyCheckIn";
 import { MarketingPlanPanel } from "@/components/MarketingPlanPanel";
@@ -217,13 +218,20 @@ export default function CommandCenterPage() {
           <div className="space-y-2">
             {history.slice(1, 6).map((h) => {
               const done = h.executed_count ?? h.tasks.filter((t) => t.status === "completed").length;
+              const failed = h.failed_count ?? h.tasks.filter((t) => t.status === "failed").length;
+              const planned = h.planned_count ?? h.tasks.filter((t) => t.status === "planned").length;
+              const badge =
+                failed > 0 ? { label: "PARTIAL", className: "bg-warning/20 text-warning" }
+                : done > 0 ? { label: "VERIFIED", className: "bg-success/20 text-success" }
+                : planned > 0 ? { label: "PLANNED", className: "bg-white/10 text-text-2" }
+                : { label: "PENDING", className: "bg-white/10 text-text-3" };
               return (
                 <div key={h.command + h.intent} className="flex justify-between p-4 rounded-xl card-premium">
                   <div>
                     <p className="font-medium">{h.command}</p>
-                    <p className="text-xs text-text-3">{done} verified</p>
+                    <p className="text-xs text-text-3">{done} verified · {planned} planned · {failed} failed</p>
                   </div>
-                  <span className="text-xs px-3 py-1 rounded-full font-bold bg-success/20 text-success">VERIFIED</span>
+                  <span className={cn("text-xs px-3 py-1 rounded-full font-bold", badge.className)}>{badge.label}</span>
                 </div>
               );
             })}

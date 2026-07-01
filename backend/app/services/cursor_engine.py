@@ -115,11 +115,8 @@ Rules:
 - After tools run, summarize what happened with verified results."""
 
 
-async def _groq_agent_turn(
-    message: str,
-    history: list[dict],
-    context: BusinessContext,
-) -> dict | None:
+async def _groq_complete(messages: list[dict[str, Any]]) -> dict | None:
+    """One Groq completion — returns reply text or a single tool call."""
     if not settings.groq_api_key:
         return None
     try:
@@ -129,39 +126,42 @@ async def _groq_agent_turn(
             api_key=settings.groq_api_key,
             base_url="https://api.groq.com/openai/v1",
         )
-        messages: list[dict[str, Any]] = [{"role": "system", "content": _system_prompt(context)}]
-        for item in history[-8:]:
-            role = "assistant" if item.get("role") == "nexa" else "user"
-            messages.append({"role": role, "content": item.get("content", "")})
-        messages.append({"role": "user", "content": message})
-
         model = settings.groq_model or "llama-3.3-70b-versatile"
-        for _ in range(3):
-            r = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=NEXA_TOOLS,
-                tool_choice="auto",
-                max_tokens=800,
-                temperature=0.4,
-            )
-            choice = r.choices[0]
-            if not choice.message.tool_calls:
-                text = (choice.message.content or "").strip()
-                return {"action": "reply", "reply": text} if text else None
+        r = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=NEXA_TOOLS,
+            tool_choice="auto",
+            max_tokens=800,
+            temperature=0.4,
+        )
+        choice = r.choices[0]
+        if not choice.message.tool_calls:
+            text = (choice.message.content or "").strip()
+            return {"action": "reply", "reply": text, "message": choice.message} if text else None
 
-            messages.append(choice.message.model_dump())
-            for tc in choice.message.tool_calls:
-                name = tc.function.name
-                try:
-                    args = json.loads(tc.function.arguments or "{}")
-                except json.JSONDecodeError:
-                    args = {}
-                return {"action": name, "args": args, "tool_call_id": tc.id}
-
-        return None
+        tc = choice.message.tool_calls[0]
+        try:
+            args = json.loads(tc.function.arguments or "{}")
+        except json.JSONDecodeError:
+            args = {}
+        return {
+            "action": tc.function.name,
+            "args": args,
+            "tool_call_id": tc.id,
+            "message": choice.message,
+        }
     except Exception:
         return None
+
+
+def _build_agent_messages(message: str, history: list[dict], context: BusinessContext) -> list[dict[str, Any]]:
+    messages: list[dict[str, Any]] = [{"role": "system", "content": _system_prompt(context)}]
+    for item in history[-8:]:
+        role = "assistant" if item.get("role") == "nexa" else "user"
+        messages.append({"role": role, "content": item.get("content", "")})
+    messages.append({"role": "user", "content": message})
+    return messages
 
 
 async def _execute_tool(
@@ -277,18 +277,22 @@ async def _fallback_turn(
     return {"reply": reply, "executed": False}
 
 
-async def _log_if_executed(result: dict, user: User, db: AsyncSession) -> None:
-    if result.get("executed") and result.get("command_response"):
-        cr = result["command_response"]
-        db.add(
-            CommandLog(
-                user_id=user.id,
-                command=cr.get("command", ""),
-                intent=cr.get("intent", "cursor_engine"),
-                summary=cr.get("summary", ""),
-                tasks_json=json.dumps(cr.get("tasks", [])),
-            )
+async def _log_email_send(result: dict, user: User, db: AsyncSession) -> None:
+    """Log direct Gmail sends — pipeline handles execute_command logging."""
+    if not result.get("executed") or not result.get("command_response"):
+        return
+    cr = result["command_response"]
+    if cr.get("intent") != "send_email":
+        return
+    db.add(
+        CommandLog(
+            user_id=user.id,
+            command=cr.get("command", ""),
+            intent=cr.get("intent", "send_email"),
+            summary=cr.get("summary", ""),
+            tasks_json=json.dumps(cr.get("tasks", [])),
         )
+    )
 
 
 async def handle_cursor_turn(
@@ -303,20 +307,47 @@ async def handle_cursor_turn(
         return {"reply": "Tell me what you want — I'll run it.", "executed": False, "powered_by": "cursor"}
 
     context = await build_business_context(user, db)
-    agent = await _groq_agent_turn(text, history, context)
+    messages = _build_agent_messages(text, history, context)
 
-    if agent and agent.get("action") == "reply":
-        return {"reply": agent["reply"], "executed": False, "powered_by": "cursor"}
+    for _ in range(5):
+        agent = await _groq_complete(messages)
+        if not agent:
+            break
 
-    if agent and agent.get("action") in (
-        "get_business_snapshot",
-        "send_email",
-        "execute_command",
-        "run_autopilot",
-        "reply_only",
-    ):
+        if agent.get("action") == "reply":
+            return {"reply": agent["reply"], "executed": False, "powered_by": "cursor"}
+
+        action = agent.get("action")
+        if action not in (
+            "get_business_snapshot",
+            "send_email",
+            "execute_command",
+            "run_autopilot",
+            "reply_only",
+        ):
+            break
+
+        # Snapshot is a read step — feed result back to the model, then continue loop
+        if action == "get_business_snapshot":
+            snap_result = await _execute_tool(
+                action, agent.get("args", {}), text, history, user, db, context
+            )
+            assistant_msg = agent.get("message")
+            if assistant_msg:
+                messages.append(assistant_msg.model_dump())
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": agent.get("tool_call_id", ""),
+                    "content": json.dumps(
+                        snap_result.get("snapshot") or {"narrative": snap_result.get("reply", "")}
+                    ),
+                }
+            )
+            continue
+
         result = await _execute_tool(
-            agent["action"],
+            action,
             agent.get("args", {}),
             text,
             history,
@@ -325,12 +356,14 @@ async def handle_cursor_turn(
             context,
         )
         result["powered_by"] = "cursor"
-        await _log_if_executed(result, user, db)
+        if action == "send_email":
+            await _log_email_send(result, user, db)
         await db.commit()
         return result
 
     result = await _fallback_turn(text, history, user, db, context)
     result["powered_by"] = "cursor"
-    await _log_if_executed(result, user, db)
+    if result.get("command_response", {}).get("intent") == "send_email":
+        await _log_email_send(result, user, db)
     await db.commit()
     return result

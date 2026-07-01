@@ -68,6 +68,39 @@ async def get_business_graph(
     return integration_relationships(context.connected_integrations, context.goal)
 
 
+@router.get("/entities")
+async def list_business_entities(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = 50,
+):
+    from app.db_models import BusinessEntity
+
+    result = await db.execute(
+        select(BusinessEntity)
+        .where(BusinessEntity.user_id == user.id)
+        .order_by(BusinessEntity.updated_at.desc())
+        .limit(limit)
+    )
+    entities = []
+    for e in result.scalars().all():
+        try:
+            external_ids = json.loads(e.external_ids_json or "{}")
+        except json.JSONDecodeError:
+            external_ids = {}
+        entities.append(
+            {
+                "id": e.id,
+                "type": e.entity_type,
+                "name": e.name,
+                "email": e.email,
+                "external_ids": external_ids,
+                "updated_at": e.updated_at.isoformat() if e.updated_at else None,
+            }
+        )
+    return {"entities": entities, "count": len(entities)}
+
+
 @router.get("/executions/latest")
 async def get_latest_execution(
     user: User = Depends(get_current_user),

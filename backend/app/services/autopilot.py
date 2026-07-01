@@ -2,16 +2,13 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.db_models import User
 from app.services.business_context import build_business_context
 from app.services.business_snapshot import build_business_snapshot
-from app.services.chat import handle_chat
+from app.services.chat import format_execution_reply
+from app.services.command_pipeline import run_command_pipeline
 from app.services.execution_bundle import ExecutionBundle
-from app.services.executor import execute_tasks
 from app.services.integrations.providers import parse_config
-from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_active_plan
-from app.services.orchestrator import orchestrate_command
 
 AUTOPILOT_PLANS: dict[str, list[str]] = {
     "full": [
@@ -46,6 +43,19 @@ async def run_autopilot(
     *,
     custom_steps: list[str] | None = None,
 ) -> dict:
+    from app.services.plan_limits import can_run_autopilot_mode
+
+    if not can_run_autopilot_mode(user.plan, mode):
+        return {
+            "mode": mode,
+            "error": f"Autopilot mode '{mode}' requires a Pro plan. Upgrade in Billing.",
+            "summary": f"Autopilot ({mode}) blocked — upgrade to Pro for full autonomous cycles.",
+            "results": [],
+            "steps_run": 0,
+            "executed_steps": 0,
+            "verified_actions": 0,
+        }
+
     steps = custom_steps or AUTOPILOT_PLANS.get(mode, AUTOPILOT_PLANS["growth"])
     context = await build_business_context(user, db)
     integration_data = {
@@ -67,26 +77,24 @@ async def run_autopilot(
     results: list[dict] = []
 
     for step in steps:
-        chat_result = await handle_chat(step, [], user, db)
+        executed, bundle = await run_command_pipeline(
+            step,
+            user,
+            db,
+            context=context,
+            bundle=bundle,
+            log=True,
+        )
         results.append(
             {
                 "command": step,
-                "reply": chat_result.get("reply", ""),
-                "executed": chat_result.get("executed", False),
-                "tasks": (chat_result.get("command_response") or {}).get("tasks", []),
+                "reply": format_execution_reply(executed),
+                "executed": (executed.executed_count or 0) > 0,
+                "tasks": [t.model_dump() for t in executed.tasks],
             }
         )
-        cr = chat_result.get("command_response") or {}
-        for t in cr.get("tasks", []):
-            if t.get("verified"):
-                bundle.absorb(
-                    t.get("integration"),
-                    t.get("detail", ""),
-                    t.get("proof"),
-                    True,
-                )
 
-    executed = sum(1 for r in results if r.get("executed"))
+    executed_steps = sum(1 for r in results if r.get("executed"))
     verified = sum(
         1
         for r in results
@@ -102,6 +110,8 @@ async def run_autopilot(
     if bundle_line:
         summary += f". {bundle_line}"
 
+    await db.commit()
+
     return {
         "mode": mode,
         "company": context.company,
@@ -109,7 +119,7 @@ async def run_autopilot(
         "business_narrative": context.business_narrative,
         "metrics": dict(bundle.metrics),
         "steps_run": len(steps),
-        "executed_steps": executed,
+        "executed_steps": executed_steps,
         "verified_actions": verified,
         "results": results,
         "summary": summary,
@@ -118,27 +128,6 @@ async def run_autopilot(
 
 async def run_raw_command(command: str, user: User, db: AsyncSession) -> dict:
     """Full orchestrate + execute pipeline for agent control."""
-    context = await build_business_context(user, db)
-    response = await orchestrate_command(
-        command=command.strip(),
-        ai_provider=settings.ai_provider,
-        openai_key=settings.openai_api_key,
-        anthropic_key=settings.anthropic_api_key,
-        context=context,
-    )
-    integration_data = {
-        i.integration_id: {
-            "api_key": i.api_key or "",
-            "config": parse_config(i.config_json),
-        }
-        for i in user.integrations
-        if i.connected
-    }
-    executed = await execute_tasks(
-        response, context, integration_data, db=db, user_id=user.id
-    )
-    outcome = parse_outcome(command)
-    marketing_plan = build_marketing_plan(command, context, outcome)
-    await save_active_plan(db, user.id, executed.command, executed, outcome, marketing_plan)
+    executed, _bundle = await run_command_pipeline(command.strip(), user, db, log=True)
     await db.commit()
     return executed.model_dump()

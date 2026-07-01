@@ -16,7 +16,7 @@ export default function PlanPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-text-2 hover:text-gold">
+      <Link href="/dashboard/command" className="inline-flex items-center gap-2 text-sm text-text-2 hover:text-gold">
         <ArrowLeft size={16} /> Command Center
       </Link>
 
@@ -28,7 +28,7 @@ export default function PlanPage() {
       {!plan?.active ? (
         <div className="card-premium rounded-2xl p-8 text-center text-text-2">
           <p>No active plan yet. Go to Command Center and give Nexa one outcome.</p>
-          <Link href="/dashboard" className="inline-block mt-4 text-gold font-semibold">Open Command Center →</Link>
+          <Link href="/dashboard/command" className="inline-block mt-4 text-gold font-semibold">Open Command Center →</Link>
         </div>
       ) : (
         <>

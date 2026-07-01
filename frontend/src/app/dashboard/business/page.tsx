@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
 import {
   getBusinessGraph,
   getBusinessSnapshot,
+  getBusinessEntities,
   getLatestExecution,
   type BusinessGraph,
   type BusinessSnapshot,
@@ -54,27 +55,35 @@ export default function BusinessHubPage() {
   const [snapshot, setSnapshot] = useState<BusinessSnapshot | null>(null);
   const [graph, setGraph] = useState<BusinessGraph | null>(null);
   const [execution, setExecution] = useState<LatestExecution | null>(null);
+  const [entities, setEntities] = useState<{ id: number; type: string; name: string; email: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [snap, g, ex] = await Promise.all([
-          getBusinessSnapshot(),
-          getBusinessGraph(),
-          getLatestExecution(),
-        ]);
-        setSnapshot(snap);
-        setGraph(g);
-        setExecution(ex);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load business hub");
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const refresh = useCallback(async () => {
+    try {
+      const [snap, g, ex, ent] = await Promise.all([
+        getBusinessSnapshot(),
+        getBusinessGraph(),
+        getLatestExecution(),
+        getBusinessEntities(),
+      ]);
+      setSnapshot(snap);
+      setGraph(g);
+      setExecution(ex);
+      setEntities(ent.entities || []);
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load business hub");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
+  }, [refresh]);
 
   if (loading) {
     return (
@@ -210,6 +219,20 @@ export default function BusinessHubPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {entities.length > 0 && (
+        <section>
+          <h2 className="text-sm font-bold text-text-2 uppercase mb-3">Contacts & entities</h2>
+          <div className="card-premium rounded-2xl p-5 border border-white/10 space-y-2">
+            {entities.slice(0, 8).map((e) => (
+              <div key={e.id} className="flex justify-between text-sm">
+                <span className="text-white">{e.name || e.email}</span>
+                <span className="text-text-3 text-xs capitalize">{e.type}</span>
+              </div>
+            ))}
           </div>
         </section>
       )}

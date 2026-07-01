@@ -10,6 +10,7 @@ from app.services.execution_bundle import ExecutionBundle
 from app.services.integration_map import INTEGRATION_LABELS, missing_integration_hint
 from app.services.integrations.google import create_calendar_event, google_ads_campaign_stats, send_gmail
 from app.services.integrations.google_store import resolve_and_persist_google
+from app.services.nexa_intelligence import compose_email
 from app.services.shopify_integration import shopify_execute_action
 from app.services.integrations.providers import (
     hubspot_log_note,
@@ -41,31 +42,6 @@ def _recipient_from_command(command: str, default_to: str) -> str:
     if found:
         return found[-1]
     return default_to
-
-
-def _compose_business_email(
-    company: str,
-    command: str,
-    action: str,
-    email_context: str = "",
-) -> tuple[str, str]:
-    subject = f"[{company}] Business update"
-    if "business email" in command.lower() or "business" in command.lower():
-        subject = f"[{company}] Introduction — let's connect"
-    context_block = f"\n\n{email_context}" if email_context else ""
-    body = f"""Hello,
-
-I'm reaching out from {company}.
-
-{action}{context_block}
-
-We would welcome the opportunity to connect and explore working together.
-
-Best regards,
-{company}
-
-— Sent via Nexa on your behalf"""
-    return subject, body
 
 
 @dataclass
@@ -310,9 +286,17 @@ async def _execute_single(
             k in action.lower() for k in ("email", "reply", "send", "onboarding", "report", "stakeholder", "customer", "write", "gmail")
         ) or email_cmd
         if access and recipient and email_intent:
-            subject, body = _compose_business_email(
-                company, response.command, task.action, bundle.email_context()
+            subject, body = await compose_email(
+                response.command,
+                company,
+                context,
+                [],
+                sender_name=sender,
+                purpose=task.action,
             )
+            ctx = bundle.email_context()
+            if ctx:
+                body = f"{body}\n\n---\n{ctx}"
             ok, msg = await send_gmail(access, to=recipient, subject=subject, body=body, from_email=sender)
             if ok:
                 return ExecResult(

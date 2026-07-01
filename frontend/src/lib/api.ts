@@ -149,6 +149,29 @@ export async function getBusinessGraph(): Promise<BusinessGraph> {
   return apiFetch<BusinessGraph>("/api/v1/business/graph");
 }
 
+export type ActivityItem = {
+  id: string;
+  type: "command" | "action" | "success" | "alert" | "integration";
+  message: string;
+  command?: string;
+  intent?: string;
+  category?: string;
+  completed?: number;
+  planned?: number;
+  failed?: number;
+  tasks?: unknown[];
+  timestamp: string;
+};
+
+export async function getActivity(limit = 50): Promise<ActivityItem[]> {
+  const data = await apiFetch<{ items: ActivityItem[] }>(`/api/v1/activity?limit=${limit}`);
+  return data.items || [];
+}
+
+export async function getBusinessEntities(): Promise<{ entities: { id: number; type: string; name: string; email: string }[]; count: number }> {
+  return apiFetch("/api/v1/business/entities");
+}
+
 export async function getLatestExecution(): Promise<LatestExecution> {
   return apiFetch<LatestExecution>("/api/v1/business/executions/latest");
 }

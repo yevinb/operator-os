@@ -7,6 +7,8 @@ from app.db_models import User
 from app.deps import get_current_user
 from app.services.business_context import ensure_profile
 
+from app.services.plan_limits import get_plan_limits
+
 router = APIRouter(prefix="/api/v1/profile", tags=["profile"])
 
 
@@ -32,6 +34,11 @@ class ProfileOut(BaseModel):
     onboarded: bool
     plan: str
     niche_mode: str
+
+
+@router.get("/limits")
+async def get_profile_limits(user: User = Depends(get_current_user)):
+    return {"plan": user.plan, "limits": get_plan_limits(user.plan)}
 
 
 @router.get("", response_model=ProfileOut)
@@ -62,8 +69,7 @@ async def update_profile(
         user.company = body.company
     if body.onboarded is not None:
         user.onboarded = body.onboarded
-    if body.plan is not None:
-        user.plan = body.plan
+    # Plan changes only via billing webhook — not user PATCH
     if body.industry is not None:
         profile.industry = body.industry
     if body.goal is not None:

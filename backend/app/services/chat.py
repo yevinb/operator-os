@@ -1,22 +1,16 @@
 """Nexa conversational chat — autonomous intelligence + live execution."""
 
-import json
 import re
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
-from app.services.ai_clients import complete_text
 from app.db_models import User
 from app.models import CommandResponse
 from app.services.business_context import BusinessContext, build_business_context
+from app.services.ai_clients import complete_text
 from app.services.email_dispatch import try_direct_gmail_send
-from app.services.executor import execute_tasks
-from app.services.integrations.providers import parse_config
-from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_active_plan
-from app.services.nexa_intelligence import EMAIL_RE, analyze_message
+from app.services.nexa_intelligence import analyze_message
 from app.services.niche_modes import get_niche
-from app.services.orchestrator import orchestrate_command
 
 EXECUTE_PATTERNS = [
     r"\bget me\b",
@@ -147,8 +141,10 @@ async def _run_execution(
     db: AsyncSession,
     context: BusinessContext,
 ) -> dict:
-    from sqlalchemy import select as sa_select
-    from app.db_models import IntegrationConnection, CommandLog
+    from app.services.command_pipeline import run_command_pipeline
+    from app.services.nexa_intelligence import EMAIL_RE
+    from app.services.integrations.providers import parse_config
+    import json
 
     emails = EMAIL_RE.findall(text)
     if emails:
@@ -160,50 +156,7 @@ async def _run_execution(
                 await db.flush()
                 break
 
-    response = await orchestrate_command(
-        command=text,
-        ai_provider=settings.ai_provider,
-        openai_key=settings.openai_api_key,
-        anthropic_key=settings.anthropic_api_key,
-        context=context,
-    )
-
-    fresh = await db.execute(
-        sa_select(IntegrationConnection).where(
-            IntegrationConnection.user_id == user.id,
-            IntegrationConnection.connected == True,  # noqa: E712
-        )
-    )
-    integration_data = {
-        c.integration_id: {
-            "api_key": c.api_key or "",
-            "config": parse_config(c.config_json),
-        }
-        for c in fresh.scalars().all()
-    }
-    context = await build_business_context(user, db)
-    executed = await execute_tasks(response, context, integration_data, db=db, user_id=user.id)
-    outcome = parse_outcome(text)
-    marketing_plan = build_marketing_plan(text, context, outcome)
-    plan = await save_active_plan(db, user.id, executed.command, executed, outcome, marketing_plan)
-    executed = executed.model_copy(
-        update={
-            "marketing_plan": marketing_plan,
-            "plan_id": plan.id,
-            "outcome": outcome,
-            "summary": executed.summary,
-        }
-    )
-
-    db.add(
-        CommandLog(
-            user_id=user.id,
-            command=executed.command,
-            intent=executed.intent,
-            summary=executed.summary,
-            tasks_json=json.dumps([t.model_dump() for t in executed.tasks]),
-        )
-    )
+    executed, _bundle = await run_command_pipeline(text, user, db, context=context, log=True)
     await db.commit()
 
     return {
