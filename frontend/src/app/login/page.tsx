@@ -121,7 +121,7 @@ function LoginContent() {
 
         <div className="p-8 rounded-2xl bg-surface border border-border">
           <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
-          <p className="text-text-2 text-sm mb-6">Sign in to your AI COO</p>
+          <p className="text-text-2 text-sm mb-6">Sign in with Google — then connect Gmail in Integrations for email features.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

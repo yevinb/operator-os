@@ -66,7 +66,60 @@ See `CURSOR_CONTROL.md`. Set `NEXA_CONTROL_KEY` + `NEXA_CONTROL_EMAIL` on Railwa
 
 **Root directory:** `backend`
 
-## 4. Verify
+## 5. Google sign-in — let **anyone** in the world log in
+
+Nexa uses **two** Google flows:
+
+| Flow | Scopes | Who can use it |
+|------|--------|----------------|
+| **Sign in with Google** (login page) | Email + profile only | **Anyone** — once app is **In production** |
+| **Connect Gmail** (Integrations page) | Gmail send/read | Needs **Google verification** for public use |
+
+### Step A — Find the right screen in Google Cloud
+
+The menu moved. Use either path:
+
+**New UI:** [Google Cloud Console](https://console.cloud.google.com/) → pick your project → left menu **Google Auth Platform** → **Audience**
+
+**Old UI:** **APIs & Services** → **OAuth consent screen**
+
+On **Audience** you should see:
+
+- **User type:** External  
+- **Publishing status:** Testing or In production  
+
+### Step B — Allow everyone (not just test users)
+
+1. Open **Audience** (or OAuth consent screen)  
+2. Under **Publishing status**, click **Publish app** → set to **In production**  
+3. Fill **Branding**: app name **Nexa**, support email, home page `https://yevinb.github.io/operator-os`  
+4. Add **Privacy policy URL** (required): `https://yevinb.github.io/operator-os/privacy`
+5. **Save**
+
+With **login-only** scopes (`openid email profile`), Google usually does **not** require full Gmail verification for sign-in. Anyone with a Google account can log in.
+
+### Step C — Gmail for all users (optional, slower)
+
+To let **anyone** connect Gmail (not just test users):
+
+1. **Google Auth Platform** → **Data access** — confirm Gmail scopes are listed  
+2. **Verification center** → submit for verification (privacy policy, demo video, how you use Gmail)  
+3. Often **1–6 weeks**
+
+Until verified, add emails under **Audience** → **Test users** (max 100) for Gmail connect only.
+
+### Step D — Redirect URIs (**Clients**)
+
+**Google Auth Platform** → **Clients** → your OAuth client → **Authorized redirect URIs**:
+
+```
+https://operator-os-production-2a8a.up.railway.app/api/v1/auth/google/callback
+https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/google/callback
+```
+
+After deploy, users: **Sign in with Google** → then **Integrations** → **Connect Gmail** for email features.
+
+## 6. Verify
 
 1. https://yevinb.github.io/operator-os/ — hard refresh
 2. Sign up / log in
