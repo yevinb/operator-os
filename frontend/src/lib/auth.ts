@@ -6,6 +6,7 @@ import { syncUserToProfile } from "./business-context";
 const USER_KEY = "operatoros_user";
 const SESSION_KEY = "operatoros_session";
 const TOKEN_KEY = "operatoros_token";
+const ONBOARDED_EMAILS_KEY = "nexa_onboarded_emails";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -38,6 +39,36 @@ export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+function getOnboardedEmails(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(ONBOARDED_EMAILS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markEmailOnboarded(email: string) {
+  const key = email.toLowerCase().trim();
+  if (!key) return;
+  const list = getOnboardedEmails();
+  if (!list.includes(key)) {
+    localStorage.setItem(ONBOARDED_EMAILS_KEY, JSON.stringify([...list, key]));
+  }
+}
+
+export function hasCompletedOnboardingLocally(email: string): boolean {
+  return getOnboardedEmails().includes(email.toLowerCase().trim());
+}
+
+/** If this Google/email user finished onboarding before, restore server flag. */
+export async function restoreOnboardingIfKnown(user: User): Promise<User> {
+  if (user.onboarded || !hasCompletedOnboardingLocally(user.email)) return user;
+  const restored = await updateUser({ onboarded: true });
+  return restored || { ...user, onboarded: true };
+}
+
 export function isAuthError(message: string): boolean {
   const m = message.toLowerCase();
   return (
@@ -57,7 +88,7 @@ export async function validateSession(): Promise<User | null> {
     const data = await apiFetch<Record<string, unknown>>("/api/v1/auth/me");
     const user = mapApiUser(data);
     setSession(user);
-    return user;
+    return restoreOnboardingIfKnown(user);
   } catch {
     clearSession();
     return null;

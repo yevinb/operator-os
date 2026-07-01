@@ -62,3 +62,20 @@ def decode_oauth_state(state: str) -> tuple[str, str] | None:
         return str(user_id), str(integration_id)
     except JWTError:
         return None
+
+
+def create_google_login_state() -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    return jwt.encode(
+        {"type": "google_login", "exp": expire},
+        settings.jwt_secret,
+        algorithm=ALGORITHM,
+    )
+
+
+def verify_google_login_state(state: str) -> bool:
+    try:
+        payload = jwt.decode(state, settings.jwt_secret, algorithms=[ALGORITHM])
+        return payload.get("type") == "google_login"
+    except JWTError:
+        return False

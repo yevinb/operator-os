@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { login, setSession, setToken } from "@/lib/auth";
+import type { Plan, User } from "@/lib/types";
+import { login, setSession, setToken, restoreOnboardingIfKnown } from "@/lib/auth";
 import { getApiUrl } from "@/lib/api";
 import { NexaLogo } from "@/components/NexaLogo";
 
@@ -41,21 +42,23 @@ function LoginContent() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!me.ok) throw new Error("Google session invalid");
-        const user = await me.json();
-        setSession({
-          id: String(user.id),
-          email: String(user.email),
-          name: String(user.name),
-          company: String(user.company),
-          plan: user.plan || "starter",
-          onboarded: Boolean(user.onboarded),
+        const raw = await me.json();
+        let session: User = {
+          id: String(raw.id),
+          email: String(raw.email),
+          name: String(raw.name),
+          company: String(raw.company),
+          plan: (raw.plan || "starter") as Plan,
+          onboarded: Boolean(raw.onboarded),
           createdAt: new Date().toISOString(),
-          industry: String(user.industry || ""),
-          goal: String(user.goal || ""),
-          market: String(user.market || ""),
-          niche_mode: String(user.niche_mode || "general"),
-        });
-        router.replace(user.onboarded ? "/dashboard" : "/onboarding");
+          industry: String(raw.industry || ""),
+          goal: String(raw.goal || ""),
+          market: String(raw.market || ""),
+          niche_mode: String(raw.niche_mode || "general"),
+        };
+        setSession(session);
+        session = await restoreOnboardingIfKnown(session);
+        router.replace(session.onboarded ? "/dashboard" : "/onboarding");
       } catch {
         setError("Google sign-in failed. Please try again.");
       }
@@ -90,7 +93,8 @@ function LoginContent() {
     setLoading(true);
     try {
       const user = await login(email, password);
-      router.push(user.onboarded ? "/dashboard" : "/onboarding");
+      const session = await restoreOnboardingIfKnown(user);
+      router.push(session.onboarded ? "/dashboard" : "/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid email or password");
     } finally {

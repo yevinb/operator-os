@@ -38,8 +38,17 @@ Commit and push.
 | Variable | Value |
 |----------|--------|
 | `JWT_SECRET` | long random string |
+| `DATABASE_URL` | **Add Railway Postgres** — keeps accounts & Gmail connections after deploys |
 | `CORS_ORIGINS` | `["https://yevinb.github.io"]` |
+| `GOOGLE_CLIENT_ID` | from Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | from Google Cloud Console |
+| `GOOGLE_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/google/callback` |
+| `FRONTEND_URL` | `https://yevinb.github.io/operator-os` |
 | `OPENAI_API_KEY` | optional |
+
+**Persistent accounts:** Without `DATABASE_URL`, SQLite is stored in `/app/data` (better than `/tmp`, but Postgres is recommended).
+
+**Add Postgres on Railway:** Project → **+ New** → **Database** → **PostgreSQL** → link to your Nexa service (Railway sets `DATABASE_URL` automatically).
 
 **Root directory:** `backend`
 

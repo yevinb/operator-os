@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getSession, updateUser } from "@/lib/auth";
+import { getSession, updateUser, markEmailOnboarded } from "@/lib/auth";
 import { saveBusinessProfile } from "@/lib/business-context";
 import { apiFetch, hasApiConfigured, setNicheMode } from "@/lib/api";
 import { DEFAULT_INTEGRATIONS } from "@/lib/store";
@@ -84,6 +84,9 @@ export default function OnboardingPage() {
         } catch { /* non-key integrations */ }
       }
     }
+
+    const session = getSession();
+    if (session?.email) markEmailOnboarded(session.email);
 
     setSaving(false);
     router.push("/dashboard");

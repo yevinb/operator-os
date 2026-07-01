@@ -1,13 +1,33 @@
 import os
+from pathlib import Path
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
+def _normalize_postgres_url(url: str) -> str:
+    url = url.strip()
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql://") and "+" not in url.split("://", 1)[1].split("@")[0]:
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 def _default_database_url() -> str:
+    # Railway Postgres plugin (persistent — preferred)
+    env_url = (os.getenv("DATABASE_URL") or os.getenv("DATABASE_PRIVATE_URL") or "").strip()
+    if env_url:
+        return _normalize_postgres_url(env_url)
+
     if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("PORT"):
-        return "sqlite+aiosqlite:////tmp/operatoros.db"
-    return "sqlite+aiosqlite:///./operatoros.db"
+        # /app/data survives redeploys better than /tmp (ephemeral)
+        data_dir = os.getenv("NEXA_DATA_DIR", "/app/data")
+        Path(data_dir).mkdir(parents=True, exist_ok=True)
+        return f"sqlite+aiosqlite:///{data_dir}/operatoros.db"
+
+    Path("./data").mkdir(parents=True, exist_ok=True)
+    return "sqlite+aiosqlite:///./data/operatoros.db"
 
 
 class Settings(BaseSettings):
@@ -40,8 +60,15 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     ai_provider: str = "auto"  # auto | openai | anthropic | gemini | rules
 
-    # Database — SQLite local; /tmp on Railway; Postgres via DATABASE_URL
-    database_url: str = _default_database_url()
+    # Database — Postgres via DATABASE_URL on Railway; else persistent SQLite in /app/data
+    database_url: str = ""
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def resolve_database_url(cls, v):
+        if v and str(v).strip():
+            return _normalize_postgres_url(str(v).strip())
+        return _default_database_url()
     redis_url: str = "redis://localhost:6379/0"
 
     # Optional automation webhooks

@@ -1,5 +1,4 @@
 import uuid
-import secrets
 from urllib.parse import urlencode
 
 import httpx
@@ -15,11 +14,16 @@ from app.database import get_db
 from app.db_models import User
 from app.deps import get_current_user
 from app.services.business_context import ensure_profile
-from app.services.security import create_access_token, hash_password, verify_password
+from app.services.security import (
+    create_access_token,
+    create_google_login_state,
+    hash_password,
+    verify_google_login_state,
+    verify_password,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 GOOGLE_OAUTH_SCOPES = "openid email profile"
-_pending_google_states: dict[str, str] = {}
 
 
 class SignupRequest(BaseModel):
@@ -81,8 +85,7 @@ async def google_auth_start():
             status_code=503,
             detail="Google OAuth not configured on server. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.",
         )
-    state = secrets.token_urlsafe(24)
-    _pending_google_states[state] = "1"
+    state = create_google_login_state()
     params = {
         "client_id": settings.google_client_id,
         "redirect_uri": settings.google_auth_redirect_uri,
@@ -101,7 +104,7 @@ async def google_auth_callback(
     state: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ):
-    if not _pending_google_states.pop(state, None) or not code:
+    if not verify_google_login_state(state) or not code:
         return RedirectResponse(f"{settings.frontend_url}/login?error=google_oauth_failed")
 
     redirect_uri = settings.google_auth_redirect_uri
@@ -152,8 +155,13 @@ async def google_auth_callback(
         db.add(user)
         await db.flush()
         await ensure_profile(db, user.id)
-        await db.commit()
-        await db.refresh(user, ["profile"])
+    else:
+        # Returning Google user — keep account, refresh display name
+        if name and user.name != name:
+            user.name = name
+
+    await db.commit()
+    await db.refresh(user, ["profile"])
 
     token = create_access_token(user.id)
     return RedirectResponse(f"{settings.frontend_url}/login?google_token={token}")

@@ -1,6 +1,6 @@
 /* Nexa PWA service worker — generated, do not edit */
 const BASE = "/operator-os";
-const CACHE = "nexa-v5";
+const CACHE = "nexa-v6";
 
 const PRECACHE = [
   "/operator-os/",

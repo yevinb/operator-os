@@ -88,7 +88,7 @@ const precache = [
 
 const sw = `/* Nexa PWA service worker — generated, do not edit */
 const BASE = ${JSON.stringify(base)};
-const CACHE = "nexa-v5";
+const CACHE = "nexa-v6";
 
 const PRECACHE = ${JSON.stringify([
   ...precache,
