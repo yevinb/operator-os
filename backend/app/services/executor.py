@@ -265,4 +265,8 @@ async def _execute_single(
         return ExecResult(TaskStatus.failed, msg, "mcp")
 
     hint = missing_integration_hint(category, connected)
-    return ExecResult(TaskStatus.planned, hint)
+
+    from app.services.nexa_engine import execute_nexa_internal
+
+    status, detail, integration = await execute_nexa_internal(task, context, response)
+    return ExecResult(status, detail, integration)

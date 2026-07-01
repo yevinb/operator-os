@@ -23,3 +23,12 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    if "sqlite" in settings.database_url:
+        try:
+            async with engine.begin() as conn:
+                await conn.exec_driver_sql(
+                    "ALTER TABLE business_profiles ADD COLUMN niche_mode VARCHAR(64) DEFAULT 'general'"
+                )
+        except Exception:
+            pass

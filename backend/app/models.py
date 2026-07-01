@@ -32,6 +32,9 @@ class CommandResponse(BaseModel):
     planned_count: int = 0
     failed_count: int = 0
     mode: str = "live"
+    marketing_plan: str | None = None
+    plan_id: int | None = None
+    outcome: dict | None = None
 
 
 class BusinessMetrics(BaseModel):

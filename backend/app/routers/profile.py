@@ -19,6 +19,7 @@ class ProfileUpdate(BaseModel):
     website: str | None = None
     onboarded: bool | None = None
     plan: str | None = None
+    niche_mode: str | None = None
 
 
 class ProfileOut(BaseModel):
@@ -30,6 +31,7 @@ class ProfileOut(BaseModel):
     website: str
     onboarded: bool
     plan: str
+    niche_mode: str
 
 
 @router.get("", response_model=ProfileOut)
@@ -44,6 +46,7 @@ async def get_profile(user: User = Depends(get_current_user), db: AsyncSession =
         website=profile.website,
         onboarded=user.onboarded,
         plan=user.plan,
+        niche_mode=profile.niche_mode or "general",
     )
 
 
@@ -71,6 +74,8 @@ async def update_profile(
         profile.description = body.description
     if body.website is not None:
         profile.website = body.website
+    if body.niche_mode is not None:
+        profile.niche_mode = body.niche_mode
 
     await db.commit()
     await db.refresh(user)
@@ -85,4 +90,5 @@ async def update_profile(
         website=profile.website,
         onboarded=user.onboarded,
         plan=user.plan,
+        niche_mode=profile.niche_mode or "general",
     )

@@ -22,6 +22,44 @@ export interface CommandResponse {
   failed_count?: number;
   mode?: "live" | "demo";
   metrics?: Record<string, string | number>;
+  marketing_plan?: string;
+  plan_id?: number;
+  outcome?: { kind?: string; target?: string; label?: string };
+}
+
+export interface NicheMode {
+  id: string;
+  label: string;
+  emoji: string;
+  tagline: string;
+  sample_outcomes: string[];
+}
+
+export interface BusinessIdea {
+  idea: string;
+  niche: string;
+  niche_label: string;
+  suggested_command: string;
+  first_steps: string[];
+}
+
+export interface CheckIn {
+  message: string;
+  suggested_command: string;
+  niche: string;
+  date: string;
+}
+
+export interface ActivePlan {
+  active: boolean;
+  id?: number;
+  command?: string;
+  summary?: string;
+  marketing_plan?: string;
+  outcome?: Record<string, string>;
+  tasks?: Task[];
+  executed_count?: number;
+  created_at?: string;
 }
 
 export interface BusinessMetrics {
@@ -60,6 +98,7 @@ export interface User {
   market?: string;
   description?: string;
   website?: string;
+  niche_mode?: string;
 }
 
 export interface BusinessContext {
@@ -70,6 +109,7 @@ export interface BusinessContext {
   description?: string;
   website?: string;
   connectedIntegrations?: string[];
+  niche_mode?: string;
 }
 
 export interface Integration {

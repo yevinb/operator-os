@@ -15,9 +15,10 @@ from app.models import (
     CommandResponse,
     HealthResponse,
 )
-from app.routers import auth, integrations, oauth_google, profile
+from app.routers import auth, integrations, nexa, oauth_google, profile
 from app.services.business_context import build_business_context
 from app.services.executor import execute_tasks
+from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_active_plan
 from app.services.orchestrator import orchestrate_command
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,7 +36,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     description="AI Chief Operating Officer API — autonomous business execution",
-    version="2.0.0",
+    version="3.0.0",
     lifespan=lifespan,
 )
 
@@ -51,6 +52,7 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(integrations.router)
 app.include_router(oauth_google.router)
+app.include_router(nexa.router)
 
 
 def _active_ai_provider() -> str:
@@ -96,6 +98,19 @@ async def execute_command(
     }
 
     executed = await execute_tasks(response, context, integration_data)
+
+    outcome = parse_outcome(req.command.strip())
+    marketing_plan = build_marketing_plan(req.command.strip(), context, outcome)
+    plan = await save_active_plan(db, user.id, executed.command, executed, outcome, marketing_plan)
+
+    executed = executed.model_copy(
+        update={
+            "marketing_plan": marketing_plan,
+            "plan_id": plan.id,
+            "outcome": outcome,
+            "summary": f"Here's your plan — I'm executing it. {executed.summary}",
+        }
+    )
 
     log = CommandLog(
         user_id=user.id,

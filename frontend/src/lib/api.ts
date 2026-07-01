@@ -125,3 +125,32 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 }
 
 export { initApiConfig };
+
+export async function getNiches() {
+  return apiFetch<import("./types").NicheMode[]>("/api/v1/nexa/niches");
+}
+
+export async function rollBusinessIdea() {
+  return apiFetch<import("./types").BusinessIdea>("/api/v1/nexa/business-idea");
+}
+
+export async function getCheckIn() {
+  return apiFetch<import("./types").CheckIn>("/api/v1/nexa/check-in");
+}
+
+export async function getActivePlan() {
+  return apiFetch<import("./types").ActivePlan>("/api/v1/nexa/plan");
+}
+
+export async function setNicheMode(nicheId: string) {
+  return apiFetch<{ niche_mode: string; label: string }>(`/api/v1/nexa/niche/${nicheId}`, {
+    method: "PATCH",
+  });
+}
+
+export async function coachChat(message: string, step: number) {
+  return apiFetch<{ reply: string; next_step: number; done?: boolean; suggested_command?: string; niche_mode?: string; hint?: string }>(
+    "/api/v1/nexa/coach",
+    { method: "POST", body: JSON.stringify({ message, step }) }
+  );
+}

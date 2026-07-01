@@ -40,7 +40,10 @@ export default function BillingPage() {
         Current plan: <span className="text-accent capitalize font-medium">{currentPlan}</span>
         <span className="ml-2 text-warning text-xs font-medium">· Free during beta</span>
       </p>
-      <p className="text-sm text-text-3 mb-8">All features are unlocked. Billing activates when Stripe checkout is configured.</p>
+      <p className="text-sm text-text-3 mb-8">
+        Business plan <strong className="text-gold">$499/mo</strong> — done-for-you outcomes, not a blank chatbox.
+        {paymentsConfigured() ? " Checkout opens in a new tab." : " Email hello@nexa.com to subscribe today."}
+      </p>
 
       {notice && (
         <div className="mb-6 p-4 rounded-xl bg-accent/10 border border-accent/30 text-accent text-sm">

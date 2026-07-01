@@ -50,6 +50,7 @@ function mapApiUser(data: Record<string, unknown>): User {
     industry: String(data.industry || ""),
     goal: String(data.goal || ""),
     market: String(data.market || ""),
+    niche_mode: String(data.niche_mode || "general"),
   };
 }
 
@@ -105,6 +106,7 @@ export async function updateUser(patch: Partial<User>) {
           website: patch.website,
           onboarded: patch.onboarded ?? updated.onboarded,
           plan: patch.plan ?? updated.plan,
+          niche_mode: patch.niche_mode ?? updated.niche_mode,
         }),
       });
     } catch {

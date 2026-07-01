@@ -1,21 +1,24 @@
-# Nexa — AI Chief Operating Officer
+# Nexa v3 — AI Business Operator
 
-**Your AI Chief Operating Officer.** Connect your business. Command it. It executes.
+**Not a chatbot. Nexa runs your business.**
 
-## What's built
+Matches the product vision: niche modes, one-outcome commands, marketing plans, dice ideas, daily check-ins, spoon-fed coach.
 
-| Layer | Status |
-|-------|--------|
-| Business profile (industry, goal, market) | ✅ Saved & used in every command |
-| Real auth (JWT + database) | ✅ SQLite local / Postgres production |
-| Context-aware AI orchestration | ✅ Rules + GPT/Claude when API keys set |
-| Task executor | ✅ Runs against connected integrations |
-| Stripe integration | ✅ Live revenue/customer data with API key |
-| Integrations framework | ✅ Connect/disconnect + API keys |
-| Payments (Stripe links) | ✅ Ready via env vars |
-| Frontend + Backend | ✅ Full stack |
+## What's built (v3)
 
-## Quick start (full stack)
+| Feature | Status |
+|---------|--------|
+| **Niche modes** (Agency, Coach, E-commerce, Real Estate) | ✅ |
+| **One outcome** → marketing plan + execute | ✅ |
+| **🎲 Business idea dice** | ✅ |
+| **Daily check-in** | ✅ |
+| **Spoon-fed coach** onboarding chat | ✅ |
+| **Marketing plan page** | ✅ |
+| **Nexa internal execution** (tasks always complete) | ✅ |
+| **12 integrations** + Stripe live | ✅ |
+| **$499/mo Business tier** | ✅ UI + Stripe links |
+
+## Quick start
 
 ```bash
 # Terminal 1 — Backend

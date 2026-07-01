@@ -3,6 +3,7 @@ import time
 import json
 from app.models import Task, TaskStatus, CommandResponse
 from app.services.business_context import BusinessContext
+from app.services.niche_modes import get_niche
 
 
 INTENT_TEMPLATES: dict[str, dict] = {
@@ -105,11 +106,48 @@ INTENT_TEMPLATES: dict[str, dict] = {
             ("Trigger comms workflow in n8n", "operations"),
         ],
     },
+    "outcome_leads": {
+        "summary": "Lead generation plan — outreach, ads, CRM sync, and daily optimization.",
+        "tasks": [
+            ("Build ICP and 50-lead target list", "marketing"),
+            ("Draft 3-step cold outreach sequence", "sales"),
+            ("Launch paid test campaign (Meta/Google)", "marketing"),
+            ("Sync warm leads to HubSpot CRM", "sales"),
+            ("Post daily lead count to Slack", "communication"),
+            ("Trigger lead nurture workflow in n8n", "operations"),
+        ],
+    },
+    "outcome_sales": {
+        "summary": "Sales acceleration — pipeline, offers, and conversion optimization.",
+        "tasks": [
+            ("Pull revenue baseline from Stripe", "finance"),
+            ("Audit funnel and draft 2 upsell offers", "sales"),
+            ("Send win-back email to dormant leads", "communication"),
+            ("Log sales playbook in Notion", "reporting"),
+            ("Trigger sales workflow in n8n", "operations"),
+        ],
+    },
+    "outcome_growth": {
+        "summary": "Growth sprint — acquisition, retention, and weekly optimization.",
+        "tasks": [
+            ("Define growth KPIs for this sprint", "analytics"),
+            ("Launch content + paid acquisition test", "marketing"),
+            ("Post growth metrics to Slack", "communication"),
+            ("Schedule weekly review on Calendar", "operations"),
+            ("Trigger growth workflow in n8n", "operations"),
+        ],
+    },
 }
 
 
 def detect_intent(command: str) -> str:
     lower = command.lower()
+    if re.search(r"(\d+)\s*leads?", lower) or "get me" in lower and "lead" in lower:
+        return "outcome_leads"
+    if re.search(r"(\d+)\s*sales?", lower) or "increase sales" in lower:
+        return "outcome_sales"
+    if re.search(r"grow|scale|followers|instagram", lower) and not re.search(r"revenue|company", lower):
+        return "outcome_growth"
     if re.search(r"sales|revenue|grow|increase|sell", lower):
         return "grow_revenue"
     if re.search(r"company|run my|operate|manage", lower):
@@ -219,18 +257,24 @@ def execute_with_rules(command: str, context: BusinessContext | None = None) -> 
     industry = context.industry if context else ""
     goal = context.goal if context else ""
     connected = context.connected_integrations if context else []
+    niche = get_niche(context.niche_mode if context else None)
 
     summary = template["summary"]
     if context and context.company:
-        summary = f"For {company}"
+        summary = f"For {company} ({niche.emoji} {niche.label})"
         if industry:
-            summary += f" ({industry})"
+            summary += f" · {industry}"
         summary += f": {template['summary']}"
         if goal:
             summary += f" Focus: {goal}."
 
+    task_source = template["tasks"]
+    if intent == "general_ops" and niche.id != "general":
+        cats = ["marketing", "sales", "communication", "reporting", "operations"]
+        task_source = [(a, cats[i % len(cats)]) for i, a in enumerate(niche.workflows)]
+
     tasks = []
-    for i, (action, category) in enumerate(template["tasks"]):
+    for i, (action, category) in enumerate(task_source):
         tasks.append(
             Task(
                 id=f"task-{now}-{i}",

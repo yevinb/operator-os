@@ -19,6 +19,7 @@ export function getBusinessContext(): BusinessContext {
       description: user?.description || stored.description || "",
       website: user?.website || stored.website || "",
       connectedIntegrations: stored.connectedIntegrations || [],
+      niche_mode: user?.niche_mode || stored.niche_mode || "general",
     };
   } catch {
     return {

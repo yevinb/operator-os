@@ -17,11 +17,13 @@ class BusinessContext:
     website: str = ""
     connected_integrations: list[str] = field(default_factory=list)
     live_metrics: dict[str, str | float | int] = field(default_factory=dict)
+    niche_mode: str = "general"
 
     def to_prompt_block(self) -> str:
         lines = [
             f"Company: {self.company or 'Unknown'}",
             f"Industry: {self.industry or 'Not specified'}",
+            f"Niche mode: {self.niche_mode or 'general'}",
             f"Primary goal: {self.goal or 'Not specified'}",
             f"Market: {self.market or 'Not specified'}",
         ]
@@ -60,6 +62,7 @@ async def build_business_context(user: User, db: AsyncSession) -> BusinessContex
         description=profile.description if profile else "",
         website=profile.website if profile else "",
         connected_integrations=connected,
+        niche_mode=profile.niche_mode if profile else "general",
     )
 
     if "stripe" in connected:

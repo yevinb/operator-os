@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   Menu,
+  FileText,
 } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import type { User } from "@/lib/types";
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Command Center" },
+  { href: "/dashboard/plan", icon: FileText, label: "Marketing Plan" },
   { href: "/dashboard/activity", icon: Activity, label: "Activity Log" },
   { href: "/dashboard/integrations", icon: Plug, label: "Integrations" },
   { href: "/dashboard/billing", icon: CreditCard, label: "Billing" },

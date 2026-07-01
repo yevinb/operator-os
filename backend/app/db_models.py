@@ -21,6 +21,7 @@ class User(Base):
     profile: Mapped["BusinessProfile | None"] = relationship(back_populates="user", uselist=False)
     integrations: Mapped[list["IntegrationConnection"]] = relationship(back_populates="user")
     command_logs: Mapped[list["CommandLog"]] = relationship(back_populates="user")
+    active_plans: Mapped[list["ActivePlan"]] = relationship(back_populates="user")
 
 
 class BusinessProfile(Base):
@@ -33,6 +34,7 @@ class BusinessProfile(Base):
     market: Mapped[str] = mapped_column(String(255), default="")
     description: Mapped[str] = mapped_column(Text, default="")
     website: Mapped[str] = mapped_column(String(512), default="")
+    niche_mode: Mapped[str] = mapped_column(String(64), default="general")
 
     user: Mapped["User"] = relationship(back_populates="profile")
 
@@ -63,3 +65,31 @@ class CommandLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="command_logs")
+
+
+class ActivePlan(Base):
+    __tablename__ = "active_plans"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), index=True)
+    command: Mapped[str] = mapped_column(Text)
+    intent: Mapped[str] = mapped_column(String(64))
+    summary: Mapped[str] = mapped_column(Text)
+    marketing_plan: Mapped[str] = mapped_column(Text, default="")
+    outcome_json: Mapped[str] = mapped_column(Text, default="{}")
+    tasks_json: Mapped[str] = mapped_column(Text, default="[]")
+    executed_count: Mapped[int] = mapped_column(default=0)
+    status: Mapped[str] = mapped_column(String(32), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="active_plans")
+
+
+class CheckInLog(Base):
+    __tablename__ = "check_in_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), index=True)
+    day_key: Mapped[str] = mapped_column(String(16), index=True)
+    payload_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
