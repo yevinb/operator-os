@@ -1,12 +1,16 @@
 import uuid
-from datetime import datetime
+import secrets
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import get_db
 from app.db_models import User
 from app.deps import get_current_user
@@ -14,6 +18,8 @@ from app.services.business_context import ensure_profile
 from app.services.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+GOOGLE_OAUTH_SCOPES = "openid email profile"
+_pending_google_states: dict[str, str] = {}
 
 
 class SignupRequest(BaseModel):
@@ -66,6 +72,91 @@ def _user_out(user: User) -> UserOut:
         goal=profile.goal if profile else "",
         market=profile.market if profile else "",
     )
+
+
+@router.get("/google/start")
+async def google_auth_start():
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="Google OAuth not configured on server. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.",
+        )
+    state = secrets.token_urlsafe(24)
+    _pending_google_states[state] = "1"
+    params = {
+        "client_id": settings.google_client_id,
+        "redirect_uri": f"{settings.google_redirect_uri.replace('/api/v1/oauth/google/callback', '/api/v1/auth/google/callback')}",
+        "response_type": "code",
+        "scope": GOOGLE_OAUTH_SCOPES,
+        "access_type": "offline",
+        "prompt": "select_account",
+        "state": state,
+    }
+    return {"url": f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"}
+
+
+@router.get("/google/callback")
+async def google_auth_callback(
+    code: str = Query(""),
+    state: str = Query(""),
+    db: AsyncSession = Depends(get_db),
+):
+    if not _pending_google_states.pop(state, None) or not code:
+        return RedirectResponse(f"{settings.frontend_url}/login?error=google_oauth_failed")
+
+    redirect_uri = settings.google_redirect_uri.replace("/api/v1/oauth/google/callback", "/api/v1/auth/google/callback")
+    async with httpx.AsyncClient(timeout=20) as client:
+        token_resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            },
+        )
+        if token_resp.status_code != 200:
+            return RedirectResponse(f"{settings.frontend_url}/login?error=google_token_exchange_failed")
+        tokens = token_resp.json()
+        access_token = tokens.get("access_token", "")
+        user_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    if user_resp.status_code != 200:
+        return RedirectResponse(f"{settings.frontend_url}/login?error=google_userinfo_failed")
+
+    info = user_resp.json()
+    email = (info.get("email") or "").lower().strip()
+    name = (info.get("name") or "Google User").strip()
+    if not email:
+        return RedirectResponse(f"{settings.frontend_url}/login?error=google_email_missing")
+
+    result = await db.execute(
+        select(User).where(User.email == email).options(selectinload(User.profile))
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        company_guess = ((email.split("@")[0] or "My")[:30] + " Company").strip()
+        user = User(
+            id=f"user_{uuid.uuid4().hex[:12]}",
+            email=email,
+            name=name,
+            company=company_guess,
+            password_hash="",
+            plan="starter",
+            onboarded=False,
+        )
+        db.add(user)
+        await db.flush()
+        await ensure_profile(db, user.id)
+        await db.commit()
+        await db.refresh(user, ["profile"])
+
+    token = create_access_token(user.id)
+    return RedirectResponse(f"{settings.frontend_url}/login?google_token={token}")
 
 
 @router.post("/signup", response_model=AuthResponse)

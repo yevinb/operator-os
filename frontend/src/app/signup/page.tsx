@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { signup } from "@/lib/auth";
+import { getApiUrl } from "@/lib/api";
 import { NexaLogo } from "@/components/NexaLogo";
 
 export default function SignupPage() {
@@ -16,6 +17,21 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogle = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/v1/auth/google/start`);
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.detail || "Google sign-in unavailable");
+      window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Google sign-in unavailable");
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +104,9 @@ export default function SignupPage() {
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? "Creating account…" : "Create account"}
               {!loading && <ArrowRight size={16} />}
+            </Button>
+            <Button type="button" variant="secondary" className="w-full" size="lg" disabled={googleLoading} onClick={handleGoogle}>
+              {googleLoading ? "Redirecting…" : "Continue with Google"}
             </Button>
           </form>
 

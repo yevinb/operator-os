@@ -1,19 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { login } from "@/lib/auth";
+import { login, setSession, setToken } from "@/lib/auth";
+import { getApiUrl } from "@/lib/api";
 import { NexaLogo } from "@/components/NexaLogo";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen grid-bg flex items-center justify-center text-text-2">Loading…</div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
+  const search = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    const token = search.get("google_token");
+    const oauthError = search.get("error");
+    if (oauthError) {
+      setError("Google sign-in failed. Please try again.");
+      return;
+    }
+    if (!token) return;
+    (async () => {
+      try {
+        setToken(token);
+        const me = await fetch(`${getApiUrl()}/api/v1/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!me.ok) throw new Error("Google session invalid");
+        const user = await me.json();
+        setSession({
+          id: String(user.id),
+          email: String(user.email),
+          name: String(user.name),
+          company: String(user.company),
+          plan: user.plan || "starter",
+          onboarded: Boolean(user.onboarded),
+          createdAt: new Date().toISOString(),
+          industry: String(user.industry || ""),
+          goal: String(user.goal || ""),
+          market: String(user.market || ""),
+          niche_mode: String(user.niche_mode || "general"),
+        });
+        router.replace(user.onboarded ? "/dashboard" : "/onboarding");
+      } catch {
+        setError("Google sign-in failed. Please try again.");
+      }
+    })();
+  }, [search, router]);
+
+  const handleGoogle = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/v1/auth/google/start`);
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.detail || "Google sign-in unavailable");
+      window.location.href = data.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Google sign-in unavailable");
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +136,9 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
               {!loading && <ArrowRight size={16} />}
+            </Button>
+            <Button type="button" variant="secondary" className="w-full" size="lg" disabled={googleLoading} onClick={handleGoogle}>
+              {googleLoading ? "Redirecting…" : "Sign in with Google"}
             </Button>
           </form>
 
