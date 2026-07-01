@@ -39,3 +39,26 @@ def decode_token(token: str) -> str | None:
         return str(sub) if sub else None
     except JWTError:
         return None
+
+
+def create_oauth_state(user_id: str, integration_id: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    return jwt.encode(
+        {"sub": user_id, "integration_id": integration_id, "type": "google_oauth", "exp": expire},
+        settings.jwt_secret,
+        algorithm=ALGORITHM,
+    )
+
+
+def decode_oauth_state(state: str) -> tuple[str, str] | None:
+    try:
+        payload = jwt.decode(state, settings.jwt_secret, algorithms=[ALGORITHM])
+        if payload.get("type") != "google_oauth":
+            return None
+        user_id = payload.get("sub")
+        integration_id = payload.get("integration_id")
+        if not user_id or not integration_id:
+            return None
+        return str(user_id), str(integration_id)
+    except JWTError:
+        return None

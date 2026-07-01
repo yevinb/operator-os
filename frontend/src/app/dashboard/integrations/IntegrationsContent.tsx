@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Check, Plug } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch, hasApiConfigured } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 import { getIntegrations } from "@/lib/store";
 import { saveBusinessProfile } from "@/lib/business-context";
 import type { Integration } from "@/lib/types";
@@ -53,17 +54,24 @@ const FALLBACK_META: Record<string, ApiIntegration> = {
   mcp: { id: "mcp", name: "MCP Servers", category: "automation", description: "Model Context Protocol tools", connected: false, needs_key: true, auth_type: "webhook", key_hint: "MCP server URL", config_fields: [] },
 };
 
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  oauth_failed: "Google sign-in was cancelled or expired. Click Connect with Google again.",
+  oauth_state_invalid: "Google connection expired. Please try connecting again.",
+  token_exchange_failed: "Google token exchange failed. Check Railway GOOGLE_REDIRECT_URI includes /api/v1/oauth/google/callback",
+};
+
 export default function IntegrationsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [integrations, setIntegrations] = useState<Integration[]>(getIntegrations);
-  const [apiMeta, setApiMeta] = useState<Record<string, ApiIntegration>>({});
+  const [apiMeta, setApiMeta] = useState<Record<string, ApiIntegration>>(FALLBACK_META);
   const [filter, setFilter] = useState("all");
   const [keyModal, setKeyModal] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [configFields, setConfigFields] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleLoadingId, setGoogleLoadingId] = useState<string | null>(null);
   const [gmailTo, setGmailTo] = useState("");
   const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
@@ -92,26 +100,38 @@ export default function IntegrationsContent() {
     loadFromApi();
     const connectedGoogle = searchParams.get("connected");
     if (connectedGoogle === "gmail") {
-      setSuccess("Gmail connected");
-      setTimeout(() => setSuccess(""), 6000);
+      setSuccess("Gmail connected — add a recipient below if you want emails sent elsewhere");
+      setTimeout(() => setSuccess(""), 8000);
+      void loadFromApi();
     } else if (connectedGoogle === "calendar") {
       setSuccess("Google Calendar connected");
       setTimeout(() => setSuccess(""), 6000);
+      void loadFromApi();
     }
-    if (searchParams.get("error")) {
-      setError("Google connection failed — check Railway GOOGLE_CLIENT_ID/SECRET");
+    const oauthError = searchParams.get("error");
+    if (oauthError) {
+      setError(OAUTH_ERROR_MESSAGES[oauthError] || "Google connection failed — check Railway Google OAuth settings");
     }
   }, [searchParams]);
 
   const connectGoogle = async (integrationId: "gmail" | "calendar") => {
-    setGoogleLoading(true);
+    if (!getToken()) {
+      setError("Please sign in first, then connect Gmail.");
+      router.push("/login");
+      return;
+    }
+    setGoogleLoadingId(integrationId);
     setError("");
     try {
       const res = await apiFetch<{ url: string }>(`/api/v1/oauth/google/start?integration_id=${integrationId}`);
+      if (!res.url) throw new Error("No Google OAuth URL returned from server");
       window.location.href = res.url;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Google OAuth not configured on server");
-      setGoogleLoading(false);
+      const msg = e instanceof Error ? e.message : "Google OAuth not configured on server";
+      setError(msg.includes("401") || msg.toLowerCase().includes("credentials")
+        ? "Session expired — sign in again, then connect Gmail."
+        : msg);
+      setGoogleLoadingId(null);
     }
   };
 
@@ -285,10 +305,17 @@ export default function IntegrationsContent() {
                         ? connectGoogle(int.id === "calendar" ? "calendar" : "gmail")
                         : openModal(int.id))
                   }
-                  className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white")}
+                  disabled={googleLoadingId === int.id}
+                  className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white disabled:opacity-60")}
                 >
                   <Plug size={14} />
-                  {int.connected ? "Disconnect" : isGoogle ? "Connect with Google" : "Connect"}
+                  {googleLoadingId === int.id
+                    ? "Redirecting…"
+                    : int.connected
+                      ? "Disconnect"
+                      : isGoogle
+                        ? "Connect with Google"
+                        : "Connect"}
                 </button>
                 <button
                   onClick={() => testOne(int.id)}

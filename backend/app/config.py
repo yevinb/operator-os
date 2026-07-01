@@ -53,6 +53,18 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/google/callback"
     frontend_url: str = "https://yevinb.github.io/operator-os"
 
+    @property
+    def google_oauth_redirect_uri(self) -> str:
+        """Integration OAuth callback — distinct from /auth/google/callback used for login."""
+        uri = (self.google_redirect_uri or "").strip()
+        return uri.replace("/api/v1/auth/google/callback", "/api/v1/oauth/google/callback")
+
+    @property
+    def google_auth_redirect_uri(self) -> str:
+        """Account login/signup OAuth callback."""
+        uri = (self.google_redirect_uri or "").strip()
+        return uri.replace("/api/v1/oauth/google/callback", "/api/v1/auth/google/callback")
+
     class Config:
         env_file = ".env"
 

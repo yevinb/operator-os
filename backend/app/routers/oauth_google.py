@@ -1,6 +1,5 @@
 import json
-import secrets
-from urllib.parse import urlencode
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,10 +11,10 @@ from app.config import settings
 from app.database import get_db
 from app.db_models import IntegrationConnection, User
 from app.deps import get_current_user
+from app.services.integrations.providers import parse_config
+from app.services.security import create_oauth_state, decode_oauth_state
 
 router = APIRouter(prefix="/api/v1/oauth/google", tags=["oauth"])
-
-_pending_states: dict[str, str] = {}
 
 
 @router.get("/start")
@@ -30,8 +29,8 @@ async def google_oauth_start(
         )
     if integration_id not in {"gmail", "calendar"}:
         raise HTTPException(status_code=400, detail="integration_id must be gmail or calendar")
-    state = secrets.token_urlsafe(24)
-    _pending_states[state] = json.dumps({"user_id": user.id, "integration_id": integration_id})
+
+    state = create_oauth_state(user.id, integration_id)
     scopes = [
         "openid",
         "email",
@@ -42,9 +41,11 @@ async def google_oauth_start(
         "email",
         "https://www.googleapis.com/auth/calendar.events",
     ]
+    from urllib.parse import urlencode
+
     params = {
         "client_id": settings.google_client_id,
-        "redirect_uri": settings.google_redirect_uri,
+        "redirect_uri": settings.google_oauth_redirect_uri,
         "response_type": "code",
         "scope": " ".join(scopes),
         "access_type": "offline",
@@ -61,15 +62,12 @@ async def google_oauth_callback(
     state: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ):
-    state_payload = _pending_states.pop(state, None)
-    if not state_payload or not code:
+    decoded = decode_oauth_state(state) if state else None
+    if not decoded or not code:
         return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?error=oauth_failed")
-    try:
-        payload = json.loads(state_payload)
-        user_id = payload["user_id"]
-        integration_id = payload["integration_id"]
-    except Exception:
-        return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?error=oauth_state_invalid")
+
+    user_id, integration_id = decoded
+    redirect_uri = settings.google_oauth_redirect_uri
 
     async with httpx.AsyncClient(timeout=20) as client:
         token_resp = await client.post(
@@ -78,23 +76,35 @@ async def google_oauth_callback(
                 "code": code,
                 "client_id": settings.google_client_id,
                 "client_secret": settings.google_client_secret,
-                "redirect_uri": settings.google_redirect_uri,
+                "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
             },
         )
 
-    if token_resp.status_code != 200:
-        return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?error=token_exchange_failed")
+        if token_resp.status_code != 200:
+            return RedirectResponse(
+                f"{settings.frontend_url}/dashboard/integrations?error=token_exchange_failed"
+            )
 
-    tokens = token_resp.json()
+        tokens = token_resp.json()
+        access_token = tokens.get("access_token", "")
+        email = ""
+        if access_token:
+            user_resp = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if user_resp.status_code == 200:
+                email = (user_resp.json().get("email") or "").strip()
+
     config = {
-        "access_token": tokens.get("access_token", ""),
+        "access_token": access_token,
         "refresh_token": tokens.get("refresh_token", ""),
         "expires_in": tokens.get("expires_in", 3600),
+        "email": email,
     }
 
-    await _upsert_integration(db, user_id, integration_id, tokens.get("access_token", ""), config)
-
+    await _upsert_integration(db, user_id, integration_id, access_token, config)
     await db.commit()
     return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?connected={integration_id}")
 
@@ -109,11 +119,21 @@ async def _upsert_integration(
         )
     )
     conn = result.scalar_one_or_none()
+    existing = parse_config(conn.config_json) if conn else {}
+
+    merged = {
+        **existing,
+        **{k: v for k, v in config.items() if v},
+    }
+    if not merged.get("refresh_token") and existing.get("refresh_token"):
+        merged["refresh_token"] = existing["refresh_token"]
+    if integration_id == "gmail" and not merged.get("default_to") and merged.get("email"):
+        merged["default_to"] = merged["email"]
+
     if not conn:
         conn = IntegrationConnection(user_id=user_id, integration_id=integration_id)
         db.add(conn)
     conn.connected = True
     conn.api_key = api_key
-    conn.config_json = json.dumps(config)
-    from datetime import datetime, timezone
+    conn.config_json = json.dumps(merged)
     conn.connected_at = datetime.now(timezone.utc)

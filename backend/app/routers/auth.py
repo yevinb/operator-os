@@ -85,7 +85,7 @@ async def google_auth_start():
     _pending_google_states[state] = "1"
     params = {
         "client_id": settings.google_client_id,
-        "redirect_uri": f"{settings.google_redirect_uri.replace('/api/v1/oauth/google/callback', '/api/v1/auth/google/callback')}",
+        "redirect_uri": settings.google_auth_redirect_uri,
         "response_type": "code",
         "scope": GOOGLE_OAUTH_SCOPES,
         "access_type": "offline",
@@ -104,7 +104,7 @@ async def google_auth_callback(
     if not _pending_google_states.pop(state, None) or not code:
         return RedirectResponse(f"{settings.frontend_url}/login?error=google_oauth_failed")
 
-    redirect_uri = settings.google_redirect_uri.replace("/api/v1/oauth/google/callback", "/api/v1/auth/google/callback")
+    redirect_uri = settings.google_auth_redirect_uri
     async with httpx.AsyncClient(timeout=20) as client:
         token_resp = await client.post(
             "https://oauth2.googleapis.com/token",
