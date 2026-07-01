@@ -15,6 +15,8 @@ from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_a
 from app.services.niche_modes import get_niche
 from app.services.orchestrator import orchestrate_command
 
+EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+
 EXECUTE_PATTERNS = [
     r"\bget me\b",
     r"\bincrease\b",
@@ -25,6 +27,8 @@ EXECUTE_PATTERNS = [
     r"\bbook\b",
     r"\bhire\b",
     r"\bemail\b",
+    r"\bwrite\b",
+    r"\bgmail\b",
     r"\bpost\b",
     r"\brun\b",
     r"\bcreate\b",
@@ -34,6 +38,7 @@ EXECUTE_PATTERNS = [
     r"\bsync\b",
     r"\bschedule\b",
     r"\bexecute\b",
+    r"\bcontrol\b",
 ]
 
 QUESTION_STARTERS = ("what ", "how ", "why ", "can you ", "do you ", "who ", "when ", "where ", "is ", "are ", "should ")
@@ -176,6 +181,17 @@ async def handle_chat(
         return {"reply": "Tell me what you want to achieve — I'm ready to run it.", "executed": False}
 
     if should_execute(text):
+        # If user names a recipient in chat, persist for Gmail execution this session
+        emails = EMAIL_RE.findall(text)
+        if emails and "gmail" in [i.integration_id for i in user.integrations if i.connected]:
+            for conn in user.integrations:
+                if conn.integration_id == "gmail" and conn.connected:
+                    cfg = parse_config(conn.config_json)
+                    cfg["default_to"] = emails[-1]
+                    conn.config_json = json.dumps(cfg)
+                    await db.flush()
+                    break
+
         response = await orchestrate_command(
             command=text,
             ai_provider=settings.ai_provider,

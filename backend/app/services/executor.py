@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import re
 
 from app.models import CommandResponse, Task, TaskStatus
 from app.services.business_context import BusinessContext
@@ -17,6 +18,33 @@ from app.services.webhooks import post_json_webhook, send_slack_message, trigger
 IntegrationData = dict[str, dict]
 
 WRITE_KEYWORDS = ("launch", "create", "post job", "campaign", "hire", "fire", "terminate")
+EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+
+
+def _recipient_from_command(command: str, default_to: str) -> str:
+    found = EMAIL_RE.findall(command or "")
+    if found:
+        return found[-1]
+    return default_to
+
+
+def _compose_business_email(company: str, command: str, action: str) -> tuple[str, str]:
+    subject = f"[{company}] Business update"
+    if "business email" in command.lower() or "business" in command.lower():
+        subject = f"[{company}] Introduction — let's connect"
+    body = f"""Hello,
+
+I'm reaching out from {company}.
+
+{action}
+
+We would welcome the opportunity to connect and explore working together.
+
+Best regards,
+{company}
+
+— Sent via Nexa on your behalf"""
+    return subject, body
 
 
 @dataclass
@@ -166,28 +194,34 @@ async def _execute_single(
     gmail = data.get("gmail", {})
     if "gmail" in connected:
         access = await _google_access(data)
-        recipient = gmail.get("config", {}).get("default_to", "")
-        if access and recipient and category in ("support", "communication", "sales", "reporting"):
-            if any(k in action for k in ("email", "reply", "send", "onboarding", "report", "stakeholder", "customer")):
-                ok, msg = await send_gmail(
-                    access,
-                    to=recipient,
-                    subject=f"[{company}] {response.command[:60]}",
-                    body=f"Command: {response.command}\n\n{task.action}\n\n— Nexa",
+        default_to = gmail.get("config", {}).get("default_to", "")
+        recipient = _recipient_from_command(response.command, default_to)
+        cmd_lower = response.command.lower()
+        email_intent = any(
+            k in action.lower() for k in ("email", "reply", "send", "onboarding", "report", "stakeholder", "customer", "write")
+        ) or any(k in cmd_lower for k in ("email", "gmail", "write"))
+        if access and recipient and email_intent:
+            subject, body = _compose_business_email(company, response.command, task.action)
+            ok, msg = await send_gmail(access, to=recipient, subject=subject, body=body)
+            if ok:
+                return ExecResult(
+                    TaskStatus.completed,
+                    msg,
+                    "gmail",
+                    verified=True,
+                    proof={"source": "gmail_send", "message": msg, "recipient": recipient},
                 )
-                if ok:
-                    return ExecResult(
-                        TaskStatus.completed,
-                        msg,
-                        "gmail",
-                        verified=True,
-                        proof={"source": "gmail_send", "message": msg, "recipient": recipient},
-                    )
-                return ExecResult(TaskStatus.failed, msg, "gmail")
-        if "gmail" in connected and not recipient and category in ("support", "communication", "sales"):
+            return ExecResult(TaskStatus.failed, msg, "gmail")
+        if "gmail" in connected and not recipient and email_intent:
             return ExecResult(
                 TaskStatus.planned,
-                "Gmail connected — set recipient email on Integrations page",
+                "Gmail connected — include recipient email in your message (e.g. to name@company.com)",
+                "gmail",
+            )
+        if "gmail" in connected and not access and email_intent:
+            return ExecResult(
+                TaskStatus.planned,
+                "Gmail token expired — reconnect Gmail in Integrations",
                 "gmail",
             )
 

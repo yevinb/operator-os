@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Send, Sparkles, Loader2 } from "lucide-react";
 import { nexaChat } from "@/lib/api";
 import { getBusinessContext } from "@/lib/business-context";
-import { getSession } from "@/lib/auth";
+import { clearSession, getSession, isAuthError } from "@/lib/auth";
 import { logCommand } from "@/lib/store";
 import type { ChatMessage } from "@/lib/types";
 import { TaskList } from "@/components/TaskList";
@@ -49,6 +50,7 @@ function saveHistory(messages: ChatMessage[]) {
 }
 
 export function NexaChat({ compact = false }: { compact?: boolean }) {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([DEFAULT_WELCOME]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -105,11 +107,20 @@ export function NexaChat({ compact = false }: { compact?: boolean }) {
       setMessages(next);
       saveHistory(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chat failed — try again.");
+      const msg = e instanceof Error ? e.message : "Chat failed — try again.";
+      if (isAuthError(msg)) {
+        clearSession();
+        setError("Session expired — sign in again (this can happen after a server update).");
+        router.push("/login");
+        return;
+      }
+      setError(msg);
       const errMsg: ChatMessage = {
         id: `e_${Date.now()}`,
         role: "nexa",
-        content: "Sorry — I couldn't reach the server. Check you're signed in and try again.",
+        content: msg.includes("Gmail")
+          ? msg
+          : `Sorry — ${msg}. If Gmail isn't connected, open Integrations and connect Gmail first.`,
         timestamp: new Date().toISOString(),
       };
       const next = [...history, errMsg];

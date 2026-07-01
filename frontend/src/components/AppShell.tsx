@@ -14,7 +14,7 @@ import {
   FileText,
   MessageCircle,
 } from "lucide-react";
-import { getSession, clearSession } from "@/lib/auth";
+import { getSession, clearSession, validateSession } from "@/lib/auth";
 import type { User } from "@/lib/types";
 import { BackendStatus } from "@/components/ApiBootstrap";
 import { NexaLogo } from "@/components/NexaLogo";
@@ -38,16 +38,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const session = getSession();
-    if (!session) {
-      router.replace("/login");
-      return;
-    }
-    if (!session.onboarded && pathname !== "/onboarding") {
-      router.replace("/onboarding");
-      return;
-    }
-    setUser(session);
+    (async () => {
+      const session = await validateSession();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+      if (!session.onboarded && pathname !== "/onboarding") {
+        router.replace("/onboarding");
+        return;
+      }
+      setUser(session);
+    })();
   }, [pathname, router]);
 
   const logout = () => {

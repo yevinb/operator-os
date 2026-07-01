@@ -38,6 +38,32 @@ export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function isAuthError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("not authenticated") ||
+    m.includes("invalid token") ||
+    m.includes("user not found") ||
+    m.includes("session expired")
+  );
+}
+
+/** Validate JWT against backend — clears stale sessions after Railway DB resets. */
+export async function validateSession(): Promise<User | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    await initApiConfig();
+    const data = await apiFetch<Record<string, unknown>>("/api/v1/auth/me");
+    const user = mapApiUser(data);
+    setSession(user);
+    return user;
+  } catch {
+    clearSession();
+    return null;
+  }
+}
+
 function mapApiUser(data: Record<string, unknown>): User {
   return {
     id: String(data.id),
