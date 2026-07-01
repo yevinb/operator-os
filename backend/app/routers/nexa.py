@@ -8,6 +8,7 @@ from app.database import get_db
 from app.db_models import User
 from app.deps import get_current_user
 from app.services.business_context import build_business_context, ensure_profile
+from app.services.chat import handle_chat
 from app.services.nexa_engine import (
     coach_reply,
     get_active_plan,
@@ -21,6 +22,22 @@ router = APIRouter(prefix="/api/v1/nexa", tags=["nexa"])
 class CoachRequest(BaseModel):
     message: str
     step: int = 0
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list[ChatMessage] = []
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    executed: bool = False
+    command_response: dict | None = None
 
 
 class NicheOut(BaseModel):
@@ -87,6 +104,17 @@ async def active_plan(
 @router.post("/coach")
 async def coach_chat(body: CoachRequest):
     return coach_reply(body.message, body.step)
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def nexa_chat(
+    body: ChatRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    history = [{"role": m.role, "content": m.content} for m in body.history]
+    result = await handle_chat(body.message, history, user, db)
+    return ChatResponse(**result)
 
 
 @router.patch("/niche/{niche_id}")

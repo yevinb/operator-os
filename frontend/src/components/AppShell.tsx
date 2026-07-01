@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   FileText,
+  MessageCircle,
 } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import type { User } from "@/lib/types";
@@ -20,6 +21,7 @@ import { NexaLogo } from "@/components/NexaLogo";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { href: "/dashboard/chat", icon: MessageCircle, label: "Talk to Nexa" },
   { href: "/dashboard", icon: LayoutDashboard, label: "Command Center" },
   { href: "/dashboard/plan", icon: FileText, label: "Marketing Plan" },
   { href: "/dashboard/activity", icon: Activity, label: "Activity Log" },

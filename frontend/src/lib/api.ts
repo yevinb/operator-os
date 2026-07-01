@@ -154,3 +154,34 @@ export async function coachChat(message: string, step: number) {
     { method: "POST", body: JSON.stringify({ message, step }) }
   );
 }
+
+export async function nexaChat(message: string, history: { role: string; content: string }[]) {
+  const data = await apiFetch<{
+    reply: string;
+    executed: boolean;
+    command_response?: Record<string, unknown>;
+  }>("/api/v1/nexa/chat", {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
+
+  return {
+    reply: data.reply,
+    executed: data.executed,
+    command_response: data.command_response
+      ? {
+          command: String(data.command_response.command || ""),
+          intent: String(data.command_response.intent || ""),
+          summary: String(data.command_response.summary || ""),
+          tasks: (data.command_response.tasks as import("./types").Task[]) || [],
+          executed_count: Number(data.command_response.executed_count || 0),
+          planned_count: Number(data.command_response.planned_count || 0),
+          failed_count: Number(data.command_response.failed_count || 0),
+          mode: data.command_response.mode as import("./types").CommandResponse["mode"],
+          marketing_plan: data.command_response.marketing_plan as string | undefined,
+          plan_id: data.command_response.plan_id as number | undefined,
+          outcome: data.command_response.outcome as import("./types").CommandResponse["outcome"],
+        }
+      : undefined,
+  };
+}

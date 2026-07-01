@@ -15,6 +15,7 @@ import { NexaDice } from "@/components/NexaDice";
 import { DailyCheckIn } from "@/components/DailyCheckIn";
 import { MarketingPlanPanel } from "@/components/MarketingPlanPanel";
 import { CoachPanel } from "@/components/CoachPanel";
+import { NexaChat } from "@/components/NexaChat";
 
 export default function CommandCenterPage() {
   const [lastResponse, setLastResponse] = useState<CommandResponse | null>(null);
@@ -76,6 +77,8 @@ export default function CommandCenterPage() {
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       <DailyCheckIn onRun={execute} />
+
+      <NexaChat compact />
 
       {showCoach && (
         <CoachPanel

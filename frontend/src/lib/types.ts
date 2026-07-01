@@ -116,6 +116,15 @@ export interface BusinessContext {
   niche_mode?: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  role: "user" | "nexa";
+  content: string;
+  timestamp: string;
+  executed?: boolean;
+  commandResponse?: CommandResponse;
+}
+
 export interface Integration {
   id: string;
   name: string;
