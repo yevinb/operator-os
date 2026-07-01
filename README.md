@@ -18,7 +18,29 @@ Matches the product vision: niche modes, one-outcome commands, marketing plans, 
 | **12 integrations** + Stripe live | ✅ |
 | **$499/mo Business tier** | ✅ UI + Stripe links |
 
-## Quick start
+## Auto-deploy to GitHub Pages
+
+**You do not need a terminal to update the live site.**
+
+Every `git push` to `main` automatically builds and deploys to:
+
+**https://yevinb.github.io/operator-os/**
+
+Workflow: `.github/workflows/pages.yml` (GitHub Actions)
+
+Typical deploy time: **~1–2 minutes** after push.
+
+### One-time setup (already done if site is live)
+1. Repo **Settings → Pages → Source**: GitHub Actions
+2. Optional secret `RAILWAY_API_URL` for live API on production
+
+### After you change code
+```bash
+git add -A && git commit -m "your message" && git push origin main
+```
+That's it — the website updates automatically.
+
+## Quick start (local dev only)
 
 ```bash
 # Terminal 1 — Backend

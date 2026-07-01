@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Megaphone, Headphones, Calendar, BarChart3 } from "lucide-react";
+import { ArrowRight, Megaphone, Headphones, Calendar, BarChart3, Dices, Target, Bell, FileText } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { LiveCommandDemo } from "@/components/LiveCommandDemo";
 import { PricingSection } from "@/components/PricingSection";
@@ -13,7 +13,7 @@ export default function Home() {
           <NexaLogo variant="compact" priority />
           <div className="hidden md:flex items-center gap-8 text-sm text-text-2">
             <a href="#demo" className="hover:text-gold transition-colors font-medium">Preview</a>
-            <a href="#capabilities" className="hover:text-text transition-colors">Capabilities</a>
+            <a href="#modes" className="hover:text-text transition-colors">Niche modes</a>
             <a href="#pricing" className="hover:text-text transition-colors">Pricing</a>
           </div>
           <Link href="/signup">
@@ -30,18 +30,43 @@ export default function Home() {
           <div className="flex justify-center mb-8">
             <NexaLogo variant="full" href="/" priority />
           </div>
-          <p className="inline-block px-4 py-1.5 rounded-full bg-gold/10 border border-gold/30 text-gold text-sm font-bold mb-6">
-            AI COO — REAL API EXECUTION
+          <p className="inline-block px-4 py-1.5 rounded-full bg-gold/10 border border-gold/30 text-gold text-sm font-bold mb-6 animate-pulse">
+            ✦ NEXA v3 LIVE — AUTO-DEPLOYED
           </p>
-          <h1 className="text-5xl md:text-8xl font-black tracking-tight mb-6 leading-[0.95]">
-            <span className="gradient-text">Your AI</span>
+          <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 leading-[0.95]">
+            <span className="gradient-text">One outcome.</span>
             <br />
-            Chief Operating Officer
+            Nexa runs the business.
           </h1>
           <p className="text-xl md:text-2xl text-text-2 max-w-2xl mx-auto mb-4">
-            Type a command. Nexa runs it against{" "}
-            <span className="text-white font-semibold">your real tools</span> — Stripe, Slack, Gmail, HubSpot, n8n, and more.
+            Say <span className="text-white font-semibold">&ldquo;Get me 50 leads&rdquo;</span> — Nexa builds your marketing plan, executes tasks, and checks in daily. Not a blank chatbox.
           </p>
+          <p className="text-sm text-text-3 mb-6">
+            Agency · Coach · E-commerce · Real Estate modes · 🎲 Business idea dice · $499/mo Business tier
+          </p>
+          <Link href="/signup">
+            <Button size="lg" className="bg-gold text-black font-bold text-lg px-10">
+              Start free — no terminal needed
+              <ArrowRight size={18} />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      <section id="modes" className="py-12 px-6 border-t border-white/10">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-4 gap-4">
+          {[
+            { icon: Target, title: "Niche modes", desc: "Agency, coach, ecommerce, real estate — tailored workflows" },
+            { icon: Dices, title: "🎲 Idea dice", desc: "Infinite business ideas — one click to run the plan" },
+            { icon: FileText, title: "Marketing plan", desc: "Here’s your plan. I’m executing it." },
+            { icon: Bell, title: "Daily check-in", desc: "Nexa tracks your business and suggests the next move" },
+          ].map((item) => (
+            <div key={item.title} className="card-premium rounded-2xl p-5 text-left">
+              <item.icon className="text-gold mb-3" size={24} />
+              <h3 className="font-bold mb-1">{item.title}</h3>
+              <p className="text-sm text-text-2">{item.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -52,18 +77,18 @@ export default function Home() {
       <section id="capabilities" className="py-20 px-6 border-t border-white/10">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-black text-center mb-4">
-            What your AI COO <span className="gradient-gold">actually does</span>
+            What Nexa <span className="gradient-gold">actually does</span>
           </h2>
           <p className="text-center text-text-2 text-lg mb-12 max-w-xl mx-auto">
-            Connect your integrations. Commands execute on live APIs — or show exactly what to connect next.
+            Every task executes — on your real APIs when connected, or via Nexa&apos;s built-in engine so nothing stays &ldquo;planned&rdquo; forever.
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
             {[
-              { icon: Megaphone, title: "Marketing", desc: "Meta & Google Ads status, Slack updates, n8n workflows" },
-              { icon: Headphones, title: "Customers", desc: "Gmail sends, HubSpot CRM, support via n8n" },
-              { icon: Calendar, title: "Operations", desc: "Google Calendar events, Notion logs, Slack alerts" },
-              { icon: BarChart3, title: "Finance", desc: "Live Stripe balance, QuickBooks sync, real reports" },
+              { icon: Megaphone, title: "Marketing", desc: "Lead gen plans, Meta/Google, Slack, n8n" },
+              { icon: Headphones, title: "Customers", desc: "Gmail, HubSpot CRM, nurture sequences" },
+              { icon: Calendar, title: "Operations", desc: "Calendar, Notion logs, team alerts" },
+              { icon: BarChart3, title: "Finance", desc: "Stripe live data, QuickBooks, reports" },
             ].map((item) => (
               <div key={item.title} className="card-premium rounded-2xl p-6">
                 <item.icon className="text-gold mb-4" size={28} />
@@ -74,7 +99,7 @@ export default function Home() {
           </div>
 
           <div className="card-premium rounded-2xl p-8">
-            <h3 className="text-xl font-bold mb-6">12 integrations — verified on connect</h3>
+            <h3 className="text-xl font-bold mb-6">12 integrations + Nexa engine</h3>
             <div className="grid md:grid-cols-2 gap-4 text-text-2">
               {[
                 "Stripe — live revenue & customer count",
@@ -84,7 +109,7 @@ export default function Home() {
                 "Notion — create pages in your database",
                 "n8n — trigger any workflow you build",
                 "Meta & Google Ads — account verification",
-                "QuickBooks, LinkedIn, MCP — finance, hiring, custom tools",
+                "Nexa engine — always completes tasks even offline",
               ].map((t) => (
                 <div key={t} className="flex items-start gap-3">
                   <span className="text-gold text-lg">→</span>
@@ -101,9 +126,9 @@ export default function Home() {
           <h2 className="text-3xl font-bold mb-12">How it works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-left">
             {[
-              { n: "1", t: "Sign up & connect", d: "Link Stripe, Slack, Gmail, or n8n in under 2 minutes." },
-              { n: "2", t: "You command", d: '"Post to Slack" or "Check Stripe balance" — one sentence.' },
-              { n: "3", t: "Live execution", d: "Green = ran on API. Yellow = connect the tool shown to unlock it." },
+              { n: "1", t: "Pick your mode", d: "Agency, coach, ecommerce, or real estate — or roll the 🎲 for a business idea." },
+              { n: "2", t: "One outcome", d: '"Get me 50 leads" — Nexa builds the strategy, not you.' },
+              { n: "3", t: "Nexa executes", d: "Marketing plan + live tasks. Daily check-ins keep you on track." },
             ].map((s) => (
               <div key={s.n} className="card-premium rounded-2xl p-6">
                 <span className="text-4xl font-black text-gold/40">{s.n}</span>
@@ -119,10 +144,10 @@ export default function Home() {
 
       <section className="py-24 px-6 text-center border-t border-white/10">
         <h2 className="text-4xl font-black mb-4">
-          Run your company.<br />
-          <span className="gradient-gold">On real APIs.</span>
+          Your business,<br />
+          <span className="gradient-gold">on autopilot.</span>
         </h2>
-        <p className="text-text-2 mb-8 text-lg">Free to start. Connect integrations. Pay when billing launches.</p>
+        <p className="text-text-2 mb-8 text-lg">Free during beta. Sign up — updates deploy automatically to this site.</p>
         <Link href="/signup">
           <Button size="lg" className="bg-gold text-black font-bold text-lg px-12 py-4 h-auto hover:brightness-110">
             Create free account
@@ -132,7 +157,7 @@ export default function Home() {
       </section>
 
       <footer className="py-8 text-center text-text-3 text-sm border-t border-white/10">
-        Nexa · AI Chief Operating Officer · Kuwait → Global
+        Nexa v3 · <a href="https://yevinb.github.io/operator-os/" className="text-gold hover:underline">yevinb.github.io/operator-os</a> · Kuwait → Global
       </footer>
     </div>
   );

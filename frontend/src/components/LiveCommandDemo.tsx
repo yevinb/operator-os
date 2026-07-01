@@ -35,12 +35,12 @@ export function LiveCommandDemo() {
     <div className="w-full max-w-4xl mx-auto">
       <div className="text-center mb-8">
         <p className="text-gold text-sm font-bold uppercase tracking-[0.3em] mb-3">
-          ▶ Simulated preview — sign up for real execution
+          ▶ Live preview — sign up for full v3 (dice, plans, check-ins)
         </p>
         <h2 className="text-4xl md:text-5xl font-black mb-2 text-white">
           Command your company
         </h2>
-        <p className="text-text-2 text-lg">See the action plan. Create a free account + connect integrations to run on live APIs.</p>
+        <p className="text-text-2 text-lg">Try &ldquo;Get me 50 leads this month&rdquo; — see the marketing plan + tasks.</p>
       </div>
 
       <div className="card-premium rounded-3xl p-6 md:p-8 glow-gold">
@@ -66,7 +66,7 @@ export function LiveCommandDemo() {
         </form>
 
         <div className="flex flex-wrap gap-2 mb-6">
-          {["Increase sales.", "Run my company.", "Reply to customers.", "Check cash flow."].map((c) => (
+          {["Get me 50 leads this month", "Increase sales 20%", "Grow Instagram", "Check Stripe balance"].map((c) => (
             <button
               key={c}
               onClick={() => { setCmd(c); run(c); }}
