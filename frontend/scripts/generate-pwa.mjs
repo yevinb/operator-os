@@ -88,9 +88,13 @@ const precache = [
 
 const sw = `/* Nexa PWA service worker — generated, do not edit */
 const BASE = ${JSON.stringify(base)};
-const CACHE = "nexa-v3";
+const CACHE = "nexa-v4";
 
-const PRECACHE = ${JSON.stringify(precache, null, 2)};
+const PRECACHE = ${JSON.stringify([
+  ...precache,
+  `${base}/dashboard/chat/`,
+  `${base}/dashboard/command/`,
+].filter(Boolean), null, 2)};
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

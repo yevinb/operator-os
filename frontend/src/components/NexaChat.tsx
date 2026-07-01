@@ -20,19 +20,27 @@ const STARTERS = [
   "Help me launch a marketing campaign",
 ];
 
+const DEFAULT_WELCOME: ChatMessage = {
+  id: "welcome",
+  role: "nexa",
+  content: "Hey — I'm Nexa, your AI operator. Chat naturally, or tell me an outcome and I'll build the plan and run it live.",
+  timestamp: new Date().toISOString(),
+};
+
 function loadHistory(): ChatMessage[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return [DEFAULT_WELCOME];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ChatMessage[];
+      if (parsed.length) return parsed;
+    }
   } catch { /* ignore */ }
   const ctx = getBusinessContext();
   const company = ctx.company || getSession()?.company || "your business";
   return [{
-    id: "welcome",
-    role: "nexa",
+    ...DEFAULT_WELCOME,
     content: `Hey — I'm Nexa, your AI operator for ${company}. Chat naturally, or tell me an outcome and I'll build the plan and run it live.`,
-    timestamp: new Date().toISOString(),
   }];
 }
 
@@ -41,7 +49,7 @@ function saveHistory(messages: ChatMessage[]) {
 }
 
 export function NexaChat({ compact = false }: { compact?: boolean }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([DEFAULT_WELCOME]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -125,8 +133,8 @@ export function NexaChat({ compact = false }: { compact?: boolean }) {
           <Sparkles size={18} className="text-gold" />
         </div>
         <div>
-          <p className="font-bold text-white">Talk to Nexa</p>
-          <p className="text-xs text-text-2">Chat naturally — I'll execute outcomes live</p>
+          <p className="font-bold text-white">Nexa AI Chat</p>
+          <p className="text-xs text-text-2">Your business operator — chat & execute live</p>
         </div>
       </div>
 

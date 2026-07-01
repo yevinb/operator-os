@@ -18,11 +18,12 @@ import { getSession, clearSession } from "@/lib/auth";
 import type { User } from "@/lib/types";
 import { BackendStatus } from "@/components/ApiBootstrap";
 import { NexaLogo } from "@/components/NexaLogo";
+import { NexaChatFab } from "@/components/NexaChatFab";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard/chat", icon: MessageCircle, label: "Talk to Nexa" },
-  { href: "/dashboard", icon: LayoutDashboard, label: "Command Center" },
+  { href: "/dashboard", icon: MessageCircle, label: "Nexa Chat" },
+  { href: "/dashboard/command", icon: LayoutDashboard, label: "Command Center" },
   { href: "/dashboard/plan", icon: FileText, label: "Marketing Plan" },
   { href: "/dashboard/activity", icon: Activity, label: "Activity Log" },
   { href: "/dashboard/integrations", icon: Plug, label: "Integrations" },
@@ -70,7 +71,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav className="flex-1 p-4 space-y-1">
         {NAV.map((item) => {
-          const active = pathname === item.href;
+          const normalized = pathname?.replace(/\/$/, "") || "";
+          const href = item.href.replace(/\/$/, "");
+          const active = normalized === href || normalized.startsWith(`${href}/`);
           return (
             <Link
               key={item.href}
@@ -142,6 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex-1">{children}</main>
+        <NexaChatFab />
       </div>
     </div>
   );

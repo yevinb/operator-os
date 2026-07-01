@@ -6,7 +6,7 @@
     "dev": "next dev",
     "prebuild": "node scripts/generate-pwa.mjs",
     "build": "next build",
-    "build:pages": "NEXT_PUBLIC_BASE_PATH=/operator-os next build",
+    "build:pages": "NEXT_PUBLIC_BASE_PATH=/operator-os node scripts/generate-pwa.mjs && NEXT_PUBLIC_BASE_PATH=/operator-os next build",
     "start": "next start",
     "lint": "eslint"
   },

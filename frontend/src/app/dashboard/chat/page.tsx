@@ -1,9 +1,14 @@
-import { NexaChat } from "@/components/NexaChat";
+"use client";
 
-export default function ChatPage() {
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export default function ChatAliasPage() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/dashboard");
+  }, [router]);
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <NexaChat />
-    </div>
+    <div className="p-6 text-text-2 text-sm">Opening Nexa Chat…</div>
   );
 }
