@@ -88,6 +88,17 @@ const INTEGRATION_ICONS: Record<string, string> = {
   shopify: "🛒", instagram: "📸",
 };
 
+const INSTAGRAM_SETUP = [
+  "Switch Instagram to Business or Creator (not personal)",
+  "Create a Facebook Page (facebook.com/pages/create) if you don't have one",
+  "Link IG to that Page: Instagram app → Settings → Account → Sharing to other apps → Facebook",
+  "Go to developers.facebook.com → My Apps → Create App → Business",
+  "Add products: Instagram Graph API + Facebook Login",
+  "Graph API Explorer → Generate User Token with: instagram_basic, pages_show_list, pages_read_engagement, instagram_content_publish",
+  "Extend to long-lived token (Access Token Debugger → Extend)",
+  "Paste that token below in Nexa → Connect & verify",
+];
+
 export default function IntegrationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -279,6 +290,27 @@ export default function IntegrationsContent() {
       {success && <div className="mb-4 p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm">{success}</div>}
       {error && !keyModal && <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
 
+      {(filter === "all" || filter === "marketing") && !integrations.find((i) => i.id === "instagram")?.connected && (
+        <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-pink-500/10 to-purple-500/10 border border-pink-500/20">
+          <h2 className="font-bold text-white mb-2">How to connect Instagram to Nexa</h2>
+          <p className="text-sm text-text-2 mb-3">
+            Instagram cannot connect with your IG password alone — you need a Business account, Facebook Page, and Meta API token.
+          </p>
+          <ol className="text-sm text-text-2 space-y-2 list-decimal list-inside">
+            {INSTAGRAM_SETUP.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
+          <button
+            type="button"
+            onClick={() => openModal("instagram")}
+            className="mt-4 px-4 py-2 rounded-xl bg-accent text-white text-sm font-medium"
+          >
+            Open Instagram connect
+          </button>
+        </div>
+      )}
+
       {gmailConnected && (
         <div className="mb-6 p-4 rounded-xl bg-surface border border-border flex flex-col sm:flex-row gap-3">
           <input
@@ -377,9 +409,20 @@ export default function IntegrationsContent() {
 
       {keyModal && modalMeta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="w-full max-w-md p-6 rounded-2xl bg-surface border border-border max-h-[90vh] overflow-y-auto">
+          <div className={cn(
+            "w-full p-6 rounded-2xl bg-surface border border-border max-h-[90vh] overflow-y-auto",
+            keyModal === "instagram" ? "max-w-lg" : "max-w-md"
+          )}>
             <h3 className="font-bold text-lg mb-2">Connect {modalMeta.name}</h3>
             <p className="text-sm text-text-2 mb-4">{modalMeta.key_hint}</p>
+            {keyModal === "instagram" && (
+              <div className="mb-4 p-3 rounded-xl bg-void border border-border text-xs text-text-2 space-y-1">
+                <p className="font-semibold text-text">Quick checklist:</p>
+                <p>✓ IG is Business/Creator (not personal)</p>
+                <p>✓ IG linked to a Facebook Page you admin</p>
+                <p>✓ Token from Graph API Explorer (long-lived)</p>
+              </div>
+            )}
             {modalMeta.needs_key && (
               <input
                 type="password"

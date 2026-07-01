@@ -30,8 +30,15 @@ async def instagram_discover_account(token: str) -> tuple[str, str, dict]:
                 },
             )
             if r.status_code != 200:
-                return "", "", {}
-            for page in r.json().get("data", []):
+                err = r.json().get("error", {}).get("message", r.text[:120])
+                return "", "", {"error": err, "step": "token"}
+            pages = r.json().get("data", [])
+            if not pages:
+                return "", "", {
+                    "error": "No Facebook Pages found for this token. You must be an admin of a Facebook Page.",
+                    "step": "page",
+                }
+            for page in pages:
                 ig = page.get("instagram_business_account")
                 if ig and ig.get("id"):
                     bundle = {
@@ -41,8 +48,17 @@ async def instagram_discover_account(token: str) -> tuple[str, str, dict]:
                         "page_access_token": page.get("access_token", token),
                     }
                     return str(ig["id"]), str(ig.get("username", "")), bundle
-    except Exception:
-        pass
+            return "", "", {
+                "error": (
+                    f"Found {len(pages)} Facebook Page(s) but none have Instagram linked. "
+                    "In Instagram app: Profile → Menu → Settings → Account → "
+                    "Sharing to other apps → connect to your Facebook Page."
+                ),
+                "step": "link_ig",
+                "page_names": [p.get("name", "") for p in pages[:3]],
+            }
+    except Exception as e:
+        return "", "", {"error": str(e), "step": "network"}
     return "", "", {}
 
 
@@ -120,12 +136,27 @@ async def instagram_token_scopes(token: str) -> list[str]:
 
 async def verify_instagram(token: str, account_id: str = "") -> tuple[bool, str]:
     if not token:
-        return False, "Meta access token required"
+        return False, "Meta access token required — paste a long-lived User access token from developers.facebook.com"
+    if len(token) < 50:
+        return False, "Token looks too short — use a long-lived User access token from the Graph API Explorer"
+
     ctx = await instagram_resolve(token, account_id)
     if not ctx:
+        _, _, bundle = await instagram_discover_account(token)
+        if bundle.get("error"):
+            err = bundle["error"]
+            step = bundle.get("step", "")
+            if step == "page":
+                return False, f"{err} Create a Page at facebook.com/pages/create then link your IG."
+            if step == "link_ig":
+                return False, err
+            if step == "token":
+                return False, f"Token rejected by Meta: {err}. Regenerate with pages_show_list + instagram_basic scopes."
+            return False, err
         return (
             False,
-            "No Instagram Business account — link IG to a Facebook Page and grant instagram_basic + instagram_content_publish",
+            "No Instagram Business account found. Switch IG to Professional (Business/Creator), "
+            "link it to a Facebook Page, then try again.",
         )
     ig_id = ctx["ig_id"]
     try:
