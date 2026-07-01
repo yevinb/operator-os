@@ -5,7 +5,7 @@ import re
 from app.models import CommandResponse, Task, TaskStatus
 from app.services.business_context import BusinessContext
 from app.services.integration_map import INTEGRATION_LABELS, missing_integration_hint
-from app.services.integrations.google import create_calendar_event, refresh_google_token, send_gmail
+from app.services.integrations.google import create_calendar_event, resolve_google_access, send_gmail
 from app.services.integrations.providers import (
     hubspot_snapshot,
     meta_ad_account_name,
@@ -57,16 +57,15 @@ class ExecResult:
     proof: dict | None = None
 
 
-async def _google_access(data: IntegrationData) -> str:
+async def _google_access(data: IntegrationData) -> tuple[str, str]:
     for key in ("gmail", "calendar", "google-ads"):
         cfg = data.get(key, {}).get("config", {})
-        if cfg.get("access_token"):
-            return cfg["access_token"]
-        if cfg.get("refresh_token"):
-            refreshed = await refresh_google_token(cfg["refresh_token"])
-            if refreshed:
-                return refreshed["access_token"]
-    return ""
+        if not cfg:
+            continue
+        access, _ = await resolve_google_access(cfg, gmail=(key == "gmail"))
+        if access:
+            return access, cfg.get("email", "")
+    return "", ""
 
 
 async def execute_tasks(
@@ -195,7 +194,7 @@ async def _execute_single(
     cmd_lower = response.command.lower()
     email_cmd = any(k in cmd_lower for k in ("email", "gmail", "send"))
     if "gmail" in connected and email_cmd:
-        access = await _google_access(data)
+        access, sender = await _google_access(data)
         default_to = gmail.get("config", {}).get("default_to", "")
         recipient = _recipient_from_command(response.command, default_to)
         email_intent = any(
@@ -203,7 +202,7 @@ async def _execute_single(
         ) or email_cmd
         if access and recipient and email_intent:
             subject, body = _compose_business_email(company, response.command, task.action)
-            ok, msg = await send_gmail(access, to=recipient, subject=subject, body=body)
+            ok, msg = await send_gmail(access, to=recipient, subject=subject, body=body, from_email=sender)
             if ok:
                 return ExecResult(
                     TaskStatus.completed,
@@ -228,7 +227,7 @@ async def _execute_single(
 
     # Calendar
     if "calendar" in connected:
-        access = await _google_access(data)
+        access, _ = await _google_access(data)
         if access and category in ("operations", "sales", "hr") and any(
             k in action for k in ("meeting", "schedule", "calendar", "book", "interview", "standup")
         ):

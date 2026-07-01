@@ -14,11 +14,10 @@ import { cn } from "@/lib/utils";
 const STORAGE_KEY = "nexa_chat_history";
 
 const STARTERS = [
+  "Send email to yenara.bollegala@gmail.com",
   "Get me 50 leads this month",
   "What can you do for my business?",
   "Check my Stripe balance",
-  "Grow my Instagram followers",
-  "Help me launch a marketing campaign",
 ];
 
 const DEFAULT_WELCOME: ChatMessage = {

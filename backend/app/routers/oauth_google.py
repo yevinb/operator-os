@@ -1,17 +1,13 @@
-import json
-from datetime import datetime, timezone
-
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.db_models import IntegrationConnection, User
+from app.db_models import User
 from app.deps import get_current_user
-from app.services.integrations.providers import parse_config
+from app.services.integrations.google_store import upsert_google_integration
 from app.services.security import create_oauth_state, decode_oauth_state
 
 router = APIRouter(prefix="/api/v1/oauth/google", tags=["oauth"])
@@ -101,39 +97,8 @@ async def google_oauth_callback(
         "access_token": access_token,
         "refresh_token": tokens.get("refresh_token", ""),
         "expires_in": tokens.get("expires_in", 3600),
-        "email": email,
     }
 
-    await _upsert_integration(db, user_id, integration_id, access_token, config)
+    await upsert_google_integration(db, user_id, integration_id, config, email=email)
     await db.commit()
     return RedirectResponse(f"{settings.frontend_url}/dashboard/integrations?connected={integration_id}")
-
-
-async def _upsert_integration(
-    db: AsyncSession, user_id: str, integration_id: str, api_key: str, config: dict
-) -> None:
-    result = await db.execute(
-        select(IntegrationConnection).where(
-            IntegrationConnection.user_id == user_id,
-            IntegrationConnection.integration_id == integration_id,
-        )
-    )
-    conn = result.scalar_one_or_none()
-    existing = parse_config(conn.config_json) if conn else {}
-
-    merged = {
-        **existing,
-        **{k: v for k, v in config.items() if v},
-    }
-    if not merged.get("refresh_token") and existing.get("refresh_token"):
-        merged["refresh_token"] = existing["refresh_token"]
-    if integration_id == "gmail" and not merged.get("default_to") and merged.get("email"):
-        merged["default_to"] = merged["email"]
-
-    if not conn:
-        conn = IntegrationConnection(user_id=user_id, integration_id=integration_id)
-        db.add(conn)
-    conn.connected = True
-    conn.api_key = api_key
-    conn.config_json = json.dumps(merged)
-    conn.connected_at = datetime.now(timezone.utc)

@@ -14,6 +14,7 @@ from app.database import get_db
 from app.db_models import User
 from app.deps import get_current_user
 from app.services.business_context import ensure_profile
+from app.services.integrations.google_store import upsert_google_integration
 from app.services.security import (
     create_access_token,
     create_google_login_state,
@@ -23,7 +24,11 @@ from app.services.security import (
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-GOOGLE_OAUTH_SCOPES = "openid email profile"
+GOOGLE_OAUTH_SCOPES = (
+    "openid email profile "
+    "https://www.googleapis.com/auth/gmail.send "
+    "https://www.googleapis.com/auth/gmail.readonly"
+)
 
 
 class SignupRequest(BaseModel):
@@ -92,7 +97,7 @@ async def google_auth_start():
         "response_type": "code",
         "scope": GOOGLE_OAUTH_SCOPES,
         "access_type": "offline",
-        "prompt": "select_account",
+        "prompt": "consent",
         "state": state,
     }
     return {"url": f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"}
@@ -182,6 +187,19 @@ async def google_auth_callback(
         # Google sign-in = skip onboarding wizard on every return
         user.onboarded = True
         await ensure_profile(db, user.id)
+
+    # Sign-in also wires Gmail — no separate Integrations step required
+    await upsert_google_integration(
+        db,
+        user.id,
+        "gmail",
+        {
+            "access_token": access_token,
+            "refresh_token": tokens.get("refresh_token", ""),
+            "expires_in": tokens.get("expires_in", 3600),
+        },
+        email=email,
+    )
 
     await db.commit()
     await db.refresh(user, ["profile"])

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db_models import IntegrationConnection
-from app.services.integrations.google import refresh_google_token, send_gmail
+from app.services.integrations.google import resolve_google_access, send_gmail
 from app.services.integrations.providers import parse_config
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
@@ -80,16 +80,12 @@ async def try_direct_gmail_send(
             "executed": False,
         }
 
-    config = parse_config(gmail_conn.config_json)
-    access = config.get("access_token", "")
-    if not access and config.get("refresh_token"):
-        refreshed = await refresh_google_token(config["refresh_token"])
-        if refreshed:
-            access = refreshed["access_token"]
-            config["access_token"] = access
-            config["refresh_token"] = refreshed.get("refresh_token", config.get("refresh_token", ""))
-            gmail_conn.config_json = json.dumps(config)
-            await db.flush()
+    old_config = parse_config(gmail_conn.config_json)
+    access, config = await resolve_google_access(old_config, gmail=True)
+    if access:
+        gmail_conn.config_json = json.dumps(config)
+        gmail_conn.api_key = access
+        await db.flush()
 
     if not access:
         return {
@@ -115,7 +111,8 @@ async def try_direct_gmail_send(
         await db.flush()
 
     subject, body = _compose_body(company or "your company", message)
-    ok, detail = await send_gmail(access, to=recipient, subject=subject, body=body)
+    sender = config.get("email", "")
+    ok, detail = await send_gmail(access, to=recipient, subject=subject, body=body, from_email=sender)
     if ok:
         return {
             "reply": f"✅ Email sent live to {recipient}.\n{detail}",
