@@ -190,16 +190,17 @@ async def _execute_single(
             )
         return ExecResult(TaskStatus.failed, msg, "n8n")
 
-    # Gmail
+    # Gmail — priority when command mentions email
     gmail = data.get("gmail", {})
-    if "gmail" in connected:
+    cmd_lower = response.command.lower()
+    email_cmd = any(k in cmd_lower for k in ("email", "gmail", "send"))
+    if "gmail" in connected and email_cmd:
         access = await _google_access(data)
         default_to = gmail.get("config", {}).get("default_to", "")
         recipient = _recipient_from_command(response.command, default_to)
-        cmd_lower = response.command.lower()
         email_intent = any(
-            k in action.lower() for k in ("email", "reply", "send", "onboarding", "report", "stakeholder", "customer", "write")
-        ) or any(k in cmd_lower for k in ("email", "gmail", "write"))
+            k in action.lower() for k in ("email", "reply", "send", "onboarding", "report", "stakeholder", "customer", "write", "gmail")
+        ) or email_cmd
         if access and recipient and email_intent:
             subject, body = _compose_business_email(company, response.command, task.action)
             ok, msg = await send_gmail(access, to=recipient, subject=subject, body=body)

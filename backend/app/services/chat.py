@@ -11,6 +11,7 @@ from app.models import CommandResponse
 from app.services.business_context import BusinessContext, build_business_context
 from app.services.executor import execute_tasks
 from app.services.integrations.providers import parse_config
+from app.services.email_dispatch import try_direct_gmail_send
 from app.services.nexa_engine import build_marketing_plan, parse_outcome, save_active_plan
 from app.services.niche_modes import get_niche
 from app.services.orchestrator import orchestrate_command
@@ -180,6 +181,25 @@ async def handle_chat(
     if not text:
         return {"reply": "Tell me what you want to achieve — I'm ready to run it.", "executed": False}
 
+    # Fast path: send one real Gmail when user asks (no multi-tool plan)
+    direct_email = await try_direct_gmail_send(text, user.id, context.company, db)
+    if direct_email:
+        from app.db_models import CommandLog
+
+        if direct_email.get("executed") and direct_email.get("command_response"):
+            cr = direct_email["command_response"]
+            db.add(
+                CommandLog(
+                    user_id=user.id,
+                    command=cr["command"],
+                    intent=cr["intent"],
+                    summary=cr["summary"],
+                    tasks_json=json.dumps(cr["tasks"]),
+                )
+            )
+        await db.commit()
+        return direct_email
+
     if should_execute(text):
         # If user names a recipient in chat, persist for Gmail execution this session
         emails = EMAIL_RE.findall(text)
@@ -199,14 +219,23 @@ async def handle_chat(
             anthropic_key=settings.anthropic_api_key,
             context=context,
         )
+        from sqlalchemy import select as sa_select
+        from app.db_models import IntegrationConnection
+
+        fresh = await db.execute(
+            sa_select(IntegrationConnection).where(
+                IntegrationConnection.user_id == user.id,
+                IntegrationConnection.connected == True,  # noqa: E712
+            )
+        )
         integration_data = {
-            i.integration_id: {
-                "api_key": i.api_key or "",
-                "config": parse_config(i.config_json),
+            c.integration_id: {
+                "api_key": c.api_key or "",
+                "config": parse_config(c.config_json),
             }
-            for i in user.integrations
-            if i.connected
+            for c in fresh.scalars().all()
         }
+        context = await build_business_context(user, db)
         executed = await execute_tasks(response, context, integration_data)
         outcome = parse_outcome(text)
         marketing_plan = build_marketing_plan(text, context, outcome)

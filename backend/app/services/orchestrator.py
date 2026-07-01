@@ -45,6 +45,12 @@ INTENT_TEMPLATES: dict[str, dict] = {
             ("Trigger support workflow in n8n", "operations"),
         ],
     },
+    "send_email": {
+        "summary": "Send email via connected Gmail.",
+        "tasks": [
+            ("Send email via Gmail", "communication"),
+        ],
+    },
     "hiring": {
         "summary": "Hiring pipeline via LinkedIn, Calendar, and Notion.",
         "tasks": [
@@ -142,6 +148,8 @@ INTENT_TEMPLATES: dict[str, dict] = {
 
 def detect_intent(command: str) -> str:
     lower = command.lower()
+    if re.search(r"send.*email|email.*to|write.*email|gmail", lower):
+        return "send_email"
     if re.search(r"(\d+)\s*leads?", lower) or "get me" in lower and "lead" in lower:
         return "outcome_leads"
     if re.search(r"(\d+)\s*sales?", lower) or "increase sales" in lower:
