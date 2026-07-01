@@ -22,7 +22,6 @@ from app.routers import (
     integrations,
     nexa,
     oauth_google,
-    oauth_meta,
     oauth_quickbooks,
     oauth_shopify,
     profile,
@@ -63,7 +62,6 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(integrations.router)
 app.include_router(oauth_google.router)
-app.include_router(oauth_meta.router)
 app.include_router(oauth_shopify.router)
 app.include_router(oauth_quickbooks.router)
 app.include_router(nexa.router)

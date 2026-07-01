@@ -171,7 +171,7 @@ export default function CommandCenterPage() {
         )}
 
         <div className="flex flex-wrap gap-2">
-          {["Get me 50 leads this month", "Increase sales 20%", "Grow Instagram followers", "Launch email nurture sequence", "Check Stripe balance"].map((cmd) => (
+          {["Get me 50 leads this month", "Increase sales 20%", "Grow social reach", "Launch email nurture sequence", "Check Stripe balance"].map((cmd) => (
             <button
               key={cmd}
               type="button"

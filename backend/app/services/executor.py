@@ -10,7 +10,6 @@ from app.services.execution_bundle import ExecutionBundle
 from app.services.integration_map import INTEGRATION_LABELS, missing_integration_hint
 from app.services.integrations.google import create_calendar_event, google_ads_campaign_stats, send_gmail
 from app.services.integrations.google_store import resolve_and_persist_google
-from app.services.instagram_integration import instagram_execute_action
 from app.services.shopify_integration import shopify_execute_action
 from app.services.integrations.providers import (
     hubspot_log_note,
@@ -418,34 +417,6 @@ async def _execute_single(
                 proof={"source": "notion_create_note", "message": msg, "database_id": db_id},
             )
         return ExecResult(TaskStatus.failed, msg, "notion")
-
-    # Instagram — full access: insights, publish posts, reply to comments
-    ig = data.get("instagram", {})
-    if ig.get("api_key") and "instagram" in connected:
-        ig_keywords = (
-            "instagram", "ig", "followers", "social", "post", "publish", "comment",
-            "reply", "engagement", "grow instagram",
-        )
-        if category in ("marketing", "analytics", "hr", "communication") or any(
-            k in action for k in ig_keywords
-        ) or is_write:
-            cfg = ig.get("config", {})
-            ok, msg, proof = await instagram_execute_action(
-                ig["api_key"],
-                task.action,
-                response.command,
-                company,
-                cfg,
-            )
-            if ok:
-                return ExecResult(
-                    TaskStatus.completed,
-                    msg,
-                    "instagram",
-                    verified=True,
-                    proof=proof if isinstance(proof, dict) else {"message": msg},
-                )
-            return ExecResult(TaskStatus.failed, msg, "instagram")
 
     # Meta Ads — live insights + account status
     meta = data.get("meta", {})

@@ -2,7 +2,7 @@
 
 CATEGORY_INTEGRATIONS: dict[str, list[str]] = {
     "finance": ["stripe", "shopify", "quickbooks", "n8n"],
-    "marketing": ["instagram", "meta", "google-ads", "n8n", "slack"],
+    "marketing": ["meta", "google-ads", "n8n", "slack"],
     "sales": ["hubspot", "gmail", "n8n"],
     "support": ["gmail", "hubspot", "notion", "n8n"],
     "communication": ["slack", "gmail", "n8n"],
@@ -25,7 +25,6 @@ INTEGRATION_LABELS: dict[str, str] = {
     "quickbooks": "QuickBooks",
     "linkedin": "LinkedIn",
     "shopify": "Shopify",
-    "instagram": "Instagram",
     "mcp": "MCP Server",
 }
 
@@ -46,7 +45,7 @@ def missing_integration_hint(category: str, connected: list[str]) -> str:
 WORKFLOW_CHAINS: dict[str, list[str]] = {
     "grow_revenue": ["stripe", "shopify", "hubspot", "slack", "notion", "n8n"],
     "run_company": ["stripe", "shopify", "slack", "calendar", "notion", "n8n"],
-    "run_marketing": ["instagram", "meta", "google-ads", "slack", "n8n"],
+    "run_marketing": ["meta", "google-ads", "slack", "n8n"],
     "customer_success": ["gmail", "hubspot", "slack", "n8n"],
     "send_email": ["gmail"],
     "hiring": ["linkedin", "calendar", "notion", "slack"],
@@ -56,9 +55,9 @@ WORKFLOW_CHAINS: dict[str, list[str]] = {
     "vendor_management": ["notion", "slack", "n8n"],
     "scheduling": ["calendar", "gmail", "slack"],
     "communication": ["slack", "gmail", "n8n"],
-    "outcome_leads": ["hubspot", "gmail", "instagram", "meta", "google-ads", "slack", "n8n"],
+    "outcome_leads": ["hubspot", "gmail", "meta", "google-ads", "slack", "n8n"],
     "outcome_sales": ["stripe", "shopify", "hubspot", "gmail", "notion", "n8n"],
-    "outcome_growth": ["instagram", "meta", "google-ads", "shopify", "slack", "calendar", "n8n"],
+    "outcome_growth": ["meta", "google-ads", "shopify", "slack", "calendar", "n8n"],
 }
 
 # Map task action keywords to primary integration for workflow ordering
@@ -88,10 +87,6 @@ TASK_INTEGRATION_HINTS: list[tuple[str, str]] = [
     ("inventory", "shopify"),
     ("customer", "shopify"),
     ("products", "shopify"),
-    ("instagram", "instagram"),
-    ("publish", "instagram"),
-    ("comment", "instagram"),
-    ("followers", "instagram"),
     ("n8n", "n8n"),
     ("workflow", "n8n"),
     ("mcp", "mcp"),

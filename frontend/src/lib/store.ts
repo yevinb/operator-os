@@ -17,7 +17,6 @@ export const DEFAULT_INTEGRATIONS: Integration[] = [
   { id: "quickbooks", name: "QuickBooks", description: "Accounting & expenses", category: "finance", connected: false, icon: "📊" },
   { id: "linkedin", name: "LinkedIn", description: "Hiring & B2B outreach", category: "hr", connected: false, icon: "👔" },
   { id: "shopify", name: "Shopify", description: "Full store — orders, products, fulfillments", category: "finance", connected: false, icon: "🛒" },
-  { id: "instagram", name: "Instagram", description: "Publish posts, insights, comments", category: "marketing", connected: false, icon: "📸" },
 ];
 
 export function getActivity(): ActivityItem[] {

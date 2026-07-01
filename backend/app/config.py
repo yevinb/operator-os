@@ -87,11 +87,6 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/google/callback"
     frontend_url: str = "https://yevinb.github.io/operator-os"
 
-    # Meta / Instagram OAuth (one-click connect)
-    meta_app_id: str = ""
-    meta_app_secret: str = ""
-    meta_redirect_uri: str = "https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/meta/callback"
-
     # Shopify OAuth (one-click connect store)
     shopify_api_key: str = ""
     shopify_api_secret: str = ""
@@ -118,10 +113,6 @@ class Settings(BaseSettings):
     @property
     def intuit_token_url(self) -> str:
         return "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
-
-    @property
-    def meta_oauth_redirect_uri(self) -> str:
-        return (self.meta_redirect_uri or "").strip()
 
     @property
     def google_oauth_redirect_uri(self) -> str:

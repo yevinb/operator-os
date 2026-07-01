@@ -21,7 +21,7 @@ OUTCOME_PATTERNS = [
     (r"(\d+)\s*followers?", "followers", "audience growth"),
     (r"(\d+)%\s*(?:more|increase|growth)", "growth_pct", "revenue growth"),
     (r"increase\s+sales", "sales", "sales growth"),
-    (r"grow\s+instagram", "followers", "Instagram growth"),
+    (r"grow\s+(?:followers|audience)", "followers", "Audience growth"),
 ]
 
 

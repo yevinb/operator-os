@@ -25,13 +25,10 @@ CATALOG = [
     {"id": "quickbooks", "name": "QuickBooks", "category": "finance", "description": "One-click Intuit connect — live P&L and expenses", "needs_key": False, "auth_type": "quickbooks_oauth", "key_hint": "", "config_fields": []},
     {"id": "linkedin", "name": "LinkedIn", "category": "hr", "description": "Hiring & B2B outreach", "needs_key": True, "auth_type": "api_key", "key_hint": "LinkedIn access token", "config_fields": []},
     {"id": "shopify", "name": "Shopify", "category": "finance", "description": "One-click connect — orders, products, customers, inventory, fulfillments", "needs_key": False, "auth_type": "shopify_oauth", "key_hint": "", "config_fields": []},
-    {"id": "instagram", "name": "Instagram", "category": "marketing", "description": "One-click connect — publish posts, insights, comments", "needs_key": False, "auth_type": "meta_oauth", "key_hint": "", "config_fields": ["default_image_url", "page_id", "instagram_account_id"]},
     {"id": "mcp", "name": "MCP Servers", "category": "automation", "description": "Model Context Protocol tools", "needs_key": True, "auth_type": "webhook", "key_hint": "MCP server URL", "config_fields": []},
 ]
 
-OPTIONAL_CONFIG_FIELDS: dict[str, set[str]] = {
-    "instagram": {"default_image_url", "page_id", "instagram_account_id"},
-}
+OPTIONAL_CONFIG_FIELDS: dict[str, set[str]] = {}
 
 router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
 
@@ -103,16 +100,6 @@ async def connect_integration(
             await db.commit()
             return {"status": "connected", "id": integration_id, "message": "Settings saved"}
         raise HTTPException(status_code=400, detail="Use Connect with Google button for this integration")
-
-    if catalog_item["auth_type"] == "meta_oauth":
-        conn = await _get_conn(db, user.id, integration_id)
-        if conn and conn.connected and body.config:
-            merged = parse_config(conn.config_json)
-            merged.update({k: v for k, v in (body.config or {}).items() if str(v).strip()})
-            conn.config_json = json.dumps(merged)
-            await db.commit()
-            return {"status": "connected", "id": integration_id, "message": "Settings saved"}
-        raise HTTPException(status_code=400, detail="Use Connect with Instagram button for this integration")
 
     if catalog_item["auth_type"] in ("shopify_oauth", "quickbooks_oauth"):
         raise HTTPException(
@@ -339,17 +326,6 @@ async def _verify_connected_integration(
         conn.config_json = json.dumps(updated)
         await db.flush()
         return await verify_integration(integration_id, access, conn.config_json)
-
-    if integration_id == "instagram":
-        from app.services.integrations.meta_refresh import refresh_meta_token
-
-        new_token, expires = await refresh_meta_token(key)
-        if new_token and new_token != key:
-            merged = {**config, "access_token": new_token, "expires_in": expires or config.get("expires_in", 0)}
-            conn.api_key = new_token
-            conn.config_json = json.dumps(merged)
-            await db.flush()
-            key = new_token
 
     if integration_id == "google-ads":
         gmail = await _get_conn(db, user_id, "gmail")

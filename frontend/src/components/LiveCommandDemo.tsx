@@ -66,7 +66,7 @@ export function LiveCommandDemo() {
         </form>
 
         <div className="flex flex-wrap gap-2 mb-6">
-          {["Get me 50 leads this month", "Increase sales 20%", "Grow Instagram", "Check Stripe balance"].map((c) => (
+          {["Get me 50 leads this month", "Increase sales 20%", "Grow social reach", "Check Stripe balance"].map((c) => (
             <button
               key={c}
               onClick={() => { setCmd(c); run(c); }}

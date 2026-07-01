@@ -43,9 +43,6 @@ Commit and push.
 | `GOOGLE_CLIENT_ID` | from Google Cloud Console |
 | `GOOGLE_CLIENT_SECRET` | from Google Cloud Console |
 | `GOOGLE_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/google/callback` |
-| `META_APP_ID` | Meta Developer app ID (Instagram one-click) |
-| `META_APP_SECRET` | Meta app secret |
-| `META_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/meta/callback` |
 | `SHOPIFY_API_KEY` | Shopify app API key (Custom app → Client ID) |
 | `SHOPIFY_API_SECRET` | Shopify app API secret |
 | `SHOPIFY_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/shopify/callback` |

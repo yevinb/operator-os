@@ -31,8 +31,6 @@ const METRIC_LABELS: Record<string, string> = {
   shopify_orders: "Shopify orders",
   shopify_revenue_usd: "Shopify revenue",
   shopify_products: "Products",
-  instagram_followers: "Instagram followers",
-  instagram_posts: "Instagram posts",
   linkedin_name: "LinkedIn",
 };
 
@@ -49,7 +47,6 @@ const INTEGRATION_LABELS: Record<string, string> = {
   quickbooks: "QuickBooks",
   linkedin: "LinkedIn",
   shopify: "Shopify",
-  instagram: "Instagram",
   mcp: "MCP",
 };
 

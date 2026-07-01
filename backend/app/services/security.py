@@ -56,7 +56,7 @@ def decode_oauth_state(state: str, expected_type: str | None = None) -> tuple[st
         oauth_type = payload.get("type")
         if expected_type and oauth_type != expected_type:
             return None
-        if oauth_type not in ("google_oauth", "meta_oauth", "shopify_oauth", "quickbooks_oauth"):
+        if oauth_type not in ("google_oauth", "shopify_oauth", "quickbooks_oauth"):
             return None
         user_id = payload.get("sub")
         integration_id = payload.get("integration_id")

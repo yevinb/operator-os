@@ -32,9 +32,8 @@ INTENT_TEMPLATES: dict[str, dict] = {
         ],
     },
     "run_marketing": {
-        "summary": "Marketing actions via Instagram, Meta, Google Ads, Slack, and n8n.",
+        "summary": "Marketing actions via Meta Ads, Google Ads, Slack, and n8n.",
         "tasks": [
-            ("Check Instagram followers and engagement", "marketing"),
             ("Check Meta ad account status", "marketing"),
             ("Check Google Ads connection", "marketing"),
             ("Post campaign update to Slack", "communication"),
@@ -139,10 +138,10 @@ INTENT_TEMPLATES: dict[str, dict] = {
         ],
     },
     "outcome_growth": {
-        "summary": "Growth sprint — Instagram, ads, Shopify, and weekly optimization.",
+        "summary": "Growth sprint — ads, Shopify, and weekly optimization.",
         "tasks": [
-            ("Check Instagram followers and post growth update", "marketing"),
-            ("Publish Instagram post about our offer", "marketing"),
+            ("Check Meta ad account performance", "marketing"),
+            ("Draft social content for team review", "marketing"),
             ("Define growth KPIs for this sprint", "analytics"),
             ("Pull Shopify orders and revenue", "finance"),
             ("Launch content + paid acquisition test", "marketing"),
@@ -162,7 +161,7 @@ def detect_intent(command: str) -> str:
         return "outcome_leads"
     if re.search(r"(\d+)\s*sales?", lower) or "increase sales" in lower:
         return "outcome_sales"
-    if re.search(r"grow|scale|followers|instagram", lower) and not re.search(r"revenue|company", lower):
+    if re.search(r"grow|scale|followers", lower) and not re.search(r"revenue|company", lower):
         return "outcome_growth"
     if re.search(r"sales|revenue|grow|increase|sell", lower):
         return "grow_revenue"
@@ -172,8 +171,6 @@ def detect_intent(command: str) -> str:
         return "run_marketing"
     if re.search(r"shopify|store|ecommerce|e-commerce|orders", lower):
         return "grow_revenue"
-    if re.search(r"instagram|followers|ig\b", lower):
-        return "outcome_growth"
     if re.search(r"customer|support|reply|email|client", lower):
         return "customer_success"
     if re.search(r"hire|recruit|employee|developer|salesperson", lower):
