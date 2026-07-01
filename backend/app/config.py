@@ -58,7 +58,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
-    ai_provider: str = "auto"  # auto | openai | anthropic | gemini | rules
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.3-70b-versatile"
+    ai_provider: str = "auto"  # auto | groq | openai | anthropic | gemini | rules
 
     # Database — Postgres via DATABASE_URL on Railway; else persistent SQLite in /app/data
     database_url: str = ""

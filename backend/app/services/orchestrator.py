@@ -1,7 +1,9 @@
+import json
 import re
 import time
-import json
-from app.models import Task, TaskStatus, CommandResponse
+
+from app.models import CommandResponse, Task, TaskStatus
+from app.services.ai_clients import complete_json
 from app.services.business_context import BusinessContext
 from app.services.niche_modes import get_niche
 
@@ -204,36 +206,9 @@ Return ONLY valid JSON, no markdown."""
     if context and context.company:
         user_content = f"Business: {context.company}\nCommand: {command}"
 
-    try:
-        if provider in ("openai", "auto") and openai_key:
-            from openai import AsyncOpenAI
-            client = AsyncOpenAI(api_key=openai_key)
-            resp = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_content},
-                ],
-                response_format={"type": "json_object"},
-            )
-            data = json.loads(resp.choices[0].message.content or "{}")
-            return _build_response(command, data)
-
-        if provider in ("anthropic", "auto") and anthropic_key:
-            from anthropic import AsyncAnthropic
-            client = AsyncAnthropic(api_key=anthropic_key)
-            resp = await client.messages.create(
-                model="claude-3-5-haiku-latest",
-                max_tokens=1024,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_content}],
-            )
-            text = resp.content[0].text
-            data = json.loads(text)
-            return _build_response(command, data)
-    except Exception:
-        pass
-
+    data = await complete_json(system_prompt, user_content, max_tokens=1024)
+    if data:
+        return _build_response(command, data)
     return None
 
 

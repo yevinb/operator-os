@@ -4,6 +4,7 @@ import json
 import re
 
 from app.config import settings
+from app.services.ai_clients import complete_json, has_any_ai_key
 from app.services.business_context import BusinessContext
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
@@ -53,65 +54,7 @@ EXECUTE_WORDS = (
 
 
 async def _call_json_ai(system: str, user: str, max_tokens: int = 600) -> dict | None:
-    provider = settings.ai_provider
-
-    if provider in ("openai", "auto") and settings.openai_api_key:
-        try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(api_key=settings.openai_api_key)
-            r = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-                response_format={"type": "json_object"},
-                max_tokens=max_tokens,
-            )
-            return json.loads(r.choices[0].message.content or "{}")
-        except Exception:
-            pass
-
-    if provider in ("anthropic", "auto") and settings.anthropic_api_key:
-        try:
-            from anthropic import AsyncAnthropic
-
-            client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-            r = await client.messages.create(
-                model="claude-3-5-haiku-latest",
-                max_tokens=max_tokens,
-                system=system + "\nReturn ONLY valid JSON.",
-                messages=[{"role": "user", "content": user}],
-            )
-            text = r.content[0].text.strip()
-            if text.startswith("```"):
-                text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE)
-            return json.loads(text)
-        except Exception:
-            pass
-
-    if provider in ("gemini", "auto") and settings.gemini_api_key:
-        try:
-            import httpx
-
-            url = (
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                f"gemini-1.5-flash:generateContent?key={settings.gemini_api_key}"
-            )
-            payload = {
-                "contents": [{"parts": [{"text": f"{system}\n\n{user}"}]}],
-                "generationConfig": {"responseMimeType": "application/json"},
-            }
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(url, json=payload)
-                data = resp.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                return json.loads(text)
-        except Exception:
-            pass
-
-    return None
+    return await complete_json(system, user, max_tokens)
 
 
 def _emails_from_history(history: list[dict]) -> list[str]:
@@ -390,7 +333,7 @@ Latest message:
 
 
 def _has_ai_key() -> bool:
-    return bool(settings.openai_api_key or settings.anthropic_api_key or settings.gemini_api_key)
+    return has_any_ai_key()
 
 
 def wants_email_action(message: str, analysis: dict | None = None) -> bool:

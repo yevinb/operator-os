@@ -6,6 +6,7 @@ import re
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.services.ai_clients import complete_text
 from app.db_models import User
 from app.models import CommandResponse
 from app.services.business_context import BusinessContext, build_business_context
@@ -111,63 +112,13 @@ You think like a world-class operator: strategic, proactive, concise. You:
 - Keep replies under 5 sentences unless they ask for detail
 - Sound human and confident, not generic"""
 
-    messages = [{"role": "system", "content": system}]
+    messages = []
     for item in history[-10:]:
         role = "assistant" if item.get("role") == "nexa" else "user"
         messages.append({"role": role, "content": item.get("content", "")})
     messages.append({"role": "user", "content": message})
 
-    if settings.openai_api_key:
-        try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(api_key=settings.openai_api_key)
-            r = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages,
-                max_tokens=450,
-                temperature=0.7,
-            )
-            text = (r.choices[0].message.content or "").strip()
-            return text or None
-        except Exception:
-            pass
-
-    if settings.anthropic_api_key:
-        try:
-            from anthropic import AsyncAnthropic
-
-            client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-            r = await client.messages.create(
-                model="claude-3-5-haiku-latest",
-                max_tokens=450,
-                system=system,
-                messages=[m for m in messages if m["role"] != "system"],
-            )
-            return (r.content[0].text or "").strip() or None
-        except Exception:
-            pass
-
-    if settings.gemini_api_key:
-        try:
-            import httpx
-
-            hist = "\n".join(f"{m['role']}: {m['content']}" for m in messages[-8:])
-            url = (
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                f"gemini-1.5-flash:generateContent?key={settings.gemini_api_key}"
-            )
-            async with httpx.AsyncClient(timeout=25) as client:
-                r = await client.post(
-                    url,
-                    json={"contents": [{"parts": [{"text": f"{system}\n\n{hist}"}]}]},
-                )
-                data = r.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"].strip() or None
-        except Exception:
-            pass
-
-    return None
+    return await complete_text(system, messages, max_tokens=450, temperature=0.7)
 
 
 def format_execution_reply(response: CommandResponse) -> str:

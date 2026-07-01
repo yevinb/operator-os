@@ -55,21 +55,12 @@ app.include_router(oauth_google.router)
 app.include_router(nexa.router)
 
 
-def _active_ai_provider() -> str:
-    if settings.ai_provider == "rules":
-        return "rules"
-    if settings.openai_api_key:
-        return "openai"
-    if settings.anthropic_api_key:
-        return "anthropic"
-    if settings.gemini_api_key:
-        return "gemini"
-    return "rules"
+from app.services.ai_clients import active_provider_name
 
 
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(status="ok", ai_provider=_active_ai_provider(), version="2.0.0")
+    return HealthResponse(status="ok", ai_provider=active_provider_name(), version="2.0.0")
 
 
 @app.post("/api/v1/command", response_model=CommandResponse)
