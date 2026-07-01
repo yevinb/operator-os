@@ -19,11 +19,18 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !name || !company) return;
+    if (!email.trim() || !name.trim() || !company.trim()) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    if (password.trim().length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
-      await signup(email, name, company, password || "demo123");
+      await signup(email, name, company, password);
       router.push("/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed. Try again.");

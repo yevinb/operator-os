@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -20,12 +20,20 @@ class SignupRequest(BaseModel):
     email: str
     name: str
     company: str
-    password: str = ""
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        v = (v or "").strip()
+        if len(v) < 6:
+            raise ValueError("Password must be at least 6 characters")
+        return v
 
 
 class LoginRequest(BaseModel):
     email: str
-    password: str = ""
+    password: str
 
 
 class AuthResponse(BaseModel):
@@ -71,7 +79,7 @@ async def signup(req: SignupRequest, db: AsyncSession = Depends(get_db)):
         email=req.email.lower().strip(),
         name=req.name.strip(),
         company=req.company.strip(),
-        password_hash=hash_password(req.password or "demo123"),
+        password_hash=hash_password(req.password),
         plan="starter",
         onboarded=False,
     )
@@ -93,7 +101,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         .options(selectinload(User.profile))
     )
     user = result.scalar_one_or_none()
-    if not user or not verify_password(req.password or "demo123", user.password_hash):
+    if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_access_token(user.id)

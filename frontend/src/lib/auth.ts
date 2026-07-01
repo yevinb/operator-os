@@ -59,7 +59,7 @@ export async function login(email: string, password: string): Promise<User> {
   try {
     const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
       "/api/v1/auth/login",
-      { method: "POST", body: JSON.stringify({ email, password: password || "demo123" }) }
+      { method: "POST", body: JSON.stringify({ email: email.trim(), password }) }
     );
     setToken(data.token);
     const user = mapApiUser(data.user);
@@ -70,12 +70,20 @@ export async function login(email: string, password: string): Promise<User> {
   }
 }
 
-export async function signup(email: string, name: string, company: string, password = ""): Promise<User> {
+export async function signup(email: string, name: string, company: string, password: string): Promise<User> {
   await initApiConfig();
   try {
     const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
       "/api/v1/auth/signup",
-      { method: "POST", body: JSON.stringify({ email, name, company, password: password || "demo123" }) }
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim(),
+          name: name.trim(),
+          company: company.trim(),
+          password,
+        }),
+      }
     );
     setToken(data.token);
     const user = mapApiUser(data.user);

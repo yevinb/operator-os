@@ -21,10 +21,14 @@ export default function LoginPage() {
       setError("Enter your email");
       return;
     }
+    if (!password) {
+      setError("Enter your password");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
-      const user = await login(email, password || "demo123");
+      const user = await login(email, password);
       router.push(user.onboarded ? "/dashboard" : "/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid email or password");
