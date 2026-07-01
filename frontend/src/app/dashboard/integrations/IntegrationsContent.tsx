@@ -385,6 +385,17 @@ export default function IntegrationsContent() {
       {success && <div className="mb-4 p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm">{success}</div>}
       {error && !keyModal && <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
 
+      {!gmailConnected && (
+        <div className="mb-6 p-4 rounded-xl bg-warning/10 border border-warning/30 text-sm text-text-2">
+          <p className="font-medium text-warning mb-1">Gmail connect requires Google approval</p>
+          <p>
+            Anyone can <strong>sign in</strong> with Google. Connecting <strong>Gmail</strong> uses sensitive permissions —
+            until Google verifies this app, only <strong>test users</strong> added in Google Cloud Console can connect.
+            Add their email under Google Auth Platform → Audience → Test users, or submit for verification before a public launch.
+          </p>
+        </div>
+      )}
+
       {googleAdsConnected && (
         <div className="mb-6 p-4 rounded-xl bg-surface border border-border space-y-3">
           <p className="text-sm text-text-2">Google Ads: add your developer token and customer ID to pull live campaign data.</p>
