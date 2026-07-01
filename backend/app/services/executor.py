@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from app.models import CommandResponse, Task, TaskStatus
 from app.services.business_context import BusinessContext
@@ -23,6 +24,9 @@ class ExecResult:
     status: TaskStatus
     detail: str
     integration: str | None = None
+    verified: bool = False
+    external_id: str | None = None
+    proof: dict | None = None
 
 
 async def _google_access(data: IntegrationData) -> str:
@@ -58,6 +62,10 @@ async def execute_tasks(
                     "status": result.status,
                     "detail": result.detail,
                     "integration": result.integration,
+                    "verified": result.verified,
+                    "external_id": result.external_id,
+                    "proof": result.proof,
+                    "executed_at": datetime.now(timezone.utc).isoformat() if result.status == TaskStatus.completed else None,
                 }
             )
         )
@@ -112,6 +120,8 @@ async def _execute_single(
                 TaskStatus.completed,
                 f"Stripe live: ${bal} available, {cust} customers",
                 "stripe",
+                verified=True,
+                proof={"source": "stripe_snapshot", "balance_usd": bal, "customers": cust},
             )
 
     # Slack
@@ -123,7 +133,13 @@ async def _execute_single(
                 f"Nexa | {company}\nCommand: {response.command}\nAction: {task.action}",
             )
             if ok:
-                return ExecResult(TaskStatus.completed, msg, "slack")
+                return ExecResult(
+                    TaskStatus.completed,
+                    msg,
+                    "slack",
+                    verified=True,
+                    proof={"source": "slack_webhook", "message": msg},
+                )
             return ExecResult(TaskStatus.failed, msg, "slack")
 
     # n8n — universal automation
@@ -137,7 +153,13 @@ async def _execute_single(
             "category": category,
         })
         if ok:
-            return ExecResult(TaskStatus.completed, msg, "n8n")
+            return ExecResult(
+                TaskStatus.completed,
+                msg,
+                "n8n",
+                verified=True,
+                proof={"source": "n8n_webhook", "message": msg},
+            )
         return ExecResult(TaskStatus.failed, msg, "n8n")
 
     # Gmail
@@ -154,7 +176,13 @@ async def _execute_single(
                     body=f"Command: {response.command}\n\n{task.action}\n\n— Nexa",
                 )
                 if ok:
-                    return ExecResult(TaskStatus.completed, msg, "gmail")
+                    return ExecResult(
+                        TaskStatus.completed,
+                        msg,
+                        "gmail",
+                        verified=True,
+                        proof={"source": "gmail_send", "message": msg, "recipient": recipient},
+                    )
                 return ExecResult(TaskStatus.failed, msg, "gmail")
         if "gmail" in connected and not recipient and category in ("support", "communication", "sales"):
             return ExecResult(
@@ -171,7 +199,13 @@ async def _execute_single(
         ):
             ok, msg = await create_calendar_event(access, task.action[:80], response.summary)
             if ok:
-                return ExecResult(TaskStatus.completed, msg, "calendar")
+                return ExecResult(
+                    TaskStatus.completed,
+                    msg,
+                    "calendar",
+                    verified=True,
+                    proof={"source": "calendar_event", "message": msg},
+                )
             return ExecResult(TaskStatus.failed, msg, "calendar")
 
     # HubSpot
@@ -183,6 +217,8 @@ async def _execute_single(
                 TaskStatus.completed,
                 f"HubSpot: {snap.get('hubspot_contacts', 0)} contacts in CRM",
                 "hubspot",
+                verified=True,
+                proof={"source": "hubspot_snapshot", "contacts": snap.get("hubspot_contacts", 0)},
             )
         return ExecResult(TaskStatus.failed, "HubSpot API error", "hubspot")
 
@@ -200,7 +236,13 @@ async def _execute_single(
             task.action,
         )
         if ok:
-            return ExecResult(TaskStatus.completed, msg, "notion")
+            return ExecResult(
+                TaskStatus.completed,
+                msg,
+                "notion",
+                verified=True,
+                proof={"source": "notion_create_note", "message": msg},
+            )
         return ExecResult(TaskStatus.failed, msg, "notion")
 
     # Meta — read-only verify unless write keywords
@@ -215,19 +257,23 @@ async def _execute_single(
         cfg = meta.get("config", {})
         name = await meta_ad_account_name(meta["api_key"], cfg.get("ad_account_id", ""))
         if name:
-            return ExecResult(TaskStatus.completed, f"Meta Ads account: {name}", "meta")
+            return ExecResult(
+                TaskStatus.completed,
+                f"Meta Ads account: {name}",
+                "meta",
+                verified=True,
+                proof={"source": "meta_account_lookup", "account_name": name},
+            )
         return ExecResult(TaskStatus.planned, "Add Meta ad account ID in Integrations", "meta")
 
     # LinkedIn
     li_key = data.get("linkedin", {}).get("api_key", "")
     if li_key and "linkedin" in connected and category == "hr":
-        if is_write:
-            return ExecResult(
-                TaskStatus.planned,
-                "LinkedIn connected — job posts require Marketing API approval; draft saved in plan",
-                "linkedin",
-            )
-        return ExecResult(TaskStatus.completed, "LinkedIn API verified and ready", "linkedin")
+        return ExecResult(
+            TaskStatus.planned,
+            "LinkedIn integration is connected, but live HR actions are not implemented yet",
+            "linkedin",
+        )
 
     # QuickBooks
     qb = data.get("quickbooks", {})
@@ -238,18 +284,22 @@ async def _execute_single(
             return ExecResult(TaskStatus.planned, "QuickBooks connected — add Realm ID", "quickbooks")
         name = await quickbooks_company_name(qb["api_key"], realm)
         if name:
-            return ExecResult(TaskStatus.completed, f"QuickBooks: {name}", "quickbooks")
+            return ExecResult(
+                TaskStatus.completed,
+                f"QuickBooks: {name}",
+                "quickbooks",
+                verified=True,
+                proof={"source": "quickbooks_company_lookup", "company_name": name},
+            )
         return ExecResult(TaskStatus.failed, "QuickBooks API error", "quickbooks")
 
     # Google Ads
     if "google-ads" in connected and category == "marketing":
-        if is_write:
-            return ExecResult(
-                TaskStatus.planned,
-                "Google Ads connected — campaign writes need developer token + customer ID",
-                "google-ads",
-            )
-        return ExecResult(TaskStatus.completed, "Google Ads API connected", "google-ads")
+        return ExecResult(
+            TaskStatus.planned,
+            "Google Ads integration is connected, but live campaign actions need developer token + customer ID setup",
+            "google-ads",
+        )
 
     # MCP
     mcp_url = data.get("mcp", {}).get("api_key", "")
@@ -261,12 +311,14 @@ async def _execute_single(
             "id": 1,
         })
         if ok:
-            return ExecResult(TaskStatus.completed, msg, "mcp")
+            return ExecResult(
+                TaskStatus.completed,
+                msg,
+                "mcp",
+                verified=True,
+                proof={"source": "mcp_tools_call", "message": msg},
+            )
         return ExecResult(TaskStatus.failed, msg, "mcp")
 
     hint = missing_integration_hint(category, connected)
-
-    from app.services.nexa_engine import execute_nexa_internal
-
-    status, detail, integration = await execute_nexa_internal(task, context, response)
-    return ExecResult(status, detail, integration)
+    return ExecResult(TaskStatus.planned, hint)

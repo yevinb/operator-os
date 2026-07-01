@@ -70,6 +70,8 @@ export default function CommandCenterPage() {
   };
 
   const executed = lastResponse?.executed_count ?? lastResponse?.tasks.filter((t) => t.status === "completed").length ?? 0;
+  const planned = lastResponse?.planned_count ?? lastResponse?.tasks.filter((t) => t.status === "planned").length ?? 0;
+  const failed = lastResponse?.failed_count ?? lastResponse?.tasks.filter((t) => t.status === "failed").length ?? 0;
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
@@ -183,7 +185,7 @@ export default function CommandCenterPage() {
               <Zap size={18} className="text-white" />
             </div>
             <div>
-              <p className="font-bold text-success">{executed} LIVE · Nexa is executing your plan</p>
+              <p className="font-bold text-success">{executed} VERIFIED · {planned} PLANNED · {failed} FAILED</p>
               <p className="text-white font-semibold">&ldquo;{lastResponse.command}&rdquo;</p>
             </div>
           </div>
@@ -212,9 +214,9 @@ export default function CommandCenterPage() {
                 <div key={h.command + h.intent} className="flex justify-between p-4 rounded-xl card-premium">
                   <div>
                     <p className="font-medium">{h.command}</p>
-                    <p className="text-xs text-text-3">{done} executed</p>
+                    <p className="text-xs text-text-3">{done} verified</p>
                   </div>
-                  <span className="text-xs px-3 py-1 rounded-full font-bold bg-success/20 text-success">LIVE</span>
+                  <span className="text-xs px-3 py-1 rounded-full font-bold bg-success/20 text-success">VERIFIED</span>
                 </div>
               );
             })}

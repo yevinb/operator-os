@@ -80,7 +80,7 @@ export default function Home() {
             What Nexa <span className="gradient-gold">actually does</span>
           </h2>
           <p className="text-center text-text-2 text-lg mb-12 max-w-xl mx-auto">
-            Every task executes — on your real APIs when connected, or via Nexa&apos;s built-in engine so nothing stays &ldquo;planned&rdquo; forever.
+            Tasks are marked complete only when verified on connected APIs. If setup is missing, Nexa shows exactly what to connect next.
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -109,7 +109,7 @@ export default function Home() {
                 "Notion — create pages in your database",
                 "n8n — trigger any workflow you build",
                 "Meta & Google Ads — account verification",
-                "Nexa engine — always completes tasks even offline",
+                "Verified execution only — no fake completion",
               ].map((t) => (
                 <div key={t} className="flex items-start gap-3">
                   <span className="text-gold text-lg">→</span>

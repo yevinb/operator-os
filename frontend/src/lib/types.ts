@@ -9,6 +9,10 @@ export interface Task {
   status: TaskStatus;
   detail?: string;
   integration?: string;
+  verified?: boolean;
+  executed_at?: string;
+  external_id?: string;
+  proof?: Record<string, string | number | boolean>;
   completedAt?: string;
 }
 

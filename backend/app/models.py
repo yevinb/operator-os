@@ -17,6 +17,10 @@ class Task(BaseModel):
     status: TaskStatus = TaskStatus.pending
     detail: str | None = None
     integration: str | None = None
+    verified: bool = False
+    executed_at: str | None = None
+    external_id: str | None = None
+    proof: dict | None = None
 
 
 class CommandRequest(BaseModel):

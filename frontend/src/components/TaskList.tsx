@@ -154,6 +154,12 @@ export function TaskList({ tasks, animate = true, isDemo = false }: TaskListProp
                 {task.integration && (
                   <p className="text-xs text-accent">via {task.integration}</p>
                 )}
+                {task.status === "completed" && task.verified && (
+                  <p className="text-xs text-success">LIVE VERIFIED</p>
+                )}
+                {task.status === "completed" && !task.verified && (
+                  <p className="text-xs text-warning">COMPLETED (UNVERIFIED)</p>
+                )}
               </div>
             </div>
           </div>
