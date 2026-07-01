@@ -8,6 +8,7 @@ import { getToken } from "@/lib/auth";
 import { getIntegrations } from "@/lib/store";
 import { saveBusinessProfile } from "@/lib/business-context";
 import type { Integration } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type ApiIntegration = {
   id: string;
