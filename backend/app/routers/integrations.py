@@ -47,6 +47,13 @@ class IntegrationOut(BaseModel):
     config_fields: list[str]
 
 
+class IntegrationTestOut(BaseModel):
+    id: str
+    connected: bool
+    ok: bool
+    message: str
+
+
 @router.get("", response_model=list[IntegrationOut])
 async def list_integrations(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -144,6 +151,63 @@ async def disconnect_integration(
     return {"status": "disconnected", "id": integration_id}
 
 
+@router.post("/{integration_id}/test", response_model=IntegrationTestOut)
+async def test_integration(
+    integration_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    catalog_item = next((i for i in CATALOG if i["id"] == integration_id), None)
+    if not catalog_item:
+        raise HTTPException(status_code=404, detail="Integration not found")
+
+    conn = await _get_conn(db, user.id, integration_id)
+    if not conn or not conn.connected:
+        return IntegrationTestOut(
+            id=integration_id,
+            connected=False,
+            ok=False,
+            message="Not connected",
+        )
+
+    ok, message = await _verify_connected_integration(db, user.id, integration_id, conn)
+    return IntegrationTestOut(
+        id=integration_id,
+        connected=True,
+        ok=ok,
+        message=message,
+    )
+
+
+@router.post("/test-all", response_model=list[IntegrationTestOut])
+async def test_all_integrations(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(IntegrationConnection).where(
+            IntegrationConnection.user_id == user.id,
+            IntegrationConnection.connected == True,  # noqa: E712
+        )
+    )
+    conns = list(result.scalars().all())
+    if not conns:
+        return []
+
+    out: list[IntegrationTestOut] = []
+    for conn in conns:
+        ok, message = await _verify_connected_integration(db, user.id, conn.integration_id, conn)
+        out.append(
+            IntegrationTestOut(
+                id=conn.integration_id,
+                connected=True,
+                ok=ok,
+                message=message,
+            )
+        )
+    return out
+
+
 async def _get_conn(db: AsyncSession, user_id: str, integration_id: str) -> IntegrationConnection | None:
     result = await db.execute(
         select(IntegrationConnection).where(
@@ -152,3 +216,24 @@ async def _get_conn(db: AsyncSession, user_id: str, integration_id: str) -> Inte
         )
     )
     return result.scalar_one_or_none()
+
+
+async def _verify_connected_integration(
+    db: AsyncSession,
+    user_id: str,
+    integration_id: str,
+    conn: IntegrationConnection,
+) -> tuple[bool, str]:
+    config = parse_config(conn.config_json)
+    key = conn.api_key or ""
+
+    if integration_id == "google-ads":
+        # Reuse Google OAuth tokens from Gmail/Calendar connection if present
+        gmail = await _get_conn(db, user_id, "gmail")
+        if gmail and gmail.connected:
+            config["google_oauth"] = parse_config(gmail.config_json)
+        if not config.get("developer_token"):
+            config["developer_token"] = key
+        return await verify_integration(integration_id, config.get("developer_token", ""), json.dumps(config))
+
+    return await verify_integration(integration_id, key, json.dumps(config))

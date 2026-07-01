@@ -21,6 +21,13 @@ type ApiIntegration = {
   config_fields: string[];
 };
 
+type IntegrationTestResult = {
+  id: string;
+  connected: boolean;
+  ok: boolean;
+  message: string;
+};
+
 const GOOGLE_OAUTH_IDS = new Set(["gmail", "calendar"]);
 const CONFIG_LABELS: Record<string, string> = {
   database_id: "Notion database ID",
@@ -44,6 +51,9 @@ export default function IntegrationsContent() {
   const [success, setSuccess] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [gmailTo, setGmailTo] = useState("");
+  const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
+  const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
+  const [testAllLoading, setTestAllLoading] = useState(false);
 
   const loadFromApi = async () => {
     if (!(await hasApiConfigured())) return;
@@ -124,6 +134,41 @@ export default function IntegrationsContent() {
     await loadFromApi();
   };
 
+  const testOne = async (id: string) => {
+    setError("");
+    setTestingMap((m) => ({ ...m, [id]: true }));
+    try {
+      const r = await apiFetch<IntegrationTestResult>(`/api/v1/integrations/${id}/test`, { method: "POST" });
+      setTestResults((p) => ({ ...p, [id]: r }));
+      if (r.ok) {
+        setSuccess(`${apiMeta[id]?.name || id}: ${r.message}`);
+        setTimeout(() => setSuccess(""), 5000);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Integration test failed");
+    } finally {
+      setTestingMap((m) => ({ ...m, [id]: false }));
+    }
+  };
+
+  const testAll = async () => {
+    setError("");
+    setTestAllLoading(true);
+    try {
+      const rows = await apiFetch<IntegrationTestResult[]>("/api/v1/integrations/test-all", { method: "POST" });
+      const byId: Record<string, IntegrationTestResult> = {};
+      rows.forEach((r) => { byId[r.id] = r; });
+      setTestResults(byId);
+      const ok = rows.filter((r) => r.ok).length;
+      setSuccess(`Tested ${rows.length} connected integration(s): ${ok} passing`);
+      setTimeout(() => setSuccess(""), 6000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Test all failed");
+    } finally {
+      setTestAllLoading(false);
+    }
+  };
+
   const filtered = filter === "all" ? integrations : integrations.filter((i) => i.category === filter);
   const connected = integrations.filter((i) => i.connected).length;
   const modalMeta = keyModal ? apiMeta[keyModal] : null;
@@ -144,25 +189,18 @@ export default function IntegrationsContent() {
         <div className="text-right">
           <p className="text-2xl font-bold text-accent">{connected}</p>
           <p className="text-xs text-text-3">connected</p>
+          <button
+            onClick={testAll}
+            disabled={testAllLoading || connected === 0}
+            className="mt-2 px-3 py-1.5 text-xs rounded-lg border border-border hover:border-accent/40 disabled:opacity-50"
+          >
+            {testAllLoading ? "Testing..." : "Test all connected"}
+          </button>
         </div>
       </div>
 
       {success && <div className="mb-4 p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm">{success}</div>}
       {error && !keyModal && <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
-
-      <div className="mb-6 p-4 rounded-xl bg-accent/10 border border-accent/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <p className="font-semibold">Gmail + Google Calendar</p>
-          <p className="text-sm text-text-2">One Google sign-in connects both</p>
-        </div>
-        <button
-          onClick={connectGoogle}
-          disabled={googleLoading}
-          className="px-5 py-2.5 rounded-xl bg-white text-black font-medium text-sm hover:bg-zinc-200 disabled:opacity-50"
-        >
-          {googleLoading ? "Redirecting…" : "Connect with Google"}
-        </button>
-      </div>
 
       {gmailConnected && (
         <div className="mb-6 p-4 rounded-xl bg-surface border border-border flex flex-col sm:flex-row gap-3">
@@ -197,17 +235,41 @@ export default function IntegrationsContent() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">{int.name}</h3>
                     {int.connected && <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success"><Check size={10} className="inline" /> Live</span>}
+                    {testResults[int.id] && (
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded-full",
+                          testResults[int.id].ok ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+                        )}
+                      >
+                        {testResults[int.id].ok ? "Verified" : "Failed"}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-text-2 mt-1">{apiMeta[int.id]?.description || int.description}</p>
+                  {testResults[int.id] && (
+                    <p className={cn("text-xs mt-1", testResults[int.id].ok ? "text-success" : "text-danger")}>
+                      {testResults[int.id].message}
+                    </p>
+                  )}
                 </div>
               </div>
-              <button
-                onClick={() => (int.connected ? disconnect(int.id) : isGoogle ? connectGoogle() : openModal(int.id))}
-                className={cn("mt-4 w-full py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white")}
-              >
-                <Plug size={14} />
-                {int.connected ? "Disconnect" : isGoogle ? "Connect with Google" : "Connect"}
-              </button>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => (int.connected ? disconnect(int.id) : isGoogle ? connectGoogle() : openModal(int.id))}
+                  className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white")}
+                >
+                  <Plug size={14} />
+                  {int.connected ? "Disconnect" : isGoogle ? "Connect with Google" : "Connect"}
+                </button>
+                <button
+                  onClick={() => testOne(int.id)}
+                  disabled={!int.connected || testingMap[int.id]}
+                  className="py-2.5 rounded-xl text-sm font-medium border border-border text-text-2 disabled:opacity-40"
+                >
+                  {testingMap[int.id] ? "Testing..." : "Test"}
+                </button>
+              </div>
             </div>
           );
         })}
