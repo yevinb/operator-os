@@ -17,6 +17,8 @@ class BusinessContext:
     website: str = ""
     connected_integrations: list[str] = field(default_factory=list)
     live_metrics: dict[str, str | float | int] = field(default_factory=dict)
+    integration_snapshots: dict = field(default_factory=dict)
+    business_narrative: str = ""
     niche_mode: str = "general"
 
     def to_prompt_block(self) -> str:
@@ -33,6 +35,8 @@ class BusinessContext:
             lines.append(f"Website: {self.website}")
         if self.connected_integrations:
             lines.append(f"Connected tools: {', '.join(self.connected_integrations)}")
+        if self.business_narrative:
+            lines.append(f"Business pulse: {self.business_narrative}")
         if self.live_metrics:
             metrics = ", ".join(f"{k}={v}" for k, v in self.live_metrics.items())
             lines.append(f"Live business data: {metrics}")
@@ -65,14 +69,27 @@ async def build_business_context(user: User, db: AsyncSession) -> BusinessContex
         niche_mode=profile.niche_mode if profile else "general",
     )
 
-    if "stripe" in connected:
-        stripe_conn = next((i for i in full_user.integrations if i.integration_id == "stripe"), None)
-        if stripe_conn and stripe_conn.api_key:
-            from app.services.stripe_integration import fetch_stripe_snapshot
+    if connected:
+        from app.services.business_snapshot import build_business_snapshot
+        from app.services.integrations.providers import parse_config
 
-            snapshot = await fetch_stripe_snapshot(stripe_conn.api_key)
-            if snapshot:
-                ctx.live_metrics.update(snapshot)
+        integration_data = {
+            i.integration_id: {
+                "api_key": i.api_key or "",
+                "config": parse_config(i.config_json),
+            }
+            for i in full_user.integrations
+            if i.connected
+        }
+        snap = await build_business_snapshot(
+            ctx.company,
+            connected,
+            integration_data,
+            cache_key=full_user.id,
+        )
+        ctx.live_metrics.update(snap.metrics)
+        ctx.integration_snapshots = snap.sources
+        ctx.business_narrative = snap.narrative
 
     return ctx
 

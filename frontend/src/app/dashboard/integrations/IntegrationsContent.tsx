@@ -60,6 +60,21 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   token_exchange_failed: "Google token exchange failed. Check Railway GOOGLE_REDIRECT_URI includes /api/v1/oauth/google/callback",
 };
 
+const WORKS_WITH: Record<string, string[]> = {
+  stripe: ["Slack", "Notion", "HubSpot", "n8n", "Gmail"],
+  hubspot: ["Gmail", "Slack", "Notion", "n8n", "Stripe"],
+  gmail: ["HubSpot", "Calendar", "Notion", "Slack"],
+  slack: ["Stripe", "HubSpot", "Notion", "n8n", "Meta"],
+  notion: ["Stripe", "HubSpot", "Slack", "Gmail", "n8n"],
+  n8n: ["Stripe", "HubSpot", "Slack", "Gmail", "Notion"],
+  meta: ["Slack", "Notion", "n8n", "Google Ads"],
+  "google-ads": ["Slack", "Notion", "n8n", "Meta"],
+  calendar: ["Gmail", "Slack", "HubSpot"],
+  quickbooks: ["Stripe", "Slack", "Notion"],
+  linkedin: ["Gmail", "Notion", "Calendar"],
+  mcp: ["n8n", "Notion"],
+};
+
 export default function IntegrationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -289,6 +304,16 @@ export default function IntegrationsContent() {
                     )}
                   </div>
                   <p className="text-sm text-text-2 mt-1">{apiMeta[int.id]?.description || int.description}</p>
+                  {WORKS_WITH[int.id] && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      <span className="text-xs text-text-3">Works with:</span>
+                      {WORKS_WITH[int.id].slice(0, 4).map((w) => (
+                        <span key={w} className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-text-3">
+                          {w}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {testResults[int.id] && (
                     <p className={cn("text-xs mt-1", testResults[int.id].ok ? "text-success" : "text-danger")}>
                       {testResults[int.id].message}

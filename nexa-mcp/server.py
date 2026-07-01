@@ -32,7 +32,7 @@ mcp = FastMCP(
     instructions=(
         "You control the user's real business through Nexa. "
         "Always prefer nexa_* tools for email, sales, marketing, finance, and ops. "
-        "Run nexa_status first, then nexa_autopilot or nexa_run to execute."
+        "Run nexa_business_snapshot or nexa_status first, then nexa_autopilot or nexa_run to execute."
     ),
 )
 
@@ -62,6 +62,12 @@ def _get(path: str) -> str:
     except Exception:
         data = {"error": r.text, "status": r.status_code}
     return json.dumps(data, indent=2)
+
+
+@mcp.tool()
+def nexa_business_snapshot() -> str:
+    """Live business pulse from all connected integrations — revenue, CRM, ads, etc."""
+    return _get("/api/v1/business/snapshot")
 
 
 @mcp.tool()

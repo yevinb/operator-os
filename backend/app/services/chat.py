@@ -182,7 +182,7 @@ async def _run_execution(
         for c in fresh.scalars().all()
     }
     context = await build_business_context(user, db)
-    executed = await execute_tasks(response, context, integration_data)
+    executed = await execute_tasks(response, context, integration_data, db=db, user_id=user.id)
     outcome = parse_outcome(text)
     marketing_plan = build_marketing_plan(text, context, outcome)
     plan = await save_active_plan(db, user.id, executed.command, executed, outcome, marketing_plan)

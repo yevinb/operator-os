@@ -13,6 +13,7 @@ import {
   Menu,
   FileText,
   MessageCircle,
+  Building2,
 } from "lucide-react";
 import { getSession, clearSession, validateSession, hasCompletedOnboardingLocally } from "@/lib/auth";
 import type { User } from "@/lib/types";
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", icon: MessageCircle, label: "Nexa Chat" },
+  { href: "/dashboard/business", icon: Building2, label: "Business Hub" },
   { href: "/dashboard/command", icon: LayoutDashboard, label: "Command Center" },
   { href: "/dashboard/plan", icon: FileText, label: "Marketing Plan" },
   { href: "/dashboard/activity", icon: Activity, label: "Activity Log" },

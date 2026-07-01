@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import re
+from typing import TYPE_CHECKING
 
 from app.models import CommandResponse, Task, TaskStatus
 from app.services.business_context import BusinessContext
+from app.services.business_snapshot import build_business_snapshot
+from app.services.execution_bundle import ExecutionBundle
 from app.services.integration_map import INTEGRATION_LABELS, missing_integration_hint
 from app.services.integrations.google import (
     create_calendar_event,
@@ -27,6 +30,9 @@ from app.services.integrations.providers import (
 from app.services.stripe_integration import fetch_stripe_snapshot
 from app.services.webhooks import post_json_webhook, send_slack_message, trigger_n8n
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 IntegrationData = dict[str, dict]
 
 WRITE_KEYWORDS = ("launch", "create", "post job", "campaign", "hire", "fire", "terminate")
@@ -40,15 +46,21 @@ def _recipient_from_command(command: str, default_to: str) -> str:
     return default_to
 
 
-def _compose_business_email(company: str, command: str, action: str) -> tuple[str, str]:
+def _compose_business_email(
+    company: str,
+    command: str,
+    action: str,
+    email_context: str = "",
+) -> tuple[str, str]:
     subject = f"[{company}] Business update"
     if "business email" in command.lower() or "business" in command.lower():
         subject = f"[{company}] Introduction — let's connect"
+    context_block = f"\n\n{email_context}" if email_context else ""
     body = f"""Hello,
 
 I'm reaching out from {company}.
 
-{action}
+{action}{context_block}
 
 We would welcome the opportunity to connect and explore working together.
 
@@ -96,17 +108,36 @@ async def execute_tasks(
     response: CommandResponse,
     context: BusinessContext,
     integration_data: IntegrationData,
+    *,
+    db: "AsyncSession | None" = None,
+    user_id: str | None = None,
+    bundle: ExecutionBundle | None = None,
 ) -> CommandResponse:
+    company = context.company or "your company"
+    if bundle is None:
+        snap = await build_business_snapshot(
+            company,
+            context.connected_integrations,
+            integration_data,
+            cache_key=user_id or company,
+        )
+        bundle = ExecutionBundle.from_snapshot(response.command, company, snap)
+
     stripe_key = integration_data.get("stripe", {}).get("api_key", "")
     stripe_data = None
     if stripe_key and "stripe" in context.connected_integrations:
         stripe_data = await fetch_stripe_snapshot(stripe_key)
+        if stripe_data:
+            bundle.metrics.update(stripe_data)
 
     executed: list[Task] = []
     counts = {"completed": 0, "planned": 0, "failed": 0}
 
     for task in response.tasks:
-        result = await _execute_single(task, context, stripe_data, integration_data, response)
+        result = await _execute_single(
+            task, context, stripe_data, integration_data, response, bundle
+        )
+        bundle.absorb(result.integration, result.detail, result.proof, result.verified)
         executed.append(
             task.model_copy(
                 update={
@@ -128,14 +159,22 @@ async def execute_tasks(
             counts["planned"] += 1
 
     summary = response.summary
+    bundle_summary = bundle.summary_line()
     if counts["completed"]:
         summary = (
             f"{counts['completed']} action(s) executed live"
             + (f", {counts['planned']} planned (connect more tools)" if counts["planned"] else "")
+            + (f" — {bundle_summary}" if bundle_summary else "")
             + f" — {response.summary}"
         )
     elif counts["planned"]:
         summary = f"No integrations ran yet — connect tools in Integrations. Plan: {response.summary}"
+
+    if db and user_id and counts["completed"]:
+        from app.services.business_graph import absorb_execution_entities, save_execution_run
+
+        await save_execution_run(db, user_id, response.command, bundle, counts["completed"])
+        await absorb_execution_entities(db, user_id, bundle)
 
     return response.model_copy(
         update={
@@ -155,6 +194,7 @@ async def _execute_single(
     stripe_data: dict | None,
     data: IntegrationData,
     response: CommandResponse,
+    bundle: ExecutionBundle,
 ) -> ExecResult:
     company = context.company or "your company"
     action = task.action.lower()
@@ -181,7 +221,7 @@ async def _execute_single(
         if category in ("communication", "support", "operations", "reporting", "marketing") or "slack" in action:
             ok, msg = await send_slack_message(
                 slack_url,
-                f"Nexa | {company}\nCommand: {response.command}\nAction: {task.action}",
+                bundle.enrich_message(task.action),
             )
             if ok:
                 return ExecResult(
@@ -196,13 +236,7 @@ async def _execute_single(
     # n8n — universal automation
     n8n_url = data.get("n8n", {}).get("api_key", "")
     if n8n_url and "n8n" in connected:
-        ok, msg = await trigger_n8n(n8n_url, {
-            "event": "nexa.task",
-            "company": company,
-            "command": response.command,
-            "task": task.action,
-            "category": category,
-        })
+        ok, msg = await trigger_n8n(n8n_url, bundle.n8n_payload(task.action, category))
         if ok:
             return ExecResult(
                 TaskStatus.completed,
@@ -225,7 +259,9 @@ async def _execute_single(
             k in action.lower() for k in ("email", "reply", "send", "onboarding", "report", "stakeholder", "customer", "write", "gmail")
         ) or email_cmd
         if access and recipient and email_intent:
-            subject, body = _compose_business_email(company, response.command, task.action)
+            subject, body = _compose_business_email(
+                company, response.command, task.action, bundle.email_context()
+            )
             ok, msg = await send_gmail(access, to=recipient, subject=subject, body=body, from_email=sender)
             if ok:
                 return ExecResult(
@@ -270,7 +306,9 @@ async def _execute_single(
     hs_key = data.get("hubspot", {}).get("api_key", "")
     if hs_key and "hubspot" in connected and category in ("sales", "analytics", "support"):
         if any(k in action for k in ("log", "note", "crm", "sync", "contact", "pull")):
-            ok, msg = await hubspot_log_note(hs_key, f"{task.action}\n\nCommand: {response.command}", company)
+            ok, msg = await hubspot_log_note(
+                hs_key, bundle.hubspot_body(task.action), company
+            )
             if ok:
                 return ExecResult(
                     TaskStatus.completed,
@@ -317,7 +355,7 @@ async def _execute_single(
             notion["api_key"],
             db_id,
             f"{company}: {response.command[:40]}",
-            task.action,
+            bundle.notion_body(task.action),
         )
         if ok:
             return ExecResult(

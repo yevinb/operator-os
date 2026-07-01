@@ -111,6 +111,48 @@ export async function runCommand(command: string, options?: { forceDemo?: boolea
   return demoExecuteCommand(command, context);
 }
 
+export type BusinessSnapshot = {
+  company: string;
+  goal: string;
+  industry: string;
+  connected_integrations: string[];
+  metrics: Record<string, string | number>;
+  narrative: string;
+  business_narrative: string;
+  updated_at: string;
+};
+
+export type BusinessGraph = {
+  nodes: { id: string; label: string; category: string; connected: boolean; works_with: string[] }[];
+  edges: { from: string; to: string; active: boolean }[];
+  suggested_commands: string[];
+};
+
+export type LatestExecution = {
+  active: boolean;
+  id?: number;
+  command?: string;
+  verified_count?: number;
+  bundle?: {
+    metrics?: Record<string, string | number>;
+    narrative_lines?: string[];
+    proofs?: { integration?: string; detail?: string }[];
+  };
+  created_at?: string;
+};
+
+export async function getBusinessSnapshot(): Promise<BusinessSnapshot> {
+  return apiFetch<BusinessSnapshot>("/api/v1/business/snapshot");
+}
+
+export async function getBusinessGraph(): Promise<BusinessGraph> {
+  return apiFetch<BusinessGraph>("/api/v1/business/graph");
+}
+
+export async function getLatestExecution(): Promise<LatestExecution> {
+  return apiFetch<LatestExecution>("/api/v1/business/executions/latest");
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const base = await apiUrl();
   const res = await fetchWithTimeout(`${base}${path}`, {

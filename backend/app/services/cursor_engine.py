@@ -22,6 +22,14 @@ NEXA_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "get_business_snapshot",
+            "description": "Read live business metrics from all connected integrations (Stripe, HubSpot, ads, etc.) before multi-tool actions.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "send_email",
             "description": "Send a real Gmail email immediately. Use for any outreach, follow-up, or customer email.",
             "parameters": {
@@ -87,6 +95,7 @@ NEXA_TOOLS = [
 
 def _system_prompt(context: BusinessContext) -> str:
     connected = ", ".join(context.connected_integrations) if context.connected_integrations else "Gmail (via Google sign-in)"
+    narrative = context.business_narrative or "Connect integrations for live business pulse."
     return f"""You are Nexa — an autonomous AI business operator powered by Cursor.
 
 You control the user's real company through live integrations. You MUST use tools to take action — never pretend you sent email or ran commands without calling a tool.
@@ -95,8 +104,10 @@ Business:
 {context.to_prompt_block()}
 
 Connected tools: {connected}
+Business pulse: {narrative}
 
 Rules:
+- Before multi-tool ops, call get_business_snapshot to read live metrics
 - User wants email → call send_email
 - User wants revenue, leads, marketing, ops, checks → call execute_command or run_autopilot
 - Questions only → call reply_only
@@ -163,6 +174,30 @@ async def _execute_tool(
     context: BusinessContext,
 ) -> dict:
     from app.services.chat import _run_execution
+
+    if action == "get_business_snapshot":
+        from app.services.business_snapshot import build_business_snapshot
+        from app.services.integrations.providers import parse_config
+
+        integration_data = {
+            i.integration_id: {
+                "api_key": i.api_key or "",
+                "config": parse_config(i.config_json),
+            }
+            for i in user.integrations
+            if i.connected
+        }
+        snap = await build_business_snapshot(
+            context.company,
+            context.connected_integrations,
+            integration_data,
+            cache_key=user.id,
+        )
+        return {
+            "reply": snap.narrative or "No live metrics yet — connect Stripe, HubSpot, or ads.",
+            "executed": False,
+            "snapshot": snap.to_dict(),
+        }
 
     if action == "send_email":
         instruction = args.get("instruction") or message
@@ -273,7 +308,13 @@ async def handle_cursor_turn(
     if agent and agent.get("action") == "reply":
         return {"reply": agent["reply"], "executed": False, "powered_by": "cursor"}
 
-    if agent and agent.get("action") in ("send_email", "execute_command", "run_autopilot", "reply_only"):
+    if agent and agent.get("action") in (
+        "get_business_snapshot",
+        "send_email",
+        "execute_command",
+        "run_autopilot",
+        "reply_only",
+    ):
         result = await _execute_tool(
             agent["action"],
             agent.get("args", {}),

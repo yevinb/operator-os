@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Send, Sparkles, Loader2 } from "lucide-react";
-import { nexaChat } from "@/lib/api";
+import { nexaChat, getBusinessSnapshot, type BusinessSnapshot } from "@/lib/api";
 import { getBusinessContext } from "@/lib/business-context";
 import { clearSession, getSession, isAuthError } from "@/lib/auth";
 import { logCommand } from "@/lib/store";
@@ -54,12 +55,19 @@ export function NexaChat({ compact = false }: { compact?: boolean }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [pulse, setPulse] = useState<BusinessSnapshot | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMessages(loadHistory());
   }, []);
+
+  useEffect(() => {
+    getBusinessSnapshot()
+      .then(setPulse)
+      .catch(() => setPulse(null));
+  }, [messages.length, busy]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -147,6 +155,20 @@ export function NexaChat({ compact = false }: { compact?: boolean }) {
           <p className="text-xs text-text-2">Powered by Cursor · runs your business live</p>
         </div>
       </div>
+
+      {pulse && (
+        <div className="px-5 py-2 border-b border-white/5 bg-black/30 flex flex-wrap items-center gap-3 text-xs text-text-2">
+          <span className="text-gold font-medium">
+            {pulse.connected_integrations.length} tools connected
+          </span>
+          {pulse.business_narrative && (
+            <span className="truncate max-w-md">{pulse.business_narrative}</span>
+          )}
+          <Link href="/dashboard/business" className="text-gold hover:underline ml-auto">
+            Business Hub →
+          </Link>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-4">
         {messages.map((m) => (

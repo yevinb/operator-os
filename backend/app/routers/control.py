@@ -69,6 +69,8 @@ async def control_status(
         },
         "connected_integrations": context.connected_integrations,
         "live_metrics": context.live_metrics,
+        "integration_snapshots": context.integration_snapshots,
+        "business_narrative": context.business_narrative,
         "powered_by": "cursor",
         "engine": "cursor_agent",
     }

@@ -38,3 +38,93 @@ def missing_integration_hint(category: str, connected: list[str]) -> str:
             label = INTEGRATION_LABELS.get(iid, iid)
             return f"Connect {label} in Integrations to run this"
     return "Connect an integration in Integrations to run this"
+
+
+# Preferred integration order for cross-tool workflows (data flows left → right)
+WORKFLOW_CHAINS: dict[str, list[str]] = {
+    "grow_revenue": ["stripe", "hubspot", "slack", "notion", "n8n"],
+    "run_company": ["stripe", "slack", "calendar", "notion", "n8n"],
+    "run_marketing": ["meta", "google-ads", "slack", "n8n"],
+    "customer_success": ["gmail", "hubspot", "slack", "n8n"],
+    "send_email": ["gmail"],
+    "hiring": ["linkedin", "calendar", "notion", "slack"],
+    "reporting": ["stripe", "hubspot", "notion", "gmail", "slack"],
+    "general_ops": ["stripe", "hubspot", "n8n", "notion", "slack"],
+    "cash_flow": ["stripe", "quickbooks", "slack", "n8n"],
+    "vendor_management": ["notion", "slack", "n8n"],
+    "scheduling": ["calendar", "gmail", "slack"],
+    "communication": ["slack", "gmail", "n8n"],
+    "outcome_leads": ["hubspot", "gmail", "meta", "google-ads", "slack", "n8n"],
+    "outcome_sales": ["stripe", "hubspot", "gmail", "notion", "n8n"],
+    "outcome_growth": ["meta", "google-ads", "slack", "calendar", "n8n"],
+}
+
+# Map task action keywords to primary integration for workflow ordering
+TASK_INTEGRATION_HINTS: list[tuple[str, str]] = [
+    ("stripe", "stripe"),
+    ("revenue", "stripe"),
+    ("balance", "stripe"),
+    ("hubspot", "hubspot"),
+    ("crm", "hubspot"),
+    ("contact", "hubspot"),
+    ("slack", "slack"),
+    ("notion", "notion"),
+    ("gmail", "gmail"),
+    ("email", "gmail"),
+    ("calendar", "calendar"),
+    ("meeting", "calendar"),
+    ("schedule", "calendar"),
+    ("meta", "meta"),
+    ("google ads", "google-ads"),
+    ("google-ads", "google-ads"),
+    ("quickbooks", "quickbooks"),
+    ("linkedin", "linkedin"),
+    ("n8n", "n8n"),
+    ("workflow", "n8n"),
+    ("mcp", "mcp"),
+]
+
+
+def integration_for_task(action: str, category: str) -> str | None:
+    lower = action.lower()
+    for keyword, iid in TASK_INTEGRATION_HINTS:
+        if keyword in lower:
+            return iid
+    cats = CATEGORY_INTEGRATIONS.get(category, [])
+    return cats[0] if cats else None
+
+
+def workflow_chain_for_intent(intent: str) -> list[str]:
+    return WORKFLOW_CHAINS.get(intent, WORKFLOW_CHAINS["general_ops"])
+
+
+def filter_tasks_by_connected(
+    tasks: list[tuple[str, str]],
+    connected: list[str],
+    intent: str,
+) -> tuple[list[tuple[str, str]], list[str]]:
+    """Reorder tasks by workflow chain; return skipped integration labels."""
+    chain = workflow_chain_for_intent(intent)
+    skipped: list[str] = []
+    ordered: list[tuple[str, str]] = []
+    remaining = list(tasks)
+
+    for iid in chain:
+        for i, (action, cat) in enumerate(remaining):
+            hint = integration_for_task(action, cat)
+            if hint == iid:
+                if iid in connected:
+                    ordered.append((action, cat))
+                else:
+                    skipped.append(INTEGRATION_LABELS.get(iid, iid))
+                remaining.pop(i)
+                break
+
+    for action, cat in remaining:
+        hint = integration_for_task(action, cat)
+        if hint and hint not in connected:
+            skipped.append(INTEGRATION_LABELS.get(hint, hint))
+        else:
+            ordered.append((action, cat))
+
+    return ordered, skipped

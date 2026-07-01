@@ -5,6 +5,7 @@ import time
 from app.models import CommandResponse, Task, TaskStatus
 from app.services.ai_clients import complete_json
 from app.services.business_context import BusinessContext
+from app.services.integration_map import filter_tasks_by_connected
 from app.services.niche_modes import get_niche
 
 
@@ -198,6 +199,7 @@ Given a business command, return JSON with:
 - intent: snake_case intent id
 - summary: one sentence of what you're doing FOR THIS SPECIFIC BUSINESS
 - tasks: array of {{action: string, category: string}} (3-8 tasks tailored to their industry, goals, and connected tools)
+- Each task should reference building on prior steps when multiple integrations are involved (e.g. "Post Stripe + HubSpot summary to Slack")
 
 Categories: marketing, support, analytics, hr, finance, communication, operations, reporting, sales
 Return ONLY valid JSON, no markdown."""
@@ -256,8 +258,13 @@ def execute_with_rules(command: str, context: BusinessContext | None = None) -> 
         cats = ["marketing", "sales", "communication", "reporting", "operations"]
         task_source = [(a, cats[i % len(cats)]) for i, a in enumerate(niche.workflows)]
 
+    filtered, skipped = filter_tasks_by_connected(task_source, connected, intent)
+    if skipped and context and context.company:
+        skip_note = ", ".join(sorted(set(skipped)))
+        summary += f" Connect {skip_note} for full workflow."
+
     tasks = []
-    for i, (action, category) in enumerate(task_source):
+    for i, (action, category) in enumerate(filtered):
         tasks.append(
             Task(
                 id=f"task-{now}-{i}",
@@ -285,6 +292,33 @@ async def orchestrate_command(
     if ai_provider != "rules":
         ai_result = await execute_with_ai(command, ai_provider, openai_key, anthropic_key, context)
         if ai_result:
-            return ai_result
+            return _apply_workflow_filter(ai_result, context)
 
     return execute_with_rules(command, context)
+
+
+def _apply_workflow_filter(response: CommandResponse, context: BusinessContext | None) -> CommandResponse:
+    if not context or not context.connected_integrations:
+        return response
+    from app.services.integration_map import filter_tasks_by_connected
+
+    task_tuples = [(t.action, t.category) for t in response.tasks]
+    filtered, skipped = filter_tasks_by_connected(
+        task_tuples, context.connected_integrations, response.intent
+    )
+    if not filtered:
+        return response
+    now = int(time.time() * 1000)
+    tasks = [
+        Task(
+            id=f"task-{now}-{i}",
+            action=action,
+            category=category,
+            status=TaskStatus.pending,
+        )
+        for i, (action, category) in enumerate(filtered)
+    ]
+    summary = response.summary
+    if skipped:
+        summary += f" Connect {', '.join(sorted(set(skipped)))} for full workflow."
+    return response.model_copy(update={"tasks": tasks, "summary": summary})
