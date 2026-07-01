@@ -36,7 +36,9 @@ const CONFIG_LABELS: Record<string, string> = {
   ad_account_id: "Meta ad account ID",
   customer_id: "Google Ads customer ID",
   shop_domain: "Shopify store domain",
+  default_image_url: "Default public image URL for IG posts",
   instagram_account_id: "Instagram account ID (optional)",
+  page_id: "Facebook Page ID (optional)",
 };
 
 const CATEGORIES = ["all", "marketing", "sales", "finance", "support", "hr", "operations", "automation", "communication"];
@@ -52,8 +54,8 @@ const FALLBACK_META: Record<string, ApiIntegration> = {
   notion: { id: "notion", name: "Notion", category: "operations", description: "Create pages & docs", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Integration token (secret_...)", config_fields: ["database_id"] },
   quickbooks: { id: "quickbooks", name: "QuickBooks", category: "finance", description: "Accounting & expenses", connected: false, needs_key: true, auth_type: "api_key", key_hint: "OAuth access token", config_fields: ["realm_id"] },
   linkedin: { id: "linkedin", name: "LinkedIn", category: "hr", description: "Hiring & B2B outreach", connected: false, needs_key: true, auth_type: "api_key", key_hint: "LinkedIn access token", config_fields: [] },
-  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "Orders, revenue & products", connected: false, needs_key: true, auth_type: "api_key", key_hint: "shpat_... Admin API access token", config_fields: ["shop_domain"] },
-  instagram: { id: "instagram", name: "Instagram", category: "marketing", description: "Followers, posts & social insights", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Meta long-lived token (instagram_basic)", config_fields: [] },
+  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "Full store — orders, products, customers, inventory, fulfillments", connected: false, needs_key: true, auth_type: "api_key", key_hint: "shpat_... with read/write orders, products, customers, inventory", config_fields: ["shop_domain"] },
+  instagram: { id: "instagram", name: "Instagram", category: "marketing", description: "Publish posts, insights, reply to comments", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Meta token: instagram_basic + instagram_content_publish + instagram_manage_comments", config_fields: ["default_image_url", "page_id", "instagram_account_id"] },
   mcp: { id: "mcp", name: "MCP Servers", category: "automation", description: "Model Context Protocol tools", connected: false, needs_key: true, auth_type: "webhook", key_hint: "MCP server URL", config_fields: [] },
 };
 

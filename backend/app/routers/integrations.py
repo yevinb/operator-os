@@ -12,8 +12,6 @@ from app.deps import get_current_user
 from app.services.integration_verify import verify_integration
 from app.services.integrations.providers import parse_config
 
-router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
-
 CATALOG = [
     {"id": "stripe", "name": "Stripe", "category": "finance", "description": "Live revenue, balance & customers", "needs_key": True, "auth_type": "api_key", "key_hint": "sk_test_... or sk_live_...", "config_fields": []},
     {"id": "slack", "name": "Slack", "category": "communication", "description": "Post COO updates to Slack", "needs_key": True, "auth_type": "webhook", "key_hint": "https://hooks.slack.com/services/...", "config_fields": []},
@@ -26,10 +24,16 @@ CATALOG = [
     {"id": "notion", "name": "Notion", "category": "operations", "description": "Create pages & docs", "needs_key": True, "auth_type": "api_key", "key_hint": "Integration token (secret_...)", "config_fields": ["database_id"]},
     {"id": "quickbooks", "name": "QuickBooks", "category": "finance", "description": "Accounting & expenses", "needs_key": True, "auth_type": "api_key", "key_hint": "OAuth access token", "config_fields": ["realm_id"]},
     {"id": "linkedin", "name": "LinkedIn", "category": "hr", "description": "Hiring & B2B outreach", "needs_key": True, "auth_type": "api_key", "key_hint": "LinkedIn access token", "config_fields": []},
-    {"id": "shopify", "name": "Shopify", "category": "finance", "description": "Orders, revenue & products", "needs_key": True, "auth_type": "api_key", "key_hint": "shpat_... Admin API access token", "config_fields": ["shop_domain"]},
-    {"id": "instagram", "name": "Instagram", "category": "marketing", "description": "Followers, posts & social insights", "needs_key": True, "auth_type": "api_key", "key_hint": "Meta long-lived access token (instagram_basic)", "config_fields": []},
+    {"id": "shopify", "name": "Shopify", "category": "finance", "description": "Full store access — orders, products, customers, inventory, fulfillments", "needs_key": True, "auth_type": "api_key", "key_hint": "shpat_... (read/write orders, products, customers, inventory)", "config_fields": ["shop_domain"]},
+    {"id": "instagram", "name": "Instagram", "category": "marketing", "description": "Full IG Business — publish posts, insights, reply to comments", "needs_key": True, "auth_type": "api_key", "key_hint": "Meta token with instagram_basic + instagram_content_publish", "config_fields": ["default_image_url", "page_id", "instagram_account_id"]},
     {"id": "mcp", "name": "MCP Servers", "category": "automation", "description": "Model Context Protocol tools", "needs_key": True, "auth_type": "webhook", "key_hint": "MCP server URL", "config_fields": []},
 ]
+
+OPTIONAL_CONFIG_FIELDS: dict[str, set[str]] = {
+    "instagram": {"default_image_url", "page_id", "instagram_account_id"},
+}
+
+router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
 
 
 class ConnectRequest(BaseModel):
@@ -116,6 +120,9 @@ async def connect_integration(
         raise HTTPException(status_code=400, detail=f"Required: {catalog_item['key_hint']}")
 
     for field in catalog_item["config_fields"]:
+        optional = field in OPTIONAL_CONFIG_FIELDS.get(integration_id, set())
+        if optional:
+            continue
         if field not in config or not str(config.get(field, "")).strip():
             raise HTTPException(status_code=400, detail=f"Required field: {field}")
 

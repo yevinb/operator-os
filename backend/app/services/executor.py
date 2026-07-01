@@ -14,7 +14,8 @@ from app.services.integrations.google import (
     resolve_google_access,
     send_gmail,
 )
-from app.services.instagram_integration import instagram_media_insights
+from app.services.instagram_integration import instagram_execute_action
+from app.services.shopify_integration import shopify_execute_action
 from app.services.integrations.providers import (
     hubspot_log_note,
     hubspot_snapshot,
@@ -28,7 +29,6 @@ from app.services.integrations.providers import (
     quickbooks_company_name,
     quickbooks_finance_snapshot,
 )
-from app.services.shopify_integration import fetch_shopify_snapshot
 from app.services.stripe_integration import fetch_stripe_snapshot
 from app.services.webhooks import post_json_webhook, send_slack_message, trigger_n8n
 
@@ -217,30 +217,33 @@ async def _execute_single(
                 proof={"source": "stripe_snapshot", "balance_usd": bal, "customers": cust},
             )
 
-    # Shopify — orders, revenue, products
+    # Shopify — full read/write: orders, products, customers, inventory, fulfillments
     shopify = data.get("shopify", {})
-    if shopify.get("api_key") and "shopify" in connected and category in ("finance", "analytics", "reporting", "sales"):
-        if any(k in action for k in ("shopify", "store", "orders", "products", "ecommerce", "e-commerce", "shop")):
+    if shopify.get("api_key") and "shopify" in connected:
+        shopify_keywords = (
+            "shopify", "store", "orders", "products", "ecommerce", "e-commerce", "shop",
+            "fulfill", "inventory", "customer", "stock", "ship", "dispatch",
+        )
+        if category in ("finance", "analytics", "reporting", "sales", "operations", "marketing") or any(
+            k in action for k in shopify_keywords
+        ):
             domain = shopify.get("config", {}).get("shop_domain", "")
-            snap = await fetch_shopify_snapshot(domain, shopify["api_key"])
-            if snap and snap.get("shopify_status") != "error":
-                orders = snap.get("shopify_orders", 0)
-                revenue = snap.get("shopify_revenue_usd", 0)
-                products = snap.get("shopify_products", 0)
-                store = snap.get("shopify_store", company)
+            ok, msg, proof = await shopify_execute_action(
+                domain,
+                shopify["api_key"],
+                task.action,
+                response.command,
+                company,
+            )
+            if ok:
                 return ExecResult(
                     TaskStatus.completed,
-                    f"Shopify {store}: {orders} orders, ${revenue} revenue (recent), {products} products",
+                    msg,
                     "shopify",
                     verified=True,
-                    proof={
-                        "source": "shopify_snapshot",
-                        "orders": orders,
-                        "revenue_usd": revenue,
-                        "products": products,
-                    },
+                    proof=proof if isinstance(proof, dict) else {"message": msg},
                 )
-            return ExecResult(TaskStatus.failed, "Shopify API error — check shop domain and token", "shopify")
+            return ExecResult(TaskStatus.failed, msg, "shopify")
 
     # Slack
     slack_url = data.get("slack", {}).get("api_key", "")
@@ -394,19 +397,31 @@ async def _execute_single(
             )
         return ExecResult(TaskStatus.failed, msg, "notion")
 
-    # Instagram — profile insights & recent engagement
+    # Instagram — full access: insights, publish posts, reply to comments
     ig = data.get("instagram", {})
-    if ig.get("api_key") and "instagram" in connected and category in ("marketing", "analytics", "hr"):
-        if any(k in action for k in ("instagram", "ig", "followers", "social", "post", "grow instagram")):
-            account_id = ig.get("config", {}).get("instagram_account_id", "")
-            ok, msg, proof = await instagram_media_insights(ig["api_key"], account_id)
+    if ig.get("api_key") and "instagram" in connected:
+        ig_keywords = (
+            "instagram", "ig", "followers", "social", "post", "publish", "comment",
+            "reply", "engagement", "grow instagram",
+        )
+        if category in ("marketing", "analytics", "hr", "communication") or any(
+            k in action for k in ig_keywords
+        ) or is_write:
+            cfg = ig.get("config", {})
+            ok, msg, proof = await instagram_execute_action(
+                ig["api_key"],
+                task.action,
+                response.command,
+                company,
+                cfg,
+            )
             if ok:
                 return ExecResult(
                     TaskStatus.completed,
                     msg,
                     "instagram",
                     verified=True,
-                    proof={"source": "instagram_insights", **proof},
+                    proof=proof if isinstance(proof, dict) else {"message": msg},
                 )
             return ExecResult(TaskStatus.failed, msg, "instagram")
 

@@ -139,9 +139,12 @@ INTENT_TEMPLATES: dict[str, dict] = {
         ],
     },
     "outcome_growth": {
-        "summary": "Growth sprint — acquisition, retention, and weekly optimization.",
+        "summary": "Growth sprint — Instagram, ads, Shopify, and weekly optimization.",
         "tasks": [
+            ("Check Instagram followers and post growth update", "marketing"),
+            ("Publish Instagram post about our offer", "marketing"),
             ("Define growth KPIs for this sprint", "analytics"),
+            ("Pull Shopify orders and revenue", "finance"),
             ("Launch content + paid acquisition test", "marketing"),
             ("Post growth metrics to Slack", "communication"),
             ("Schedule weekly review on Calendar", "operations"),

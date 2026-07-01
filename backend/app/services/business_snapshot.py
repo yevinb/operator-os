@@ -61,6 +61,8 @@ def _build_narrative(company: str, metrics: dict, connected: list[str]) -> str:
         parts.append(f"LinkedIn: {metrics['linkedin_name']}")
     if metrics.get("shopify_orders") is not None:
         parts.append(f"Shopify {metrics['shopify_orders']} orders")
+    if metrics.get("shopify_customers") is not None:
+        parts.append(f"{metrics['shopify_customers']} Shopify customers")
     if metrics.get("shopify_revenue_usd") is not None:
         parts.append(f"${metrics['shopify_revenue_usd']} store revenue")
     if metrics.get("instagram_followers") is not None:
@@ -164,6 +166,8 @@ async def _fetch_shopify(data: IntegrationData) -> tuple[dict, dict]:
         "shopify_orders": snap.get("shopify_orders", 0),
         "shopify_revenue_usd": snap.get("shopify_revenue_usd", 0),
         "shopify_products": snap.get("shopify_products", 0),
+        "shopify_customers": snap.get("shopify_customers", 0),
+        "shopify_pending_fulfillment": snap.get("shopify_pending_fulfillment", 0),
         "shopify_store": snap.get("shopify_store", ""),
     }, {"shopify": snap}
 
