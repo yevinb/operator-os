@@ -61,12 +61,20 @@ curl -s https://operator-os-production-2a8a.up.railway.app/api/v1/integrations/o
 
 ## Per merchant (your customers worldwide)
 
+### Option A — One-click OAuth (when Railway has `SHOPIFY_API_KEY`)
+
 1. Log into Nexa → **Integrations** → **Shopify** → **Connect store**
 2. Enter `mystore` or `mystore.myshopify.com`
-3. Approve on Shopify
-4. Brain + Business dashboard pull **live** orders, revenue, customers
+3. Click **One-click OAuth** → approve on Shopify
 
-Each store owner uses **their** Shopify login. You only maintain **one** Nexa app in Dev Dashboard.
+### Option B — Admin API token (works immediately, no Railway OAuth)
+
+1. In **Shopify Admin** → **Settings** → **Apps and sales channels** → **Develop apps** → create app → **Admin API access scopes** (read orders, products, customers)
+2. Install app → copy **Admin API access token** (`shpat_...`)
+3. Nexa → **Integrations** → **Shopify** → **Connect store**
+4. Paste store domain + token → **Connect with Admin token**
+
+Brain + Business dashboard pull **live** orders, revenue, customers either way.
 
 ---
 

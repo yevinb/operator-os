@@ -55,7 +55,7 @@ const FALLBACK_META: Record<string, ApiIntegration> = {
   notion: { id: "notion", name: "Notion", category: "operations", description: "Create pages & docs", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Integration token (secret_...)", config_fields: ["database_id"] },
   quickbooks: { id: "quickbooks", name: "QuickBooks", category: "finance", description: "One-click Intuit connect — live P&L and expenses", connected: false, needs_key: false, auth_type: "quickbooks_oauth", key_hint: "", config_fields: [] },
   linkedin: { id: "linkedin", name: "LinkedIn", category: "hr", description: "Hiring & B2B outreach", connected: false, needs_key: true, auth_type: "api_key", key_hint: "LinkedIn access token", config_fields: [] },
-  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "One-click connect — orders, products, customers, inventory", connected: false, needs_key: false, auth_type: "shopify_oauth", key_hint: "", config_fields: [] },
+  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "Connect store — OAuth or Admin API token", connected: false, needs_key: false, auth_type: "shopify_hybrid", key_hint: "shpat_... Admin API access token", config_fields: ["shop_domain"] },
   mcp: { id: "mcp", name: "MCP Servers", category: "automation", description: "Model Context Protocol tools", connected: false, needs_key: true, auth_type: "webhook", key_hint: "MCP server URL", config_fields: [] },
 };
 
@@ -104,6 +104,7 @@ export default function IntegrationsContent() {
   const [googleAdsDevToken, setGoogleAdsDevToken] = useState("");
   const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState("");
   const [shopifyModal, setShopifyModal] = useState(false);
+  const [shopifyAdminToken, setShopifyAdminToken] = useState("");
   const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
   const [testAllLoading, setTestAllLoading] = useState(false);
@@ -217,14 +218,14 @@ export default function IntegrationsContent() {
     }
   };
 
-  const connectShopify = async () => {
+  const connectShopifyOAuth = async () => {
     if (!getToken()) {
       router.push("/login");
       return;
     }
     const shop = shopDomain.trim();
     if (!shop) {
-      setShopifyModal(true);
+      setError("Enter your store domain first.");
       return;
     }
     setOauthLoadingId("shopify");
@@ -240,13 +241,32 @@ export default function IntegrationsContent() {
       setError(
         msg.toLowerCase().includes("session expired") || msg.toLowerCase().includes("sign in")
           ? "Session expired — sign in again, then connect Shopify."
-          : msg
+          : msg.toLowerCase().includes("not configured")
+            ? "OAuth not on Railway yet — use Admin API token (shpat_...) in the box below instead."
+            : msg
       );
       if (msg.toLowerCase().includes("sign in")) {
         setTimeout(() => router.push("/login"), 2000);
       }
       setOauthLoadingId(null);
     }
+  };
+
+  const connectShopifyToken = async () => {
+    const shop = shopDomain.trim();
+    const token = shopifyAdminToken.trim();
+    if (!shop || !token) {
+      setError("Store domain + Admin API token (shpat_...) required.");
+      return;
+    }
+    setShopifyModal(false);
+    await doConnect("shopify", token, { shop_domain: shop });
+    setShopifyAdminToken("");
+  };
+
+  const openShopifyModal = () => {
+    setShopifyModal(true);
+    setError("");
   };
 
   const connectQuickBooks = async () => {
@@ -360,9 +380,9 @@ export default function IntegrationsContent() {
 
   const isGoogleAdsOAuth = (id: string) => id === GOOGLE_ADS_OAUTH;
 
-  const isShopifyOAuth = (id: string) => {
+  const isShopifyConnect = (id: string) => {
     const meta = apiMeta[id];
-    return meta?.auth_type === "shopify_oauth" || SHOPIFY_OAUTH_IDS.has(id);
+    return meta?.auth_type === "shopify_hybrid" || meta?.auth_type === "shopify_oauth" || SHOPIFY_OAUTH_IDS.has(id);
   };
 
   const isQuickBooksOAuth = (id: string) => {
@@ -373,12 +393,12 @@ export default function IntegrationsContent() {
   const isServerReady = (id: string) => apiMeta[id]?.server_ready !== false;
 
   const connectLabel = (id: string) => {
-    if (!isServerReady(id) && (isGoogleOAuth(id) || isGoogleAdsOAuth(id) || isShopifyOAuth(id) || isQuickBooksOAuth(id))) {
+    if (!isServerReady(id) && (isGoogleOAuth(id) || isGoogleAdsOAuth(id) || isQuickBooksOAuth(id))) {
       return "Not on server";
     }
     if (isGoogleOAuth(id)) return "Connect with Google";
     if (isGoogleAdsOAuth(id)) return "Connect with Google";
-    if (isShopifyOAuth(id)) return "Connect store";
+    if (isShopifyConnect(id)) return "Connect store";
     if (isQuickBooksOAuth(id)) return "Connect with QuickBooks";
     return "Connect";
   };
@@ -386,7 +406,7 @@ export default function IntegrationsContent() {
   const handleConnect = (id: string) => {
     if (isGoogleOAuth(id)) return connectGoogle(id === "calendar" ? "calendar" : "gmail");
     if (isGoogleAdsOAuth(id)) return connectGoogle("google-ads");
-    if (isShopifyOAuth(id)) return connectShopify();
+    if (isShopifyConnect(id)) return openShopifyModal();
     if (isQuickBooksOAuth(id)) return connectQuickBooks();
     return openModal(id);
   };
@@ -427,14 +447,11 @@ export default function IntegrationsContent() {
 
       {oauthServerStatus && !oauthServerStatus.shopify && (
         <div className="mb-6 p-4 rounded-xl bg-warning/10 border border-warning/30 text-sm text-text-2">
-          <p className="font-medium text-warning mb-1">Shopify OAuth not configured on Railway</p>
+          <p className="font-medium text-warning mb-1">Shopify OAuth not on Railway yet</p>
           <p>
-            Create app <strong>Nexa</strong> in{" "}
-            <a href="https://dev.shopify.com" target="_blank" rel="noreferrer" className="text-accent underline">
-              Shopify Dev Dashboard
-            </a>
-            , then set <code className="text-xs">SHOPIFY_API_KEY</code>, <code className="text-xs">SHOPIFY_API_SECRET</code>, and{" "}
-            <code className="text-xs">SHOPIFY_REDIRECT_URI</code> on Railway. Nexa does not use <code className="text-xs">npm init @shopify/app</code> — OAuth is already built in.
+            You can still connect now: click <strong>Connect store</strong> → paste your store&apos;s{" "}
+            <strong>Admin API token</strong> (<code className="text-xs">shpat_...</code>) from Shopify Admin → Settings → Apps → Develop apps.
+            One-click OAuth for all merchants works once <code className="text-xs">SHOPIFY_API_KEY</code> is on Railway.
           </p>
         </div>
       )}
@@ -529,7 +546,10 @@ export default function IntegrationsContent() {
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   onClick={() => (int.connected ? disconnect(int.id) : handleConnect(int.id))}
-                  disabled={oauthLoadingId === int.id || (!int.connected && apiMeta[int.id]?.server_ready === false)}
+                  disabled={
+                    oauthLoadingId === int.id
+                    || (!int.connected && apiMeta[int.id]?.server_ready === false && !isShopifyConnect(int.id))
+                  }
                   className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white disabled:opacity-60")}
                 >
                   <Plug size={14} />
@@ -556,20 +576,39 @@ export default function IntegrationsContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className="w-full max-w-md p-6 rounded-2xl bg-surface border border-border">
             <h3 className="font-bold text-lg mb-2">Connect Shopify store</h3>
-            <p className="text-sm text-text-2 mb-4">Enter your store domain to authorize Nexa.</p>
+            <p className="text-sm text-text-2 mb-4">
+              Enter your store domain. Use <strong>Admin API token</strong> (works now) or one-click OAuth when Railway is configured.
+            </p>
             <input
               value={shopDomain}
               onChange={(e) => setShopDomain(e.target.value)}
               placeholder="mystore or mystore.myshopify.com"
+              className="w-full px-4 py-3 rounded-xl bg-void border border-border mb-3"
+            />
+            <input
+              value={shopifyAdminToken}
+              onChange={(e) => setShopifyAdminToken(e.target.value)}
+              placeholder="Admin API token (shpat_...) — recommended for now"
               className="w-full px-4 py-3 rounded-xl bg-void border border-border mb-4"
             />
-            <div className="flex gap-2">
-              <button onClick={() => setShopifyModal(false)} className="flex-1 py-2 rounded-xl border border-border">Cancel</button>
+            <div className="flex flex-col gap-2">
               <button
-                onClick={() => { setShopifyModal(false); void connectShopify(); }}
-                className="flex-1 py-2 rounded-xl bg-accent text-white font-medium"
+                onClick={() => void connectShopifyToken()}
+                className="w-full py-2.5 rounded-xl bg-accent text-white font-medium"
               >
-                Continue
+                Connect with Admin token
+              </button>
+              {isServerReady("shopify") && (
+                <button
+                  onClick={() => void connectShopifyOAuth()}
+                  disabled={oauthLoadingId === "shopify"}
+                  className="w-full py-2.5 rounded-xl border border-border font-medium disabled:opacity-60"
+                >
+                  {oauthLoadingId === "shopify" ? "Redirecting…" : "One-click OAuth"}
+                </button>
+              )}
+              <button onClick={() => setShopifyModal(false)} className="w-full py-2 rounded-xl text-text-2 text-sm">
+                Cancel
               </button>
             </div>
           </div>

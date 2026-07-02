@@ -17,7 +17,7 @@ from app.services.integrations.providers import parse_config
 def _server_oauth_ready(auth_type: str) -> bool:
     if auth_type == "google_oauth":
         return bool(settings.google_client_id.strip() and settings.google_client_secret.strip())
-    if auth_type == "shopify_oauth":
+    if auth_type == "shopify_oauth" or auth_type == "shopify_hybrid":
         return settings.shopify_oauth_ready
     if auth_type == "quickbooks_oauth":
         return bool(settings.intuit_client_id.strip() and settings.intuit_client_secret.strip())
@@ -37,7 +37,7 @@ CATALOG = [
     {"id": "notion", "name": "Notion", "category": "operations", "description": "Create pages & docs", "needs_key": True, "auth_type": "api_key", "key_hint": "Integration token (secret_...)", "config_fields": ["database_id"]},
     {"id": "quickbooks", "name": "QuickBooks", "category": "finance", "description": "One-click Intuit connect — live P&L and expenses", "needs_key": False, "auth_type": "quickbooks_oauth", "key_hint": "", "config_fields": []},
     {"id": "linkedin", "name": "LinkedIn", "category": "hr", "description": "Hiring & B2B outreach", "needs_key": True, "auth_type": "api_key", "key_hint": "LinkedIn access token", "config_fields": []},
-    {"id": "shopify", "name": "Shopify", "category": "finance", "description": "One-click connect — orders, products, customers, inventory, fulfillments", "needs_key": False, "auth_type": "shopify_oauth", "key_hint": "", "config_fields": []},
+    {"id": "shopify", "name": "Shopify", "category": "finance", "description": "Connect store — OAuth one-click or Admin API token (shpat_...)", "needs_key": False, "auth_type": "shopify_hybrid", "key_hint": "shpat_... Admin API access token", "config_fields": ["shop_domain"]},
     {"id": "mcp", "name": "MCP Servers", "category": "automation", "description": "Model Context Protocol tools", "needs_key": True, "auth_type": "webhook", "key_hint": "MCP server URL", "config_fields": []},
 ]
 
@@ -138,11 +138,35 @@ async def connect_integration(
             return {"status": "connected", "id": integration_id, "message": "Settings saved"}
         raise HTTPException(status_code=400, detail="Use Connect with Google button for this integration")
 
-    if catalog_item["auth_type"] in ("shopify_oauth", "quickbooks_oauth"):
+    if catalog_item["auth_type"] == "quickbooks_oauth":
         raise HTTPException(
             status_code=400,
             detail=f"Use the Connect with {catalog_item['name']} button for this integration",
         )
+
+    if catalog_item["auth_type"] == "shopify_hybrid":
+        key = body.api_key.strip()
+        config = body.config or {}
+        shop_domain = str(config.get("shop_domain", "")).strip()
+        if not key or not shop_domain:
+            raise HTTPException(
+                status_code=400,
+                detail="Shop domain + Admin API token required (shpat_...). Or use Connect store when OAuth is configured on Railway.",
+            )
+        config_json = json.dumps(config)
+        ok, message = await verify_integration(integration_id, key, config_json)
+        if not ok:
+            raise HTTPException(status_code=400, detail=message)
+        conn = await _get_conn(db, user.id, integration_id)
+        if not conn:
+            conn = IntegrationConnection(user_id=user.id, integration_id=integration_id)
+            db.add(conn)
+        conn.connected = True
+        conn.api_key = key
+        conn.config_json = config_json
+        conn.connected_at = datetime.now(timezone.utc)
+        await db.commit()
+        return {"status": "connected", "id": integration_id, "message": message}
 
     key = body.api_key.strip()
     config = body.config or {}

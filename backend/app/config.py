@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +27,9 @@ SHOPIFY_SECRET_ENV_NAMES = (
     "SHOPIFY_CLIENT_SECRET",
     "SHOPIFY_SECRET",
 )
+
+
+def _normalize_postgres_url(url: str) -> str:
     url = url.strip()
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+asyncpg://", 1)
@@ -116,16 +119,9 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/google/callback"
     frontend_url: str = "https://yevinb.github.io/operator-os"
 
-    # Shopify OAuth (one-click connect store)
-    # Railway: SHOPIFY_API_KEY + SHOPIFY_API_SECRET (aliases: SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET)
-    shopify_api_key: str = Field(
-        default="",
-        validation_alias=AliasChoices("SHOPIFY_API_KEY", "SHOPIFY_CLIENT_ID"),
-    )
-    shopify_api_secret: str = Field(
-        default="",
-        validation_alias=AliasChoices("SHOPIFY_API_SECRET", "SHOPIFY_CLIENT_SECRET"),
-    )
+    # Shopify OAuth (one-click connect store) — also reads os.environ directly as fallback
+    shopify_api_key: str = ""
+    shopify_api_secret: str = ""
     shopify_redirect_uri: str = "https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/shopify/callback"
 
     # QuickBooks / Intuit OAuth
