@@ -6,9 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -17,10 +15,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -40,9 +35,6 @@ jobs:
           URL="${{ secrets.RAILWAY_API_URL }}"
           if [ -n "$URL" ]; then
             echo "{\"apiUrl\":\"$URL\"}" > public/api-config.json
-            echo "API URL configured from secret"
-          else
-            echo "No RAILWAY_API_URL secret — using api-config.json from repo"
           fi
 
       - name: Build static site
@@ -53,9 +45,11 @@ jobs:
           NEXT_PUBLIC_DEMO_MODE: "false"
           NEXT_PUBLIC_API_URL: ${{ secrets.RAILWAY_API_URL }}
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: frontend/out
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: frontend/out
+          publish_branch: gh-pages
+          force_orphan: true
+          cname: false

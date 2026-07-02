@@ -421,7 +421,7 @@ export default function IntegrationsContent() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-1">Integrations</h1>
-          <p className="text-text-2 text-sm">One-click OAuth for Google, Shopify, QuickBooks — or API keys for Stripe, Slack, HubSpot, and more.</p>
+          <p className="text-text-2 text-sm">Connect your tools — Stripe, Slack, Shopify, Gmail, and more.</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-accent">{connected}</p>
