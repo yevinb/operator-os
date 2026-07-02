@@ -21,10 +21,10 @@ const ICON_192 = assetPath("/icons/icon-192x192.png");
 const APPLE_ICON = assetPath("/icons/apple-touch-icon.png");
 
 export const metadata: Metadata = {
-  title: "Nexa v3 — Your AI Operating System",
+  title: "Brain — Learns your business every day",
   description:
-    "One outcome. Nexa runs your business — niche modes, marketing plans, dice ideas, daily check-ins. Not a chatbot.",
-  keywords: ["AI COO", "business automation", "autonomous AI", "Nexa"],
+    "Introducing Brain. It learns your business every day so your marketing team can make better decisions.",
+  keywords: ["Brain", "marketing AI", "Shopify", "business decisions"],
   metadataBase: new URL("https://yevinb.github.io/operator-os/"),
   alternates: {
     canonical: "/",

@@ -203,11 +203,7 @@ export function NexaBrain() {
           <div className="space-y-4 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-1.5 text-gold text-sm font-semibold">
-                <Brain size={18} /> Nexa Brain
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-success/15 text-success text-[10px] font-bold border border-success/30 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                24/7 ACTIVE
+                <Brain size={18} /> Brain
               </span>
             </div>
             <h1 className="text-3xl md:text-5xl font-black text-white leading-[1.05]">
@@ -215,7 +211,7 @@ export function NexaBrain() {
             </h1>
             <p className="text-text-2 text-sm md:text-base leading-relaxed">
               {status?.tagline ||
-                "Your second marketing brain. Unified data, history, and context — then magic employees execute."}
+                "So your marketing team can make better decisions — one clear action each morning."}
             </p>
             {status && (
               <div className="flex flex-wrap gap-2 text-xs">

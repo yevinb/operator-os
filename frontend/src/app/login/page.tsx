@@ -132,8 +132,8 @@ function LoginContent() {
         </div>
 
         <div className="p-8 rounded-2xl bg-surface border border-border">
-          <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
-          <p className="text-text-2 text-sm mb-6">Sign in with Google or email. You&apos;ll stay signed in on this device.</p>
+          <h1 className="text-2xl font-bold mb-1">Sign in to Brain</h1>
+          <p className="text-text-2 text-sm mb-6">Connect your tools. Get better marketing decisions every day.</p>
 
           <label className="flex items-center gap-2 text-sm text-text-2 cursor-pointer select-none mb-4">
             <input

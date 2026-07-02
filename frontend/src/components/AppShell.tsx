@@ -5,16 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Brain,
-  LayoutDashboard,
-  Activity,
   Plug,
-  CreditCard,
   Settings,
   LogOut,
   Menu,
-  FileText,
-  MessageCircle,
-  Building2,
 } from "lucide-react";
 import { getSession, getToken, clearSession, validateSession, hasCompletedOnboardingLocally } from "@/lib/auth";
 import type { User } from "@/lib/types";
@@ -25,13 +19,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", icon: Brain, label: "Brain" },
-  { href: "/dashboard/chat", icon: MessageCircle, label: "Nexa Chat" },
-  { href: "/dashboard/business", icon: Building2, label: "Business Hub" },
-  { href: "/dashboard/command", icon: LayoutDashboard, label: "Command Center" },
-  { href: "/dashboard/plan", icon: FileText, label: "Marketing Plan" },
-  { href: "/dashboard/activity", icon: Activity, label: "Activity Log" },
-  { href: "/dashboard/integrations", icon: Plug, label: "Integrations" },
-  { href: "/dashboard/billing", icon: CreditCard, label: "Billing" },
+  { href: "/dashboard/integrations", icon: Plug, label: "Connect" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -157,12 +145,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <div className="flex items-center gap-2 ml-auto">
             <BackendStatus />
-            <span className="px-2 py-1 text-xs rounded-full bg-success/10 text-success border border-success/20 capitalize">
-              {user.plan} plan
-            </span>
-            <span className="px-2 py-1 text-xs rounded-full bg-accent/10 text-accent border border-accent/20">
-              AI Active
-            </span>
           </div>
         </header>
         <main className="flex-1">{children}</main>

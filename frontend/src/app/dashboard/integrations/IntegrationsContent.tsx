@@ -420,8 +420,8 @@ export default function IntegrationsContent() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold mb-1">Integrations</h1>
-          <p className="text-text-2 text-sm">Connect your tools — Stripe, Shopify, Gmail, Slack, and more.</p>
+          <h1 className="text-2xl font-bold mb-1">Connect your tools</h1>
+          <p className="text-text-2 text-sm">Plug in Shopify, Stripe, Gmail — Brain learns from your live data.</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-accent">{connected}</p>

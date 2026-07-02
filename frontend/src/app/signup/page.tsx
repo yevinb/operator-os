@@ -69,8 +69,8 @@ export default function SignupPage() {
         </div>
 
         <div className="p-8 rounded-2xl bg-surface border border-border">
-          <h1 className="text-2xl font-bold mb-1">Start your AI COO</h1>
-          <p className="text-text-2 text-sm mb-6">Creates a real account on our server</p>
+          <h1 className="text-2xl font-bold mb-1">Get your Brain</h1>
+          <p className="text-text-2 text-sm mb-6">Free during beta. Learns your business every day.</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <input
