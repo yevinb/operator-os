@@ -6,11 +6,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,11 +34,11 @@ jobs:
           npm run build:pages
           touch out/.nojekyll
 
-      - name: Publish to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./frontend/out
-          publish_branch: gh-pages
-          force_orphan: true
-          enable_jekyll: false
+          path: frontend/out
+
+      - id: pages
+        uses: actions/deploy-pages@v4
