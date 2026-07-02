@@ -76,7 +76,13 @@ from app.services.ai_clients import active_provider_name
 
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(status="ok", ai_provider=active_provider_name(), version="3.0.0")
+    return HealthResponse(
+        status="ok",
+        ai_provider=active_provider_name(),
+        version="3.0.0",
+        shopify_oauth_ready=settings.shopify_oauth_ready,
+        google_oauth_ready=settings.google_oauth_ready,
+    )
 
 
 @app.post("/api/v1/command", response_model=CommandResponse)

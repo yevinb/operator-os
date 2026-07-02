@@ -6,11 +6,24 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.db_models import IntegrationConnection, User
 from app.deps import get_current_user
 from app.services.integration_verify import verify_integration
 from app.services.integrations.providers import parse_config
+
+
+def _server_oauth_ready(auth_type: str) -> bool:
+    if auth_type == "google_oauth":
+        return bool(settings.google_client_id.strip() and settings.google_client_secret.strip())
+    if auth_type == "shopify_oauth":
+        return bool(settings.shopify_api_key.strip() and settings.shopify_api_secret.strip())
+    if auth_type == "quickbooks_oauth":
+        return bool(settings.intuit_client_id.strip() and settings.intuit_client_secret.strip())
+    if auth_type == "google_ads":
+        return bool(settings.google_client_id.strip() and settings.google_client_secret.strip())
+    return True
 
 CATALOG = [
     {"id": "stripe", "name": "Stripe", "category": "finance", "description": "Live revenue, balance & customers", "needs_key": True, "auth_type": "api_key", "key_hint": "sk_test_... or sk_live_...", "config_fields": []},
@@ -48,6 +61,15 @@ class IntegrationOut(BaseModel):
     auth_type: str
     key_hint: str
     config_fields: list[str]
+    server_ready: bool = True
+
+
+class OAuthServerStatusOut(BaseModel):
+    google: bool
+    shopify: bool
+    quickbooks: bool
+    shopify_redirect_uri: str
+    google_oauth_redirect_uri: str
 
 
 class IntegrationTestOut(BaseModel):
@@ -55,6 +77,18 @@ class IntegrationTestOut(BaseModel):
     connected: bool
     ok: bool
     message: str
+
+
+@router.get("/oauth-server-status", response_model=OAuthServerStatusOut)
+async def oauth_server_status():
+    """Public check — whether platform OAuth env vars are set on Railway."""
+    return OAuthServerStatusOut(
+        google=bool(settings.google_client_id.strip() and settings.google_client_secret.strip()),
+        shopify=bool(settings.shopify_api_key.strip() and settings.shopify_api_secret.strip()),
+        quickbooks=bool(settings.intuit_client_id.strip() and settings.intuit_client_secret.strip()),
+        shopify_redirect_uri=settings.shopify_oauth_redirect_uri,
+        google_oauth_redirect_uri=settings.google_oauth_redirect_uri,
+    )
 
 
 @router.get("", response_model=list[IntegrationOut])
@@ -75,6 +109,7 @@ async def list_integrations(user: User = Depends(get_current_user), db: AsyncSes
             auth_type=item["auth_type"],
             key_hint=item["key_hint"],
             config_fields=item["config_fields"],
+            server_ready=_server_oauth_ready(item["auth_type"]),
         )
         for item in CATALOG
     ]

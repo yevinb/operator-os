@@ -172,9 +172,9 @@ export async function validateSession(): Promise<User | null> {
         clearSession();
         return null;
       }
-      // User wiped server-side but token still valid — keep cached UI until they sign in again.
       if (detail.includes("user not found")) {
-        return cached;
+        clearSession();
+        return null;
       }
       clearSession();
       return null;

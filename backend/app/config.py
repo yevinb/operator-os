@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic import AliasChoices, Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _normalize_postgres_url(url: str) -> str:
@@ -31,6 +31,12 @@ def _default_database_url() -> str:
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
     app_name: str = "Nexa"
     debug: bool = False
     cors_origins: list[str] = [
@@ -90,8 +96,15 @@ class Settings(BaseSettings):
     frontend_url: str = "https://yevinb.github.io/operator-os"
 
     # Shopify OAuth (one-click connect store)
-    shopify_api_key: str = ""
-    shopify_api_secret: str = ""
+    # Railway: SHOPIFY_API_KEY + SHOPIFY_API_SECRET (aliases: SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET)
+    shopify_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("SHOPIFY_API_KEY", "SHOPIFY_CLIENT_ID"),
+    )
+    shopify_api_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("SHOPIFY_API_SECRET", "SHOPIFY_CLIENT_SECRET"),
+    )
     shopify_redirect_uri: str = "https://operator-os-production-2a8a.up.railway.app/api/v1/oauth/shopify/callback"
 
     # QuickBooks / Intuit OAuth
@@ -128,8 +141,13 @@ class Settings(BaseSettings):
         uri = (self.google_redirect_uri or "").strip()
         return uri.replace("/api/v1/oauth/google/callback", "/api/v1/auth/google/callback")
 
-    class Config:
-        env_file = ".env"
+    @property
+    def shopify_oauth_ready(self) -> bool:
+        return bool(self.shopify_api_key.strip() and self.shopify_api_secret.strip())
+
+    @property
+    def google_oauth_ready(self) -> bool:
+        return bool(self.google_client_id.strip() and self.google_client_secret.strip())
 
 
 settings = Settings()

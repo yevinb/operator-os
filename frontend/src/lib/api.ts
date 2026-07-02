@@ -1,7 +1,7 @@
 import type { BusinessMetrics, CommandResponse } from "./types";
 import { demoExecuteCommand } from "./demo";
 import { getBusinessContext } from "./business-context";
-import { getToken } from "./auth";
+import { clearSession, getToken, isAuthError } from "./auth";
 import { getApiUrlSync, initApiConfig } from "./api-config";
 
 const FETCH_TIMEOUT_MS = 20000;
@@ -184,7 +184,16 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { detail?: string }).detail || `API error ${res.status}`);
+    const detail = String((err as { detail?: string }).detail || `API error ${res.status}`);
+    if (res.status === 401 && isAuthError(detail)) {
+      clearSession();
+      throw new Error(
+        detail.toLowerCase().includes("user not found")
+          ? "Session expired — please sign in again."
+          : detail
+      );
+    }
+    throw new Error(detail);
   }
   return res.json();
 }

@@ -20,6 +20,7 @@ type ApiIntegration = {
   auth_type: string;
   key_hint: string;
   config_fields: string[];
+  server_ready?: boolean;
 };
 
 type IntegrationTestResult = {
@@ -106,9 +107,24 @@ export default function IntegrationsContent() {
   const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
   const [testAllLoading, setTestAllLoading] = useState(false);
+  const [oauthServerStatus, setOauthServerStatus] = useState<{
+    shopify: boolean;
+    google: boolean;
+    quickbooks: boolean;
+  } | null>(null);
 
   const loadFromApi = async () => {
     if (!(await hasApiConfigured())) return;
+    try {
+      const status = await apiFetch<{
+        shopify: boolean;
+        google: boolean;
+        quickbooks: boolean;
+      }>("/api/v1/integrations/oauth-server-status");
+      setOauthServerStatus(status);
+    } catch {
+      setOauthServerStatus(null);
+    }
     try {
       const list = await apiFetch<ApiIntegration[]>("/api/v1/integrations");
       const meta: Record<string, ApiIntegration> = { ...FALLBACK_META };
@@ -220,7 +236,15 @@ export default function IntegrationsContent() {
       if (!res.url) throw new Error("No Shopify OAuth URL returned");
       window.location.href = res.url;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Shopify OAuth not configured on server");
+      const msg = e instanceof Error ? e.message : "Shopify OAuth not configured on server";
+      setError(
+        msg.toLowerCase().includes("session expired") || msg.toLowerCase().includes("sign in")
+          ? "Session expired — sign in again, then connect Shopify."
+          : msg
+      );
+      if (msg.toLowerCase().includes("sign in")) {
+        setTimeout(() => router.push("/login"), 2000);
+      }
       setOauthLoadingId(null);
     }
   };
@@ -346,7 +370,12 @@ export default function IntegrationsContent() {
     return meta?.auth_type === "quickbooks_oauth" || QUICKBOOKS_OAUTH_IDS.has(id);
   };
 
+  const isServerReady = (id: string) => apiMeta[id]?.server_ready !== false;
+
   const connectLabel = (id: string) => {
+    if (!isServerReady(id) && (isGoogleOAuth(id) || isGoogleAdsOAuth(id) || isShopifyOAuth(id) || isQuickBooksOAuth(id))) {
+      return "Not on server";
+    }
     if (isGoogleOAuth(id)) return "Connect with Google";
     if (isGoogleAdsOAuth(id)) return "Connect with Google";
     if (isShopifyOAuth(id)) return "Connect store";
@@ -392,6 +421,20 @@ export default function IntegrationsContent() {
             Anyone can <strong>sign in</strong> with Google. Connecting <strong>Gmail</strong> uses sensitive permissions —
             until Google verifies this app, only <strong>test users</strong> added in Google Cloud Console can connect.
             Add their email under Google Auth Platform → Audience → Test users, or submit for verification before a public launch.
+          </p>
+        </div>
+      )}
+
+      {oauthServerStatus && !oauthServerStatus.shopify && (
+        <div className="mb-6 p-4 rounded-xl bg-warning/10 border border-warning/30 text-sm text-text-2">
+          <p className="font-medium text-warning mb-1">Shopify OAuth not configured on Railway</p>
+          <p>
+            Create app <strong>Nexa</strong> in{" "}
+            <a href="https://dev.shopify.com" target="_blank" rel="noreferrer" className="text-accent underline">
+              Shopify Dev Dashboard
+            </a>
+            , then set <code className="text-xs">SHOPIFY_API_KEY</code>, <code className="text-xs">SHOPIFY_API_SECRET</code>, and{" "}
+            <code className="text-xs">SHOPIFY_REDIRECT_URI</code> on Railway. Nexa does not use <code className="text-xs">npm init @shopify/app</code> — OAuth is already built in.
           </p>
         </div>
       )}
@@ -451,6 +494,9 @@ export default function IntegrationsContent() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">{int.name}</h3>
                     {int.connected && <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success"><Check size={10} className="inline" /> Live</span>}
+                    {!int.connected && apiMeta[int.id]?.server_ready === false && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">Railway setup needed</span>
+                    )}
                     {testResults[int.id] && (
                       <span
                         className={cn(
@@ -483,7 +529,7 @@ export default function IntegrationsContent() {
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   onClick={() => (int.connected ? disconnect(int.id) : handleConnect(int.id))}
-                  disabled={oauthLoadingId === int.id}
+                  disabled={oauthLoadingId === int.id || (!int.connected && apiMeta[int.id]?.server_ready === false)}
                   className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white disabled:opacity-60")}
                 >
                   <Plug size={14} />

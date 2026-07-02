@@ -43,8 +43,8 @@ Commit and push.
 | `GOOGLE_CLIENT_ID` | from Google Cloud Console |
 | `GOOGLE_CLIENT_SECRET` | from Google Cloud Console |
 | `GOOGLE_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/google/callback` |
-| `SHOPIFY_API_KEY` | Shopify app API key (Custom app → Client ID) |
-| `SHOPIFY_API_SECRET` | Shopify app API secret |
+| `SHOPIFY_API_KEY` | Dev Dashboard → **Client ID** (alias: `SHOPIFY_CLIENT_ID`) |
+| `SHOPIFY_API_SECRET` | Dev Dashboard → **Client secret** (alias: `SHOPIFY_CLIENT_SECRET`) |
 | `SHOPIFY_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/shopify/callback` |
 | `INTUIT_CLIENT_ID` | QuickBooks / Intuit app Client ID |
 | `INTUIT_CLIENT_SECRET` | Intuit Client Secret |
@@ -143,3 +143,10 @@ Google does **not** use GitHub ownership. It uses **Google Search Console** with
 2. Sign up / log in
 3. Dashboard → **Backend online** in header
 4. Run a command — uses Railway + your business profile
+
+## 7. Shopify (optional)
+
+Full step-by-step: **[SHOPIFY.md](./SHOPIFY.md)** — use **Dev Dashboard** at [dev.shopify.com](https://dev.shopify.com), not `npm init @shopify/app@latest` (Nexa OAuth is already built in).
+
+Check Railway keys: `GET /api/v1/health` → `"shopify_oauth_ready": true`  
+Or: `GET /api/v1/integrations/oauth-server-status` → `"shopify": true`

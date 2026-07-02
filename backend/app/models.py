@@ -59,3 +59,5 @@ class HealthResponse(BaseModel):
     status: str
     ai_provider: str
     version: str = "2.0.0"
+    shopify_oauth_ready: bool = False
+    google_oauth_ready: bool = False
