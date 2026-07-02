@@ -45,7 +45,7 @@ async def shopify_oauth_start(
     if not settings.resolved_shopify_api_key or not settings.resolved_shopify_api_secret:
         raise HTTPException(
             status_code=503,
-            detail="Shopify OAuth not configured. Set SHOPIFY_API_KEY and SHOPIFY_API_SECRET on Railway.",
+            detail="Shopify connect is not available right now. Please try again shortly.",
         )
     domain = normalize_shop_domain(shop)
     if not domain:

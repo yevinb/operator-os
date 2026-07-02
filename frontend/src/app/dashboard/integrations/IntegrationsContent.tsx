@@ -104,8 +104,7 @@ export default function IntegrationsContent() {
   const [googleAdsDevToken, setGoogleAdsDevToken] = useState("");
   const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState("");
   const [shopifyModal, setShopifyModal] = useState(false);
-  const [shopifyAdminToken, setShopifyAdminToken] = useState("");
-  const [showShopifyHelp, setShowShopifyHelp] = useState(false);
+  const [shopifyModalError, setShopifyModalError] = useState("");
   const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
   const [testAllLoading, setTestAllLoading] = useState(false);
@@ -230,38 +229,25 @@ export default function IntegrationsContent() {
       return;
     }
     setOauthLoadingId("shopify");
-    setError("");
+    setShopifyModalError("");
     try {
       const res = await apiFetch<{ url: string }>(
         `/api/v1/oauth/shopify/start?shop=${encodeURIComponent(shop)}`
       );
-      if (!res.url) throw new Error("No Shopify OAuth URL returned");
+      if (!res.url) throw new Error("Could not connect to Shopify.");
       window.location.href = res.url;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Shopify OAuth not configured on server";
-      setError(
-        msg.toLowerCase().includes("session expired") || msg.toLowerCase().includes("sign in")
-          ? "Please sign in again, then try connecting your store."
-          : "We couldn't open Shopify automatically. Tap “Need help connecting?” below."
+      const msg = e instanceof Error ? e.message : "Could not connect to Shopify.";
+      setShopifyModalError(
+        msg.toLowerCase().includes("sign in") || msg.toLowerCase().includes("session")
+          ? "Please sign in again, then try connecting."
+          : "Could not connect right now. Check your store URL and try again."
       );
       if (msg.toLowerCase().includes("sign in")) {
         setTimeout(() => router.push("/login"), 2000);
       }
       setOauthLoadingId(null);
     }
-  };
-
-  const connectShopifyToken = async () => {
-    const shop = shopDomain.trim();
-    const token = shopifyAdminToken.trim();
-    if (!shop || !token) {
-      setError("Enter your store name and connection key.");
-      return;
-    }
-    setShopifyModal(false);
-    setShowShopifyHelp(false);
-    await doConnect("shopify", token, { shop_domain: shop });
-    setShopifyAdminToken("");
   };
 
   const connectShopifySimple = async () => {
@@ -271,32 +257,21 @@ export default function IntegrationsContent() {
     }
     const shop = shopDomain.trim();
     if (!shop) {
-      setError("Enter your store name.");
+      setShopifyModalError("Enter your store URL.");
       return;
     }
-    if (shopifyAdminToken.trim()) {
-      await connectShopifyToken();
-      return;
-    }
-    if (isServerReady("shopify")) {
-      await connectShopifyOAuth();
-      return;
-    }
-    setShowShopifyHelp(true);
-    setError("Almost there — add your connection key from Shopify (see steps below).");
+    await connectShopifyOAuth();
   };
 
   const openShopifyModal = () => {
     setShopifyModal(true);
-    setShowShopifyHelp(false);
-    setShopifyAdminToken("");
+    setShopifyModalError("");
     setError("");
   };
 
   const closeShopifyModal = () => {
     setShopifyModal(false);
-    setShowShopifyHelp(false);
-    setShopifyAdminToken("");
+    setShopifyModalError("");
   };
 
   const connectQuickBooks = async () => {
@@ -594,58 +569,27 @@ export default function IntegrationsContent() {
       {shopifyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className="w-full max-w-md p-6 rounded-2xl bg-surface border border-border">
-            <h3 className="font-bold text-lg mb-1">Connect your Shopify store</h3>
-            <p className="text-sm text-text-2 mb-4">
-              Nexa will sync your orders and sales so your Brain gives real advice.
-            </p>
-            <label className="text-xs text-text-3 mb-1 block">Store name</label>
+            <h3 className="font-bold text-lg mb-4">Connect your Shopify store</h3>
             <input
               value={shopDomain}
               onChange={(e) => setShopDomain(e.target.value)}
-              placeholder="e.g. coolbrand"
+              placeholder="yourstore.myshopify.com"
               className="w-full px-4 py-3 rounded-xl bg-void border border-border mb-3"
+              autoFocus
             />
-            <p className="text-xs text-text-3 mb-4">
-              This is the name before <span className="text-text-2">.myshopify.com</span> in your Shopify admin URL.
-            </p>
-            {showShopifyHelp && (
-              <div className="mb-4 p-3 rounded-xl bg-void border border-border text-sm text-text-2 space-y-2">
-                <p className="font-medium text-text-1">Need a connection key?</p>
-                <ol className="list-decimal list-inside space-y-1 text-xs">
-                  <li>Shopify Admin → Settings → Apps and sales channels</li>
-                  <li>Develop apps → Create an app → Install</li>
-                  <li>Copy the access token and paste it below</li>
-                </ol>
-                <input
-                  value={shopifyAdminToken}
-                  onChange={(e) => setShopifyAdminToken(e.target.value)}
-                  placeholder="Paste connection key"
-                  className="w-full px-4 py-3 rounded-xl bg-surface border border-border mt-2"
-                />
-              </div>
+            {shopifyModalError && (
+              <p className="text-sm text-danger mb-3">{shopifyModalError}</p>
             )}
-            {error && shopifyModal && (
-              <p className="text-sm text-danger mb-3">{error}</p>
-            )}
-            <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <button onClick={closeShopifyModal} className="flex-1 py-2.5 rounded-xl border border-border text-text-2">
+                Cancel
+              </button>
               <button
                 onClick={() => void connectShopifySimple()}
                 disabled={oauthLoadingId === "shopify"}
-                className="w-full py-2.5 rounded-xl bg-accent text-white font-medium disabled:opacity-60"
+                className="flex-1 py-2.5 rounded-xl bg-accent text-white font-medium disabled:opacity-60"
               >
-                {oauthLoadingId === "shopify" ? "Opening Shopify…" : "Connect store"}
-              </button>
-              {!showShopifyHelp && (
-                <button
-                  type="button"
-                  onClick={() => setShowShopifyHelp(true)}
-                  className="w-full py-2 text-sm text-text-2 hover:text-text-1"
-                >
-                  Need help connecting?
-                </button>
-              )}
-              <button onClick={closeShopifyModal} className="w-full py-2 rounded-xl text-text-2 text-sm">
-                Cancel
+                {oauthLoadingId === "shopify" ? "Connecting…" : "Connect"}
               </button>
             </div>
           </div>
