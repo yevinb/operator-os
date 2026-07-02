@@ -225,7 +225,7 @@ export default function IntegrationsContent() {
     }
     const shop = shopDomain.trim();
     if (!shop) {
-      setError("Enter your store domain first.");
+      setShopifyModalError("Enter your store URL.");
       return;
     }
     setOauthLoadingId("shopify");
