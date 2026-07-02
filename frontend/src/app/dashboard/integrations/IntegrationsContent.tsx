@@ -55,7 +55,7 @@ const FALLBACK_META: Record<string, ApiIntegration> = {
   notion: { id: "notion", name: "Notion", category: "operations", description: "Create pages & docs", connected: false, needs_key: true, auth_type: "api_key", key_hint: "Integration token (secret_...)", config_fields: ["database_id"] },
   quickbooks: { id: "quickbooks", name: "QuickBooks", category: "finance", description: "One-click Intuit connect — live P&L and expenses", connected: false, needs_key: false, auth_type: "quickbooks_oauth", key_hint: "", config_fields: [] },
   linkedin: { id: "linkedin", name: "LinkedIn", category: "hr", description: "Hiring & B2B outreach", connected: false, needs_key: true, auth_type: "api_key", key_hint: "LinkedIn access token", config_fields: [] },
-  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "Connect store — OAuth or Admin API token", connected: false, needs_key: false, auth_type: "shopify_hybrid", key_hint: "shpat_... Admin API access token", config_fields: ["shop_domain"] },
+  shopify: { id: "shopify", name: "Shopify", category: "finance", description: "Sync orders, customers, and store revenue", connected: false, needs_key: false, auth_type: "shopify_hybrid", key_hint: "Connection key from Shopify", config_fields: ["shop_domain"] },
   mcp: { id: "mcp", name: "MCP Servers", category: "automation", description: "Model Context Protocol tools", connected: false, needs_key: true, auth_type: "webhook", key_hint: "MCP server URL", config_fields: [] },
 };
 
@@ -105,6 +105,7 @@ export default function IntegrationsContent() {
   const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState("");
   const [shopifyModal, setShopifyModal] = useState(false);
   const [shopifyAdminToken, setShopifyAdminToken] = useState("");
+  const [showShopifyHelp, setShowShopifyHelp] = useState(false);
   const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, IntegrationTestResult>>({});
   const [testAllLoading, setTestAllLoading] = useState(false);
@@ -240,10 +241,8 @@ export default function IntegrationsContent() {
       const msg = e instanceof Error ? e.message : "Shopify OAuth not configured on server";
       setError(
         msg.toLowerCase().includes("session expired") || msg.toLowerCase().includes("sign in")
-          ? "Session expired — sign in again, then connect Shopify."
-          : msg.toLowerCase().includes("not configured")
-            ? "OAuth not on Railway yet — use Admin API token (shpat_...) in the box below instead."
-            : msg
+          ? "Please sign in again, then try connecting your store."
+          : "We couldn't open Shopify automatically. Tap “Need help connecting?” below."
       );
       if (msg.toLowerCase().includes("sign in")) {
         setTimeout(() => router.push("/login"), 2000);
@@ -256,17 +255,48 @@ export default function IntegrationsContent() {
     const shop = shopDomain.trim();
     const token = shopifyAdminToken.trim();
     if (!shop || !token) {
-      setError("Store domain + Admin API token (shpat_...) required.");
+      setError("Enter your store name and connection key.");
       return;
     }
     setShopifyModal(false);
+    setShowShopifyHelp(false);
     await doConnect("shopify", token, { shop_domain: shop });
     setShopifyAdminToken("");
   };
 
+  const connectShopifySimple = async () => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    const shop = shopDomain.trim();
+    if (!shop) {
+      setError("Enter your store name.");
+      return;
+    }
+    if (shopifyAdminToken.trim()) {
+      await connectShopifyToken();
+      return;
+    }
+    if (isServerReady("shopify")) {
+      await connectShopifyOAuth();
+      return;
+    }
+    setShowShopifyHelp(true);
+    setError("Almost there — add your connection key from Shopify (see steps below).");
+  };
+
   const openShopifyModal = () => {
     setShopifyModal(true);
+    setShowShopifyHelp(false);
+    setShopifyAdminToken("");
     setError("");
+  };
+
+  const closeShopifyModal = () => {
+    setShopifyModal(false);
+    setShowShopifyHelp(false);
+    setShopifyAdminToken("");
   };
 
   const connectQuickBooks = async () => {
@@ -432,7 +462,7 @@ export default function IntegrationsContent() {
       </div>
 
       {success && <div className="mb-4 p-4 rounded-xl bg-success/10 border border-success/30 text-success text-sm">{success}</div>}
-      {error && !keyModal && <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
+      {error && !keyModal && !shopifyModal && <div className="mb-4 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">{error}</div>}
 
       {!gmailConnected && (
         <div className="mb-6 p-4 rounded-xl bg-warning/10 border border-warning/30 text-sm text-text-2">
@@ -441,17 +471,6 @@ export default function IntegrationsContent() {
             Anyone can <strong>sign in</strong> with Google. Connecting <strong>Gmail</strong> uses sensitive permissions —
             until Google verifies this app, only <strong>test users</strong> added in Google Cloud Console can connect.
             Add their email under Google Auth Platform → Audience → Test users, or submit for verification before a public launch.
-          </p>
-        </div>
-      )}
-
-      {oauthServerStatus && !oauthServerStatus.shopify && (
-        <div className="mb-6 p-4 rounded-xl bg-warning/10 border border-warning/30 text-sm text-text-2">
-          <p className="font-medium text-warning mb-1">Shopify OAuth not on Railway yet</p>
-          <p>
-            You can still connect now: click <strong>Connect store</strong> → paste your store&apos;s{" "}
-            <strong>Admin API token</strong> (<code className="text-xs">shpat_...</code>) from Shopify Admin → Settings → Apps → Develop apps.
-            One-click OAuth for all merchants works once <code className="text-xs">SHOPIFY_API_KEY</code> is on Railway.
           </p>
         </div>
       )}
@@ -575,39 +594,57 @@ export default function IntegrationsContent() {
       {shopifyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
           <div className="w-full max-w-md p-6 rounded-2xl bg-surface border border-border">
-            <h3 className="font-bold text-lg mb-2">Connect Shopify store</h3>
+            <h3 className="font-bold text-lg mb-1">Connect your Shopify store</h3>
             <p className="text-sm text-text-2 mb-4">
-              Enter your store domain. Use <strong>Admin API token</strong> (works now) or one-click OAuth when Railway is configured.
+              Nexa will sync your orders and sales so your Brain gives real advice.
             </p>
+            <label className="text-xs text-text-3 mb-1 block">Store name</label>
             <input
               value={shopDomain}
               onChange={(e) => setShopDomain(e.target.value)}
-              placeholder="mystore or mystore.myshopify.com"
+              placeholder="e.g. coolbrand"
               className="w-full px-4 py-3 rounded-xl bg-void border border-border mb-3"
             />
-            <input
-              value={shopifyAdminToken}
-              onChange={(e) => setShopifyAdminToken(e.target.value)}
-              placeholder="Admin API token (shpat_...) — recommended for now"
-              className="w-full px-4 py-3 rounded-xl bg-void border border-border mb-4"
-            />
+            <p className="text-xs text-text-3 mb-4">
+              This is the name before <span className="text-text-2">.myshopify.com</span> in your Shopify admin URL.
+            </p>
+            {showShopifyHelp && (
+              <div className="mb-4 p-3 rounded-xl bg-void border border-border text-sm text-text-2 space-y-2">
+                <p className="font-medium text-text-1">Need a connection key?</p>
+                <ol className="list-decimal list-inside space-y-1 text-xs">
+                  <li>Shopify Admin → Settings → Apps and sales channels</li>
+                  <li>Develop apps → Create an app → Install</li>
+                  <li>Copy the access token and paste it below</li>
+                </ol>
+                <input
+                  value={shopifyAdminToken}
+                  onChange={(e) => setShopifyAdminToken(e.target.value)}
+                  placeholder="Paste connection key"
+                  className="w-full px-4 py-3 rounded-xl bg-surface border border-border mt-2"
+                />
+              </div>
+            )}
+            {error && shopifyModal && (
+              <p className="text-sm text-danger mb-3">{error}</p>
+            )}
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => void connectShopifyToken()}
-                className="w-full py-2.5 rounded-xl bg-accent text-white font-medium"
+                onClick={() => void connectShopifySimple()}
+                disabled={oauthLoadingId === "shopify"}
+                className="w-full py-2.5 rounded-xl bg-accent text-white font-medium disabled:opacity-60"
               >
-                Connect with Admin token
+                {oauthLoadingId === "shopify" ? "Opening Shopify…" : "Connect store"}
               </button>
-              {isServerReady("shopify") && (
+              {!showShopifyHelp && (
                 <button
-                  onClick={() => void connectShopifyOAuth()}
-                  disabled={oauthLoadingId === "shopify"}
-                  className="w-full py-2.5 rounded-xl border border-border font-medium disabled:opacity-60"
+                  type="button"
+                  onClick={() => setShowShopifyHelp(true)}
+                  className="w-full py-2 text-sm text-text-2 hover:text-text-1"
                 >
-                  {oauthLoadingId === "shopify" ? "Redirecting…" : "One-click OAuth"}
+                  Need help connecting?
                 </button>
               )}
-              <button onClick={() => setShopifyModal(false)} className="w-full py-2 rounded-xl text-text-2 text-sm">
+              <button onClick={closeShopifyModal} className="w-full py-2 rounded-xl text-text-2 text-sm">
                 Cancel
               </button>
             </div>

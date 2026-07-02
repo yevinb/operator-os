@@ -37,7 +37,7 @@ CATALOG = [
     {"id": "notion", "name": "Notion", "category": "operations", "description": "Create pages & docs", "needs_key": True, "auth_type": "api_key", "key_hint": "Integration token (secret_...)", "config_fields": ["database_id"]},
     {"id": "quickbooks", "name": "QuickBooks", "category": "finance", "description": "One-click Intuit connect — live P&L and expenses", "needs_key": False, "auth_type": "quickbooks_oauth", "key_hint": "", "config_fields": []},
     {"id": "linkedin", "name": "LinkedIn", "category": "hr", "description": "Hiring & B2B outreach", "needs_key": True, "auth_type": "api_key", "key_hint": "LinkedIn access token", "config_fields": []},
-    {"id": "shopify", "name": "Shopify", "category": "finance", "description": "Connect store — OAuth one-click or Admin API token (shpat_...)", "needs_key": False, "auth_type": "shopify_hybrid", "key_hint": "shpat_... Admin API access token", "config_fields": ["shop_domain"]},
+    {"id": "shopify", "name": "Shopify", "category": "finance", "description": "Sync orders, customers, and store revenue", "needs_key": False, "auth_type": "shopify_hybrid", "key_hint": "Connection key from Shopify", "config_fields": ["shop_domain"]},
     {"id": "mcp", "name": "MCP Servers", "category": "automation", "description": "Model Context Protocol tools", "needs_key": True, "auth_type": "webhook", "key_hint": "MCP server URL", "config_fields": []},
 ]
 
@@ -151,7 +151,7 @@ async def connect_integration(
         if not key or not shop_domain:
             raise HTTPException(
                 status_code=400,
-                detail="Shop domain + Admin API token required (shpat_...). Or use Connect store when OAuth is configured on Railway.",
+                detail="Enter your store name and connection key from Shopify.",
             )
         config_json = json.dumps(config)
         ok, message = await verify_integration(integration_id, key, config_json)
