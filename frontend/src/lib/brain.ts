@@ -32,6 +32,8 @@ export type BrainStatus = {
   narrative: string;
   autopilot_24_7: boolean;
   model: string;
+  competitors?: string[];
+  brand_keywords?: string[];
 };
 
 export type DailyBrief = {
@@ -72,9 +74,8 @@ export type AgentRunResult = {
   agent_name?: string;
   summary?: string;
   deliverable?: Record<string, unknown>;
-  execution?: Record<string, unknown>;
-  executed_count?: number;
-  planned_count?: number;
+  executions?: { channel: string; ok: boolean; message?: string }[];
+  intel_used?: Record<string, number | boolean>;
 };
 
 export type RunAllResult = {
@@ -119,6 +120,25 @@ export async function runAllBrainAgents(): Promise<RunAllResult> {
 
 export async function runMorningCycle(): Promise<Record<string, unknown>> {
   return apiFetch<Record<string, unknown>>("/api/v1/brain/morning-cycle", { method: "POST" });
+}
+
+export type BrainConfig = {
+  competitors: string[];
+  brand_keywords: string[];
+  auto_run_daily: boolean;
+  last_auto_run_key: string;
+  enabled_agents: string[];
+};
+
+export async function getBrainConfig(): Promise<BrainConfig> {
+  return apiFetch<BrainConfig>("/api/v1/brain/config");
+}
+
+export async function updateBrainConfig(patch: Partial<BrainConfig>): Promise<BrainConfig> {
+  return apiFetch<BrainConfig>("/api/v1/brain/config", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
 }
 
 export async function ingestBrainUrl(url: string): Promise<{ ok: boolean; summary: string }> {

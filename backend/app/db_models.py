@@ -185,3 +185,20 @@ class BrainMemoryEntry(Base):
     content: Mapped[str] = mapped_column(Text, default="")
     source: Mapped[str] = mapped_column(String(128), default="brain")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserBrainConfig(Base):
+    """Per-user Brain settings — competitors, keywords, 24/7 autopilot."""
+
+    __tablename__ = "user_brain_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), unique=True, index=True)
+    competitors_json: Mapped[str] = mapped_column(Text, default="[]")
+    brand_keywords_json: Mapped[str] = mapped_column(Text, default="[]")
+    auto_run_daily: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_auto_run_key: Mapped[str] = mapped_column(String(16), default="")
+    enabled_agents_json: Mapped[str] = mapped_column(Text, default="[]")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

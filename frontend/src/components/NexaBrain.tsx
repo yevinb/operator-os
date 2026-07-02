@@ -26,6 +26,8 @@ import {
   runAllBrainAgents,
   runMorningCycle,
   ingestBrainUrl,
+  getBrainConfig,
+  updateBrainConfig,
   triggerBrainLearn,
   type BrainAgent,
   type BrainFeedItem,
@@ -83,6 +85,10 @@ export function NexaBrain() {
   const [error, setError] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [expandedFeed, setExpandedFeed] = useState<number | null>(null);
+  const [competitors, setCompetitors] = useState("");
+  const [keywords, setKeywords] = useState("");
+  const [autoRun, setAutoRun] = useState(true);
+  const [lastExecutions, setLastExecutions] = useState<{ channel: string; ok: boolean; message?: string }[]>([]);
 
   const load = useCallback(async (refreshBrief = false) => {
     setError("");
@@ -101,6 +107,10 @@ export function NexaBrain() {
       setWeekly(wk);
       setAgents(ag.agents);
       setFeed(fd.items);
+      const cfg = await getBrainConfig();
+      setCompetitors((cfg.competitors || []).join("\n"));
+      setKeywords((cfg.brand_keywords || []).join(", "));
+      setAutoRun(cfg.auto_run_daily);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Brain failed to load");
     } finally {
@@ -122,6 +132,7 @@ export function NexaBrain() {
         return;
       }
       setAgentResult(res.summary || `${agent.name} completed`);
+      if (res.executions) setLastExecutions(res.executions);
       await load(false);
     } catch (e) {
       setAgentResult(e instanceof Error ? e.message : "Agent failed");
@@ -154,6 +165,20 @@ export function NexaBrain() {
       setAgentResult(e instanceof Error ? e.message : "Morning cycle failed");
     } finally {
       setBulkRunning(false);
+    }
+  };
+
+  const saveBrainConfig = async () => {
+    try {
+      await updateBrainConfig({
+        competitors: competitors.split("\n").map((s) => s.trim()).filter(Boolean),
+        brand_keywords: keywords.split(",").map((s) => s.trim()).filter(Boolean),
+        auto_run_daily: autoRun,
+      });
+      setAgentResult("Brain config saved — competitors & 24/7 autopilot updated");
+      await load(false);
+    } catch (e) {
+      setAgentResult(e instanceof Error ? e.message : "Config save failed");
     }
   };
 
@@ -275,6 +300,35 @@ export function NexaBrain() {
       </section>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        {/* Brain setup — Nas "we plug in" */}
+        <section className="rounded-2xl border border-gold/20 bg-surface/50 p-5">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+            <Bot size={16} className="text-gold" /> Brain setup (competitors & 24/7)
+          </h2>
+          <label className="text-xs text-text-3 block mb-1">Competitor URLs (one per line)</label>
+          <textarea
+            value={competitors}
+            onChange={(e) => setCompetitors(e.target.value)}
+            rows={3}
+            placeholder="https://competitor.com"
+            className="w-full mb-3 px-3 py-2 rounded-xl bg-void border border-white/10 text-sm text-white outline-none focus:border-gold"
+          />
+          <label className="text-xs text-text-3 block mb-1">Brand keywords (comma separated)</label>
+          <input
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+            placeholder="reviews, pricing, alternative"
+            className="w-full mb-3 px-3 py-2 rounded-xl bg-void border border-white/10 text-sm text-white outline-none focus:border-gold"
+          />
+          <label className="flex items-center gap-2 text-sm text-text-2 mb-3 cursor-pointer">
+            <input type="checkbox" checked={autoRun} onChange={(e) => setAutoRun(e.target.checked)} className="accent-gold" />
+            24/7 autopilot — run morning cycle daily
+          </label>
+          <button type="button" onClick={saveBrainConfig} className="px-4 py-2 rounded-xl bg-gold text-black text-sm font-bold">
+            Save brain config
+          </button>
+        </section>
+
         {/* URL ingest */}
         <section className="rounded-2xl border border-white/10 bg-surface/50 p-5">
           <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
@@ -315,6 +369,19 @@ export function NexaBrain() {
           )}
         </section>
       </div>
+
+      {lastExecutions.length > 0 && (
+        <section className="rounded-xl border border-white/10 bg-black/40 p-4">
+          <h3 className="text-xs font-bold uppercase text-gold mb-2">Live execution proofs</h3>
+          <ul className="space-y-1 text-xs">
+            {lastExecutions.map((ex, i) => (
+              <li key={i} className={ex.ok ? "text-success" : "text-text-3"}>
+                {ex.ok ? "✓" : "○"} {ex.channel}: {ex.message || (ex.ok ? "done" : "skipped")}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Data sources */}
       {status && (

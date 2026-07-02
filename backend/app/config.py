@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     nexa_control_key: str = ""
     nexa_control_email: str = ""
     cursor_api_key: str = ""  # optional Cursor Cloud for heavy background jobs
+    brain_cron_secret: str = ""  # optional secret for /api/v1/brain/cron scheduled runs
 
     # Google OAuth (Gmail, Calendar, Google Ads)
     google_client_id: str = ""

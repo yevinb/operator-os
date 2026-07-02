@@ -17,6 +17,8 @@ from app.services.brain_service import (
     run_agent,
     run_all_active_agents,
 )
+from app.services.brain_config import config_to_dict, get_brain_config, update_brain_config
+from app.services.brain_scheduler import run_cron_for_all_users
 from app.services.business_context import build_business_context
 
 router = APIRouter(prefix="/api/v1/brain", tags=["brain"])
@@ -24,6 +26,13 @@ router = APIRouter(prefix="/api/v1/brain", tags=["brain"])
 
 class IngestUrlRequest(BaseModel):
     url: str
+
+
+class BrainConfigPatch(BaseModel):
+    competitors: list[str] | None = None
+    brand_keywords: list[str] | None = None
+    auto_run_daily: bool | None = None
+    enabled_agents: list[str] | None = None
 
 
 @router.get("/status")
@@ -100,3 +109,24 @@ async def brain_run_all(user: User = Depends(get_current_user), db: AsyncSession
 @router.post("/morning-cycle")
 async def brain_morning_cycle(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await morning_cycle(db, user)
+
+
+@router.get("/config")
+async def brain_get_config(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    row = await get_brain_config(db, user.id)
+    return config_to_dict(row)
+
+
+@router.patch("/config")
+async def brain_patch_config(
+    body: BrainConfigPatch,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    patch = body.model_dump(exclude_none=True)
+    return await update_brain_config(db, user.id, patch)
+
+
+@router.post("/cron")
+async def brain_cron(secret: str = Query("")):
+    return await run_cron_for_all_users(secret)

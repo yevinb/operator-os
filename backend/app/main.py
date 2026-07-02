@@ -37,6 +37,9 @@ from app.services.command_pipeline import run_command_pipeline
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    from app.services.brain_scheduler import start_brain_scheduler
+
+    start_brain_scheduler()
     yield
 
 

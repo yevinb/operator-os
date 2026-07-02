@@ -22,12 +22,10 @@ from app.db_models import (
     User,
 )
 from app.services.ai_clients import complete_json, has_any_ai_key
-from app.services.autopilot import run_autopilot
-from app.services.brain_agents import AGENT_CATALOG, agent_by_id, agent_status
-from app.services.brain_content import generate_deliverable
+from app.services.brain_agents import AGENT_CATALOG, agent_status
+from app.services.brain_executor import execute_brain_agent
 from app.services.business_context import BusinessContext, build_business_context
 from app.services.business_snapshot import build_business_snapshot
-from app.services.command_pipeline import run_command_pipeline
 
 SOURCE_LABELS: dict[str, str] = {
     "gmail": "Gmail",
@@ -358,6 +356,8 @@ async def get_brain_feed(db: AsyncSession, user: User, limit: int = 30) -> list[
 
 
 async def get_brain_status(db: AsyncSession, user: User) -> dict:
+    from app.services.brain_config import config_to_dict, get_brain_config
+
     context = await build_business_context(user, db)
     agents = list_agents(context)
     active_count = sum(1 for a in agents if a["status"] == "active")
@@ -382,6 +382,8 @@ async def get_brain_status(db: AsyncSession, user: User) -> dict:
         )
     ).scalar_one_or_none()
 
+    brain_cfg = config_to_dict(await get_brain_config(db, user.id))
+
     return {
         "company": context.company,
         "goal": context.goal,
@@ -395,8 +397,10 @@ async def get_brain_status(db: AsyncSession, user: User) -> dict:
         "sources": _connected_sources(context),
         "connected_integrations": list(context.connected_integrations),
         "narrative": context.business_narrative,
-        "autopilot_24_7": True,
-        "model": "nas_brain",
+        "autopilot_24_7": brain_cfg.get("auto_run_daily", True),
+        "model": "nas_brain_v2",
+        "competitors": brain_cfg.get("competitors", []),
+        "brand_keywords": brain_cfg.get("brand_keywords", []),
     }
 
 
@@ -423,42 +427,24 @@ async def ingest_url(db: AsyncSession, user: User, url: str) -> dict:
 
 
 async def run_agent(db: AsyncSession, user: User, agent_id: str) -> dict:
-    agent = agent_by_id(agent_id)
-    if not agent:
-        return {"ok": False, "error": "Unknown agent"}
-
-    context = await build_business_context(user, db)
-    connected = set(context.connected_integrations)
-    status = agent_status(agent, connected)
-
-    if status == "needs_setup" and not agent.get("always_generates") and not agent.get("autopilot_mode"):
-        missing = [i for i in agent.get("integrations") or [] if i not in connected]
-        return {"ok": False, "error": f"Connect {', '.join(missing)}", "needs_integrations": missing}
-
     learned = await learn_today(db, user)
-    deliverable: dict[str, Any] = {}
-    execution: dict[str, Any] = {}
+    result = await execute_brain_agent(db, user, agent_id, learned=learned)
+    if not result.get("ok"):
+        return result
 
-    dtype = agent.get("deliverable_type")
-    if dtype or agent.get("always_generates"):
-        deliverable = await generate_deliverable(
-            dtype or "campaign_brief",
-            context,
-            metrics=learned.get("metrics"),
-            learned=learned,
-        )
-        asset = await _store_asset(db, user.id, agent_id, dtype or "brief", deliverable)
-        deliverable["asset_id"] = asset.id
+    deliverable = result.get("deliverable") or {}
+    from app.db_models import BrainAgentRun, BrainContentAsset
 
-    if agent.get("autopilot_mode"):
-        execution = await run_autopilot(agent["autopilot_mode"], user, db)
-    elif agent.get("command") and status == "active":
-        response, _ = await run_command_pipeline(agent["command"], user, db)
-        execution = {
-            "summary": response.summary,
-            "executed_count": response.executed_count,
-            "planned_count": response.planned_count,
-        }
+    asset = BrainContentAsset(
+        user_id=user.id,
+        agent_id=agent_id,
+        asset_type=deliverable.get("deliverable_type", "brief"),
+        title=str(deliverable.get("title", agent_id))[:512],
+        body_json=json.dumps(deliverable),
+    )
+    db.add(asset)
+    await db.flush()
+    deliverable["asset_id"] = asset.id
 
     day = _day_key()
     db.add(
@@ -468,23 +454,24 @@ async def run_agent(db: AsyncSession, user: User, agent_id: str) -> dict:
             day_key=day,
             status="completed",
             deliverable_json=json.dumps(deliverable),
-            execution_json=json.dumps(execution),
+            execution_json=json.dumps(result.get("executions", [])),
         )
     )
-    mem_line = deliverable.get("one_move_today") or deliverable.get("action") or deliverable.get("title", "")
-    if mem_line:
-        await _store_memory(db, user.id, f"[{agent['name']}] {mem_line}", agent_id, "agent_run")
+    mem = result.get("summary", "")
+    if mem:
+        await _store_memory(db, user.id, mem, agent_id, "agent_run")
     await db.commit()
 
     return {
         "ok": True,
         "agent_id": agent_id,
-        "agent_name": agent["name"],
+        "agent_name": result.get("agent_name"),
         "deliverable": deliverable,
-        "execution": execution,
-        "summary": execution.get("summary") or deliverable.get("title") or f"{agent['name']} completed",
-        "executed_count": execution.get("executed_count", 0),
-        "planned_count": execution.get("planned_count", 0),
+        "executions": result.get("executions", []),
+        "intel_used": result.get("intel_used"),
+        "summary": result.get("summary"),
+        "executed_count": result.get("verified_channels", 0),
+        "planned_count": 0,
     }
 
 

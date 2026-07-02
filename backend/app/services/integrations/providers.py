@@ -35,6 +35,37 @@ async def hubspot_snapshot(api_key: str) -> dict | None:
         return None
 
 
+async def hubspot_list_contacts(api_key: str, limit: int = 15) -> list[dict]:
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.get(
+                "https://api.hubapi.com/crm/v3/objects/contacts",
+                headers={"Authorization": f"Bearer {api_key}"},
+                params={
+                    "limit": min(limit, 50),
+                    "properties": "email,firstname,lastname,company,hs_lastmodifieddate",
+                },
+            )
+            if r.status_code != 200:
+                return []
+            leads = []
+            for row in r.json().get("results", []):
+                p = row.get("properties", {})
+                email = (p.get("email") or "").strip()
+                if not email:
+                    continue
+                name = f"{p.get('firstname','')} {p.get('lastname','')}".strip() or email
+                leads.append({
+                    "name": name,
+                    "email": email,
+                    "company": p.get("company", ""),
+                    "last_modified": p.get("hs_lastmodifieddate", ""),
+                })
+            return leads
+    except Exception:
+        return []
+
+
 async def hubspot_log_note(api_key: str, body: str, title: str = "Nexa update") -> tuple[bool, str]:
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -210,6 +241,35 @@ async def meta_account_insights(token: str, ad_account_id: str) -> tuple[bool, s
             )
     except Exception as e:
         return False, str(e), {}
+
+
+async def meta_post_page_update(token: str, message: str, page_id: str = "") -> tuple[bool, str]:
+    """Post organic update to Facebook Page if token has pages_manage_posts."""
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            if not page_id:
+                r = await client.get(
+                    "https://graph.facebook.com/v19.0/me/accounts",
+                    params={"access_token": token, "fields": "id,name,access_token", "limit": 1},
+                )
+                if r.status_code != 200:
+                    return False, "No Facebook Page access on this token"
+                pages = r.json().get("data", [])
+                if not pages:
+                    return False, "Connect a Facebook Page to post organic content"
+                page_id = pages[0].get("id", "")
+                token = pages[0].get("access_token", token)
+            r = await client.post(
+                f"https://graph.facebook.com/v19.0/{page_id}/feed",
+                data={"message": message[:63206], "access_token": token},
+            )
+            if r.status_code in (200, 201):
+                post_id = r.json().get("id", "")
+                return True, f"Posted to Facebook Page (id {post_id})"
+            err = r.json().get("error", {}).get("message", r.text[:120])
+            return False, f"Meta post failed: {err}"
+    except Exception as e:
+        return False, str(e)
 
 
 async def verify_linkedin(token: str) -> tuple[bool, str]:

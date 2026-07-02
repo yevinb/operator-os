@@ -51,6 +51,7 @@ Commit and push.
 | `QUICKBOOKS_REDIRECT_URI` | `https://your-app.up.railway.app/api/v1/oauth/quickbooks/callback` |
 | `FRONTEND_URL` | `https://yevinb.github.io/operator-os` |
 | `GROQ_API_KEY` | Groq API key (AI brain) |
+| `BRAIN_CRON_SECRET` | optional — secret for scheduled `/api/v1/brain/cron` (24/7 autopilot) |
 | `AI_PROVIDER` | `groq` or `auto` |
 | `NEXA_CONTROL_KEY` | long random secret — Cursor/MCP agent auth |
 | `NEXA_CONTROL_EMAIL` | your Nexa login email (e.g. `yevinbollegala@gmail.com`) |

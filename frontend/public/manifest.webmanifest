@@ -2,9 +2,9 @@
   "name": "Nexa — Your AI Operating System",
   "short_name": "Nexa",
   "description": "Command your business. Nexa runs real API actions across Stripe, Slack, Gmail, and more.",
-  "start_url": "/dashboard/",
-  "scope": "/",
-  "id": "/",
+  "start_url": "/operator-os/dashboard/",
+  "scope": "/operator-os/",
+  "id": "/operator-os/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
@@ -15,19 +15,19 @@
   ],
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/operator-os/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/operator-os/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/operator-os/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
