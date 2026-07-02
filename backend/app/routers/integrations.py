@@ -18,7 +18,7 @@ def _server_oauth_ready(auth_type: str) -> bool:
     if auth_type == "google_oauth":
         return bool(settings.google_client_id.strip() and settings.google_client_secret.strip())
     if auth_type == "shopify_oauth":
-        return bool(settings.shopify_api_key.strip() and settings.shopify_api_secret.strip())
+        return settings.shopify_oauth_ready
     if auth_type == "quickbooks_oauth":
         return bool(settings.intuit_client_id.strip() and settings.intuit_client_secret.strip())
     if auth_type == "google_ads":
@@ -70,6 +70,7 @@ class OAuthServerStatusOut(BaseModel):
     quickbooks: bool
     shopify_redirect_uri: str
     google_oauth_redirect_uri: str
+    shopify_env_hints: dict[str, bool] = {}
 
 
 class IntegrationTestOut(BaseModel):
@@ -84,10 +85,11 @@ async def oauth_server_status():
     """Public check — whether platform OAuth env vars are set on Railway."""
     return OAuthServerStatusOut(
         google=bool(settings.google_client_id.strip() and settings.google_client_secret.strip()),
-        shopify=bool(settings.shopify_api_key.strip() and settings.shopify_api_secret.strip()),
+        shopify=settings.shopify_oauth_ready,
         quickbooks=bool(settings.intuit_client_id.strip() and settings.intuit_client_secret.strip()),
         shopify_redirect_uri=settings.shopify_oauth_redirect_uri,
         google_oauth_redirect_uri=settings.google_oauth_redirect_uri,
+        shopify_env_hints=settings.shopify_env_hints,
     )
 
 

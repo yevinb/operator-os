@@ -61,3 +61,4 @@ class HealthResponse(BaseModel):
     version: str = "2.0.0"
     shopify_oauth_ready: bool = False
     google_oauth_ready: bool = False
+    shopify_env_hints: dict[str, bool] = {}

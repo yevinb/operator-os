@@ -5,7 +5,28 @@ from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _normalize_postgres_url(url: str) -> str:
+def _first_env(*keys: str) -> str:
+    for key in keys:
+        value = (os.getenv(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _env_present(*keys: str) -> dict[str, bool]:
+    return {key: bool((os.getenv(key) or "").strip()) for key in keys}
+
+
+SHOPIFY_KEY_ENV_NAMES = (
+    "SHOPIFY_API_KEY",
+    "SHOPIFY_CLIENT_ID",
+    "SHOPIFY_KEY",
+)
+SHOPIFY_SECRET_ENV_NAMES = (
+    "SHOPIFY_API_SECRET",
+    "SHOPIFY_CLIENT_SECRET",
+    "SHOPIFY_SECRET",
+)
     url = url.strip()
     if url.startswith("postgres://"):
         return url.replace("postgres://", "postgresql+asyncpg://", 1)
@@ -142,8 +163,23 @@ class Settings(BaseSettings):
         return uri.replace("/api/v1/oauth/google/callback", "/api/v1/auth/google/callback")
 
     @property
+    def resolved_shopify_api_key(self) -> str:
+        return self.shopify_api_key.strip() or _first_env(*SHOPIFY_KEY_ENV_NAMES)
+
+    @property
+    def resolved_shopify_api_secret(self) -> str:
+        return self.shopify_api_secret.strip() or _first_env(*SHOPIFY_SECRET_ENV_NAMES)
+
+    @property
     def shopify_oauth_ready(self) -> bool:
-        return bool(self.shopify_api_key.strip() and self.shopify_api_secret.strip())
+        return bool(self.resolved_shopify_api_key and self.resolved_shopify_api_secret)
+
+    @property
+    def shopify_env_hints(self) -> dict[str, bool]:
+        return {
+            **_env_present(*SHOPIFY_KEY_ENV_NAMES),
+            **_env_present(*SHOPIFY_SECRET_ENV_NAMES),
+        }
 
     @property
     def google_oauth_ready(self) -> bool:

@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/v1/oauth/shopify", tags=["oauth"])
 
 
 def _verify_shopify_hmac(query_params: dict[str, str]) -> bool:
-    secret = settings.shopify_api_secret
+    secret = settings.resolved_shopify_api_secret
     if not secret:
         return False
     received = query_params.get("hmac", "")
@@ -42,7 +42,7 @@ async def shopify_oauth_start(
     shop: str = Query(""),
     user: User = Depends(get_current_user),
 ):
-    if not settings.shopify_api_key or not settings.shopify_api_secret:
+    if not settings.resolved_shopify_api_key or not settings.resolved_shopify_api_secret:
         raise HTTPException(
             status_code=503,
             detail="Shopify OAuth not configured. Set SHOPIFY_API_KEY and SHOPIFY_API_SECRET on Railway.",
@@ -53,7 +53,7 @@ async def shopify_oauth_start(
 
     state = create_oauth_state(user.id, domain, "shopify_oauth")
     params = {
-        "client_id": settings.shopify_api_key,
+        "client_id": settings.resolved_shopify_api_key,
         "scope": ",".join(FULL_SCOPES),
         "redirect_uri": settings.shopify_oauth_redirect_uri,
         "state": state,
@@ -85,8 +85,8 @@ async def shopify_oauth_callback(
         token_resp = await client.post(
             f"https://{domain}/admin/oauth/access_token",
             json={
-                "client_id": settings.shopify_api_key,
-                "client_secret": settings.shopify_api_secret,
+                "client_id": settings.resolved_shopify_api_key,
+                "client_secret": settings.resolved_shopify_api_secret,
                 "code": code,
             },
         )

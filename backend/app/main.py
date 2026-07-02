@@ -82,6 +82,7 @@ async def health():
         version="3.0.0",
         shopify_oauth_ready=settings.shopify_oauth_ready,
         google_oauth_ready=settings.google_oauth_ready,
+        shopify_env_hints=settings.shopify_env_hints,
     )
 
 
