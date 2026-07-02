@@ -6,16 +6,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,40 +20,20 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Configure Railway API URL
+      - name: Install and build
         working-directory: frontend
         run: |
+          npm ci
           URL="${{ secrets.RAILWAY_API_URL }}"
-          if [ -n "$URL" ]; then
-            echo "{\"apiUrl\":\"$URL\"}" > public/api-config.json
-          fi
+          if [ -n "$URL" ]; then echo "{\"apiUrl\":\"$URL\"}" > public/api-config.json; fi
+          npm run build:pages
+          touch out/.nojekyll
 
-      - name: Build static site
-        working-directory: frontend
-        run: npm run build:pages
-        env:
-          NEXT_PUBLIC_DEMO_MODE: "false"
-          NEXT_PUBLIC_API_URL: ${{ secrets.RAILWAY_API_URL }}
-
-      - name: Disable Jekyll processing
-        run: touch frontend/out/.nojekyll
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: frontend/out
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./frontend/out
+          publish_branch: gh-pages
+          force_orphan: true
+          enable_jekyll: false
