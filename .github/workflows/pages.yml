@@ -43,11 +43,13 @@ jobs:
           NEXT_PUBLIC_DEMO_MODE: "false"
           NEXT_PUBLIC_API_URL: ${{ secrets.RAILWAY_API_URL }}
 
-      - name: Deploy to gh-pages branch
+      - name: Deploy to docs/ on main
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./frontend/out
-          publish_branch: gh-pages
-          force_orphan: true
-          commit_message: "Deploy Nexa frontend"
+          publish_branch: main
+          destination_dir: docs
+          keep_files: false
+          enable_jekyll: false
+          commit_message: "Deploy Nexa frontend to docs"
