@@ -43,6 +43,9 @@ jobs:
           NEXT_PUBLIC_DEMO_MODE: "false"
           NEXT_PUBLIC_API_URL: ${{ secrets.RAILWAY_API_URL }}
 
+      - name: Disable Jekyll processing
+        run: touch frontend/out/.nojekyll
+
       - name: Deploy to docs/ on main
         uses: peaceiris/actions-gh-pages@v4
         with:
