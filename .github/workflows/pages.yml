@@ -3,19 +3,16 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,20 +22,25 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install and build
+      - name: Build for yevinb.github.io/operator-os
         working-directory: frontend
         run: |
           npm ci
           URL="${{ secrets.RAILWAY_API_URL }}"
           if [ -n "$URL" ]; then echo "{\"apiUrl\":\"$URL\"}" > public/api-config.json; fi
           npm run build:pages
-          touch out/.nojekyll
 
-      - uses: actions/configure-pages@v5
+      - name: Publish to docs/
+        run: |
+          rm -rf docs
+          cp -R frontend/out docs
+          touch docs/.nojekyll
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: frontend/out
-
-      - id: pages
-        uses: actions/deploy-pages@v4
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "Deploy to yevinb.github.io/operator-os"
+          git push
