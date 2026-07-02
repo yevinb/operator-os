@@ -8,6 +8,13 @@ import httpx
 
 API_VERSION = "2024-01"
 
+OAUTH_SCOPES = (
+    "read_orders",
+    "read_products",
+    "read_customers",
+    "read_inventory",
+)
+
 FULL_SCOPES = (
     "read_orders",
     "write_orders",

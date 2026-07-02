@@ -1,18 +1,18 @@
 /* Nexa PWA service worker — generated, do not edit */
-const BASE = "/operator-os";
+const BASE = "";
 const CACHE = "nexa-v10";
 
 const PRECACHE = [
-  "/operator-os/",
-  "/operator-os/dashboard/",
-  "/operator-os/login/",
-  "/operator-os/signup/",
-  "/operator-os/manifest.webmanifest",
-  "/operator-os/nexa-logo.png",
-  "/operator-os/icons/icon-192x192.png",
-  "/operator-os/icons/icon-512x512.png",
-  "/operator-os/dashboard/chat/",
-  "/operator-os/dashboard/command/"
+  "/",
+  "/dashboard/",
+  "/login/",
+  "/signup/",
+  "/manifest.webmanifest",
+  "/nexa-logo.png",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
+  "/dashboard/chat/",
+  "/dashboard/command/"
 ];
 
 self.addEventListener("install", (event) => {

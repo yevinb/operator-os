@@ -421,7 +421,7 @@ export default function IntegrationsContent() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-1">Integrations</h1>
-          <p className="text-text-2 text-sm">Connect your tools — Stripe, Slack, Shopify, Gmail, and more.</p>
+          <p className="text-text-2 text-sm">Connect your tools — Stripe, Shopify, Gmail, Slack, and more.</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-accent">{connected}</p>
@@ -505,9 +505,6 @@ export default function IntegrationsContent() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">{int.name}</h3>
                     {int.connected && <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success"><Check size={10} className="inline" /> Live</span>}
-                    {!int.connected && apiMeta[int.id]?.server_ready === false && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">Railway setup needed</span>
-                    )}
                     {testResults[int.id] && (
                       <span
                         className={cn(
@@ -540,10 +537,7 @@ export default function IntegrationsContent() {
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   onClick={() => (int.connected ? disconnect(int.id) : handleConnect(int.id))}
-                  disabled={
-                    oauthLoadingId === int.id
-                    || (!int.connected && apiMeta[int.id]?.server_ready === false && !isShopifyConnect(int.id))
-                  }
+                  disabled={oauthLoadingId === int.id}
                   className={cn("py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2", int.connected ? "bg-surface-2 text-text-2" : "bg-accent text-white disabled:opacity-60")}
                 >
                   <Plug size={14} />

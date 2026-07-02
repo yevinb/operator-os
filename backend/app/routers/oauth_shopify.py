@@ -15,7 +15,7 @@ from app.db_models import User
 from app.deps import get_current_user
 from app.services.integrations.shopify_store import upsert_shopify_integration
 from app.services.security import create_oauth_state, decode_oauth_state
-from app.services.shopify_integration import FULL_SCOPES, normalize_shop_domain
+from app.services.shopify_integration import OAUTH_SCOPES, normalize_shop_domain
 
 router = APIRouter(prefix="/api/v1/oauth/shopify", tags=["oauth"])
 
@@ -54,7 +54,7 @@ async def shopify_oauth_start(
     state = create_oauth_state(user.id, domain, "shopify_oauth")
     params = {
         "client_id": settings.resolved_shopify_api_key,
-        "scope": ",".join(FULL_SCOPES),
+        "scope": ",".join(OAUTH_SCOPES),
         "redirect_uri": settings.shopify_oauth_redirect_uri,
         "state": state,
     }
