@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Megaphone, Headphones, Calendar, BarChart3, Dices, Target, Bell, FileText } from "lucide-react";
+import { ArrowRight, Megaphone, Headphones, Calendar, BarChart3, Dices, Target, Bell, FileText, Brain, Bot, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { LiveCommandDemo } from "@/components/LiveCommandDemo";
 import { PricingSection } from "@/components/PricingSection";
@@ -30,19 +30,19 @@ export default function Home() {
           <div className="flex justify-center mb-8">
             <NexaLogo variant="full" href="/" priority />
           </div>
-          <p className="inline-block px-4 py-1.5 rounded-full bg-gold/10 border border-gold/30 text-gold text-sm font-bold mb-6 animate-pulse">
-            ✦ NEXA v3 LIVE — AUTO-DEPLOYED
+          <p className="inline-block px-4 py-1.5 rounded-full bg-gold/10 border border-gold/30 text-gold text-sm font-bold mb-6">
+            ✦ NEXA BRAIN — YOUR SECOND MARKETING BRAIN
           </p>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 leading-[0.95]">
-            <span className="gradient-text">One outcome.</span>
+            <span className="gradient-text">Learns your business</span>
             <br />
-            Nexa runs the business.
+            every single day.
           </h1>
           <p className="text-xl md:text-2xl text-text-2 max-w-2xl mx-auto mb-4">
-            Say <span className="text-white font-semibold">&ldquo;Get me 50 leads&rdquo;</span> — Nexa builds your marketing plan, executes tasks, and checks in daily. Not a blank chatbox.
+            Like Nas Brain — unified marketing data, <span className="text-white font-semibold">13 magic employees</span>, and one morning decision. No dashboards. No agency. No extra headcount.
           </p>
           <p className="text-sm text-text-3 mb-6">
-            Agency · Coach · E-commerce · Real Estate modes · 🎲 Business idea dice · $499/mo Business tier
+            Daily ads monitoring · AI social content · Customer finder · SEO · UGC · 24/7 autopilot
           </p>
           <Link href="/signup">
             <Button size="lg" className="bg-gold text-black font-bold text-lg px-10">
@@ -56,10 +56,10 @@ export default function Home() {
       <section id="modes" className="py-12 px-6 border-t border-white/10">
         <div className="max-w-5xl mx-auto grid md:grid-cols-4 gap-4">
           {[
-            { icon: Target, title: "Niche modes", desc: "Agency, coach, ecommerce, real estate — tailored workflows" },
-            { icon: Dices, title: "🎲 Idea dice", desc: "Infinite business ideas — one click to run the plan" },
-            { icon: FileText, title: "Marketing plan", desc: "Here’s your plan. I’m executing it." },
-            { icon: Bell, title: "Daily check-in", desc: "Nexa tracks your business and suggests the next move" },
+            { icon: Brain, title: "Nexa Brain", desc: "Learns your business daily — central intelligence hub" },
+            { icon: Bot, title: "13 magic employees", desc: "Ads, social, SEO, UGC, outreach — run 24/7" },
+            { icon: Zap, title: "One daily decision", desc: "Scale this, kill that, test here — no data dumps" },
+            { icon: Bell, title: "Morning cycle", desc: "Learn → brief → agents execute automatically" },
           ].map((item) => (
             <div key={item.title} className="card-premium rounded-2xl p-5 text-left">
               <item.icon className="text-gold mb-3" size={24} />
@@ -126,9 +126,9 @@ export default function Home() {
           <h2 className="text-3xl font-bold mb-12">How it works</h2>
           <div className="grid md:grid-cols-3 gap-8 text-left">
             {[
-              { n: "1", t: "Pick your mode", d: "Agency, coach, ecommerce, or real estate — or roll the 🎲 for a business idea." },
-              { n: "2", t: "One outcome", d: '"Get me 50 leads" — Nexa builds the strategy, not you.' },
-              { n: "3", t: "Nexa executes", d: "Marketing plan + live tasks. Daily check-ins keep you on track." },
+              { n: "1", t: "Plug in", d: "Connect Gmail, Stripe, Meta, HubSpot — your existing stack." },
+              { n: "2", t: "Build your brain", d: "All marketing data unified in one intelligence hub." },
+              { n: "3", t: "Deploy agents", d: "13 AI employees trained on your business and goals." },
             ].map((s) => (
               <div key={s.n} className="card-premium rounded-2xl p-6">
                 <span className="text-4xl font-black text-gold/40">{s.n}</span>
@@ -165,6 +165,8 @@ export default function Home() {
         </p>
         <p>
           <Link href="/privacy" className="text-gold hover:underline">Privacy Policy</Link>
+          {" · "}
+          <Link href="/terms" className="text-gold hover:underline">Terms of Service</Link>
           {" · "}
           <a href="https://yevinb.github.io/operator-os/" className="hover:underline">yevinb.github.io/operator-os</a>
         </p>

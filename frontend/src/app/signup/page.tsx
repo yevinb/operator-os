@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { signup, setRememberMe } from "@/lib/auth";
-import { getApiUrl } from "@/lib/api";
+import { initApiConfig, getApiUrlSync } from "@/lib/api-config";
 import { NexaLogo } from "@/components/NexaLogo";
 
 export default function SignupPage() {
@@ -25,7 +25,11 @@ export default function SignupPage() {
     setGoogleLoading(true);
     setRememberMe(keepSignedIn);
     try {
-      const res = await fetch(`${getApiUrl()}/api/v1/auth/google/start`);
+      await initApiConfig();
+      const rememberParam = keepSignedIn ? "1" : "0";
+      const res = await fetch(
+        `${getApiUrlSync()}/api/v1/auth/google/start?remember=${rememberParam}`
+      );
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.detail || "Google sign-in unavailable");
       window.location.href = data.url;
@@ -109,7 +113,7 @@ export default function SignupPage() {
                 onChange={(e) => setKeepSignedIn(e.target.checked)}
                 className="rounded border-border accent-accent"
               />
-              Keep me signed in for 90 days
+              Keep me signed in
             </label>
             {error && <p className="text-danger text-sm">{error}</p>}
             <Button type="submit" className="w-full" size="lg" disabled={loading}>

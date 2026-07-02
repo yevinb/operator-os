@@ -129,3 +129,59 @@ class BusinessSnapshotLog(Base):
     user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), index=True)
     snapshot_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BrainDailyLog(Base):
+    """Daily business learning — Nas Brain-style memory that grows every day."""
+
+    __tablename__ = "brain_daily_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), index=True)
+    day_key: Mapped[str] = mapped_column(String(16), index=True)
+    learned_json: Mapped[str] = mapped_column(Text, default="{}")
+    brief_json: Mapped[str] = mapped_column(Text, default="{}")
+    weekly_report_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BrainAgentRun(Base):
+    """Log of agent executions with deliverables."""
+
+    __tablename__ = "brain_agent_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), index=True)
+    agent_id: Mapped[str] = mapped_column(String(64), index=True)
+    day_key: Mapped[str] = mapped_column(String(16), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="completed")
+    deliverable_json: Mapped[str] = mapped_column(Text, default="{}")
+    execution_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BrainContentAsset(Base):
+    """Stored deliverables — social packs, ad creatives, briefs, etc."""
+
+    __tablename__ = "brain_content_assets"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), index=True)
+    agent_id: Mapped[str] = mapped_column(String(64), index=True)
+    asset_type: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(512), default="")
+    body_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BrainMemoryEntry(Base):
+    """Long-term brain memory — accumulates business knowledge over time."""
+
+    __tablename__ = "brain_memory_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.id"), index=True)
+    memory_type: Mapped[str] = mapped_column(String(64), default="insight")
+    content: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(128), default="brain")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

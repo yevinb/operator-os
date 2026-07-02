@@ -7,7 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { Plan, User } from "@/lib/types";
 import { login, persistAuth, getRememberMe, setRememberMe, restoreOnboardingIfKnown, markEmailOnboarded, validateSession } from "@/lib/auth";
-import { getApiUrl } from "@/lib/api";
+import { initApiConfig, getApiUrlSync } from "@/lib/api-config";
 import { NexaLogo } from "@/components/NexaLogo";
 
 export default function LoginPage() {
@@ -42,7 +42,11 @@ function LoginContent() {
     if (token) {
       (async () => {
         try {
-          const me = await fetch(`${getApiUrl()}/api/v1/auth/me`, {
+          await initApiConfig();
+          const remember =
+            search.get("remember") !== "0" && getRememberMe();
+          setRememberMe(remember);
+          const me = await fetch(`${getApiUrlSync()}/api/v1/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (!me.ok) throw new Error("Google session invalid");
@@ -61,7 +65,7 @@ function LoginContent() {
             niche_mode: String(raw.niche_mode || "general"),
           };
           markEmailOnboarded(session.email);
-          persistAuth(token, session, getRememberMe());
+          persistAuth(token, session, remember);
           session = await restoreOnboardingIfKnown(session);
           router.replace("/dashboard");
         } catch {
@@ -83,7 +87,11 @@ function LoginContent() {
     setGoogleLoading(true);
     setRememberMe(keepSignedIn);
     try {
-      const res = await fetch(`${getApiUrl()}/api/v1/auth/google/start`);
+      await initApiConfig();
+      const rememberParam = keepSignedIn ? "1" : "0";
+      const res = await fetch(
+        `${getApiUrlSync()}/api/v1/auth/google/start?remember=${rememberParam}`
+      );
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.detail || "Google sign-in unavailable");
       window.location.href = data.url;
@@ -125,7 +133,37 @@ function LoginContent() {
 
         <div className="p-8 rounded-2xl bg-surface border border-border">
           <h1 className="text-2xl font-bold mb-1">Welcome back</h1>
-          <p className="text-text-2 text-sm mb-6">Sign in with Google — then connect Gmail in Integrations for email features.</p>
+          <p className="text-text-2 text-sm mb-6">Sign in with Google or email. You&apos;ll stay signed in on this device.</p>
+
+          <label className="flex items-center gap-2 text-sm text-text-2 cursor-pointer select-none mb-4">
+            <input
+              type="checkbox"
+              checked={keepSignedIn}
+              onChange={(e) => setKeepSignedIn(e.target.checked)}
+              className="rounded border-border accent-accent"
+            />
+            Keep me signed in
+          </label>
+
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full mb-4"
+            size="lg"
+            disabled={googleLoading}
+            onClick={handleGoogle}
+          >
+            {googleLoading ? "Redirecting…" : "Sign in with Google"}
+          </Button>
+
+          <div className="relative mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-surface px-2 text-text-3">or with email</span>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -150,22 +188,10 @@ function LoginContent() {
                 className="w-full px-4 py-3 rounded-xl bg-void border border-border text-text outline-none focus:border-accent"
               />
             </div>
-            <label className="flex items-center gap-2 text-sm text-text-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={keepSignedIn}
-                onChange={(e) => setKeepSignedIn(e.target.checked)}
-                className="rounded border-border accent-accent"
-              />
-              Keep me signed in for 90 days
-            </label>
             {error && <p className="text-danger text-sm">{error}</p>}
             <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
               {!loading && <ArrowRight size={16} />}
-            </Button>
-            <Button type="button" variant="secondary" className="w-full" size="lg" disabled={googleLoading} onClick={handleGoogle}>
-              {googleLoading ? "Redirecting…" : "Sign in with Google"}
             </Button>
           </form>
 

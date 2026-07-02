@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.db_models import User
-from app.services.security import decode_token
+from app.services.security import decode_token, decode_token_email
 
 security = HTTPBearer(auto_error=False)
 
@@ -18,7 +18,8 @@ async def get_current_user(
     if not creds or not creds.credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    user_id = decode_token(creds.credentials)
+    token = creds.credentials
+    user_id = decode_token(token)
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
@@ -28,6 +29,18 @@ async def get_current_user(
         .options(selectinload(User.profile), selectinload(User.integrations))
     )
     user = result.scalar_one_or_none()
+
+    # If the DB was reset but the account still exists (same email), keep the session alive.
+    if not user:
+        email = decode_token_email(token)
+        if email:
+            result = await db.execute(
+                select(User)
+                .where(User.email == email)
+                .options(selectinload(User.profile), selectinload(User.integrations))
+            )
+            user = result.scalar_one_or_none()
+
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user

@@ -18,7 +18,7 @@ from app.services.security import (
     create_access_token,
     create_google_login_state,
     hash_password,
-    verify_google_login_state,
+    parse_google_login_state,
     verify_password,
 )
 
@@ -28,11 +28,18 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 GOOGLE_LOGIN_SCOPES = "openid email profile"
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+    remember_me: bool = True
+
+
 class SignupRequest(BaseModel):
     email: str
     name: str
     company: str
     password: str
+    remember_me: bool = True
 
     @field_validator("password")
     @classmethod
@@ -41,11 +48,6 @@ class SignupRequest(BaseModel):
         if len(v) < 6:
             raise ValueError("Password must be at least 6 characters")
         return v
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
 
 
 class AuthResponse(BaseModel):
@@ -81,13 +83,13 @@ def _user_out(user: User) -> UserOut:
 
 
 @router.get("/google/start")
-async def google_auth_start():
+async def google_auth_start(remember: bool = Query(True)):
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(
             status_code=503,
             detail="Google OAuth not configured on server. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.",
         )
-    state = create_google_login_state()
+    state = create_google_login_state(remember=remember)
     params = {
         "client_id": settings.google_client_id,
         "redirect_uri": settings.google_auth_redirect_uri,
@@ -106,7 +108,8 @@ async def google_auth_callback(
     state: str = Query(""),
     db: AsyncSession = Depends(get_db),
 ):
-    if not verify_google_login_state(state) or not code:
+    valid_state, remember_me = parse_google_login_state(state)
+    if not valid_state or not code:
         return RedirectResponse(f"{settings.frontend_url}/login?error=google_oauth_failed")
 
     redirect_uri = settings.google_auth_redirect_uri
@@ -188,8 +191,11 @@ async def google_auth_callback(
     await db.commit()
     await db.refresh(user, ["profile"])
 
-    token = create_access_token(user.id)
-    return RedirectResponse(f"{settings.frontend_url}/login?google_token={token}")
+    token = create_access_token(user.id, email=user.email, remember=remember_me)
+    remember_q = "1" if remember_me else "0"
+    return RedirectResponse(
+        f"{settings.frontend_url}/login?google_token={token}&remember={remember_q}"
+    )
 
 
 @router.post("/signup", response_model=AuthResponse)
@@ -213,7 +219,7 @@ async def signup(req: SignupRequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user, ["profile"])
 
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, email=user.email, remember=req.remember_me)
     return AuthResponse(token=token, user=_user_out(user))
 
 
@@ -228,7 +234,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user or not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = create_access_token(user.id)
+    token = create_access_token(user.id, email=user.email, remember=req.remember_me)
     return AuthResponse(token=token, user=_user_out(user))
 
 

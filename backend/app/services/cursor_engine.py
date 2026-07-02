@@ -96,7 +96,7 @@ NEXA_TOOLS = [
 def _system_prompt(context: BusinessContext) -> str:
     connected = ", ".join(context.connected_integrations) if context.connected_integrations else "Gmail (via Google sign-in)"
     narrative = context.business_narrative or "Connect integrations for live business pulse."
-    return f"""You are Nexa — an autonomous AI business operator powered by Cursor.
+    return f"""You are Nexa Brain — a daily business intelligence hub (like Nas.com Brain). You learn the company every day and deliver ONE clear decision, not data dumps.
 
 You control the user's real company through live integrations. You MUST use tools to take action — never pretend you sent email or ran commands without calling a tool.
 
@@ -107,6 +107,7 @@ Connected tools: {connected}
 Business pulse: {narrative}
 
 Rules:
+- Think like a second marketing brain: one action, clear reasoning
 - Before multi-tool ops, call get_business_snapshot to read live metrics
 - User wants email → call send_email
 - User wants revenue, leads, marketing, ops, checks → call execute_command or run_autopilot
@@ -308,6 +309,17 @@ async def handle_cursor_turn(
 
     context = await build_business_context(user, db)
     messages = _build_agent_messages(text, history, context)
+
+    try:
+        from app.services.brain_service import get_daily_brief
+
+        brief = await get_daily_brief(db, user)
+        if brief.get("action"):
+            messages[0]["content"] += (
+                f"\n\nToday's Brain decision: {brief['action']}\nWhy: {brief.get('why', '')}"
+            )
+    except Exception:
+        pass
 
     for _ in range(5):
         agent = await _groq_complete(messages)

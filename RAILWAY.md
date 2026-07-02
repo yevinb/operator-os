@@ -60,7 +60,7 @@ Commit and push.
 
 See `CURSOR_CONTROL.md`. Set `NEXA_CONTROL_KEY` + `NEXA_CONTROL_EMAIL` on Railway, then enable MCP in Cursor (`.cursor/mcp.json`).
 
-**Stay signed in:** Nexa stores a login token in your browser for 90 days. For Google sign-in to persist across deploys, set a stable `JWT_SECRET` and link **Postgres** (`DATABASE_URL`). Without Postgres, Railway redeploys can wipe your account and sign you out.
+**Stay signed in:** Nexa keeps you signed in on this device (localStorage, up to 365 days). For sessions to survive Railway redeploys, set a stable `JWT_SECRET` and link **Postgres** (`DATABASE_URL`). Without Postgres, redeploys can wipe accounts — sign in with Google again if that happens.
 
 **Add Postgres on Railway:** Project → **+ New** → **Database** → **PostgreSQL** → link to your Nexa service (Railway sets `DATABASE_URL` automatically).
 

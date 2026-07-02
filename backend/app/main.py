@@ -20,6 +20,7 @@ from app.models import (
 from app.routers import (
     activity,
     auth,
+    brain,
     business,
     control,
     integrations,
@@ -61,6 +62,7 @@ app.include_router(oauth_google.router)
 app.include_router(oauth_shopify.router)
 app.include_router(oauth_quickbooks.router)
 app.include_router(nexa.router)
+app.include_router(brain.router)
 app.include_router(control.router)
 app.include_router(business.router)
 app.include_router(activity.router)

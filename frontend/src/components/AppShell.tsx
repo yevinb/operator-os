@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  Brain,
   LayoutDashboard,
   Activity,
   Plug,
@@ -15,7 +16,7 @@ import {
   MessageCircle,
   Building2,
 } from "lucide-react";
-import { getSession, clearSession, validateSession, hasCompletedOnboardingLocally } from "@/lib/auth";
+import { getSession, getToken, clearSession, validateSession, hasCompletedOnboardingLocally } from "@/lib/auth";
 import type { User } from "@/lib/types";
 import { BackendStatus } from "@/components/ApiBootstrap";
 import { NexaLogo } from "@/components/NexaLogo";
@@ -23,7 +24,8 @@ import { NexaChatFab } from "@/components/NexaChatFab";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard", icon: MessageCircle, label: "Nexa Chat" },
+  { href: "/dashboard", icon: Brain, label: "Brain" },
+  { href: "/dashboard/chat", icon: MessageCircle, label: "Nexa Chat" },
   { href: "/dashboard/business", icon: Building2, label: "Business Hub" },
   { href: "/dashboard/command", icon: LayoutDashboard, label: "Command Center" },
   { href: "/dashboard/plan", icon: FileText, label: "Marketing Plan" },
@@ -36,23 +38,38 @@ const NAV = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => getSession());
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
+    if (!getToken()) {
+      router.replace("/login");
+      return;
+    }
+
+    const cached = getSession();
+    if (cached) setUser(cached);
+
     (async () => {
       const session = await validateSession();
       if (!session) {
-        router.replace("/login");
-        return;
-      }
-      if (!session.onboarded && !hasCompletedOnboardingLocally(session.email) && pathname !== "/onboarding") {
-        router.replace("/onboarding");
+        if (!getToken()) router.replace("/login");
         return;
       }
       setUser(session);
     })();
-  }, [pathname, router]);
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (
+      !user.onboarded &&
+      !hasCompletedOnboardingLocally(user.email) &&
+      pathname !== "/onboarding"
+    ) {
+      router.replace("/onboarding");
+    }
+  }, [user, pathname, router]);
 
   const logout = () => {
     clearSession();

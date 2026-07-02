@@ -13,7 +13,7 @@ function isBrowser() {
   return typeof window !== "undefined";
 }
 
-/** Default true — stay signed in across browser restarts. */
+/** Default true — stay signed in on this device (like Google / most sites). */
 export function getRememberMe(): boolean {
   if (!isBrowser()) return true;
   return localStorage.getItem(REMEMBER_KEY) !== "0";
@@ -24,37 +24,58 @@ export function setRememberMe(remember: boolean) {
   localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
 }
 
-function pickStorage(remember?: boolean): Storage {
-  const usePersistent = remember ?? getRememberMe();
-  return usePersistent ? localStorage : sessionStorage;
+/** Always localStorage so closing the tab does not sign you out. */
+function authStorage(): Storage {
+  return localStorage;
 }
 
 function clearAuthStorage() {
   if (!isBrowser()) return;
-  for (const store of [localStorage, sessionStorage]) {
-    store.removeItem(TOKEN_KEY);
-    store.removeItem(SESSION_KEY);
-    store.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(USER_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(USER_KEY);
+}
+
+/** Migrate tokens saved in sessionStorage from older builds. */
+function migrateLegacySessionStorage() {
+  if (!isBrowser()) return;
+  const legacyToken = sessionStorage.getItem(TOKEN_KEY);
+  const legacySession = sessionStorage.getItem(SESSION_KEY);
+  if (legacyToken && !localStorage.getItem(TOKEN_KEY)) {
+    localStorage.setItem(TOKEN_KEY, legacyToken);
+  }
+  if (legacySession && !localStorage.getItem(SESSION_KEY)) {
+    localStorage.setItem(SESSION_KEY, legacySession);
+    localStorage.setItem(USER_KEY, legacySession);
+  }
+  if (legacyToken || legacySession) {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(USER_KEY);
   }
 }
 
 export function getToken(): string | null {
   if (!isBrowser()) return null;
-  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+  migrateLegacySessionStorage();
+  return localStorage.getItem(TOKEN_KEY);
 }
 
 export function setToken(token: string, remember?: boolean) {
   if (!isBrowser()) return;
   if (remember !== undefined) setRememberMe(remember);
   clearAuthStorage();
-  pickStorage(remember).setItem(TOKEN_KEY, token);
+  authStorage().setItem(TOKEN_KEY, token);
 }
 
 export function getSession(): User | null {
   if (!isBrowser()) return null;
+  migrateLegacySessionStorage();
   try {
-    const raw =
-      localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(SESSION_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -64,17 +85,16 @@ export function getSession(): User | null {
 export function setSession(user: User, remember?: boolean) {
   if (!isBrowser()) return;
   if (remember !== undefined) setRememberMe(remember);
-  const store = pickStorage(remember);
   const json = JSON.stringify(user);
-  store.setItem(SESSION_KEY, json);
-  store.setItem(USER_KEY, json);
+  authStorage().setItem(SESSION_KEY, json);
+  authStorage().setItem(USER_KEY, json);
   syncUserToProfile(user);
 }
 
 export function persistAuth(token: string, user: User, remember = true) {
   setRememberMe(remember);
   clearAuthStorage();
-  const store = pickStorage(remember);
+  const store = authStorage();
   store.setItem(TOKEN_KEY, token);
   const json = JSON.stringify(user);
   store.setItem(SESSION_KEY, json);
@@ -129,8 +149,9 @@ export function isAuthError(message: string): boolean {
   );
 }
 
-/** Validate JWT against backend — clears session only on real auth failure. */
+/** Validate JWT against backend — only clears session on confirmed auth failure. */
 export async function validateSession(): Promise<User | null> {
+  migrateLegacySessionStorage();
   const token = getToken();
   if (!token) return null;
 
@@ -141,9 +162,20 @@ export async function validateSession(): Promise<User | null> {
     const base = (await import("./api-config")).getApiUrlSync();
     const res = await fetch(`${base}/api/v1/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
     });
 
     if (res.status === 401) {
+      const err = await res.json().catch(() => ({}));
+      const detail = String((err as { detail?: string }).detail || "").toLowerCase();
+      if (detail.includes("invalid token")) {
+        clearSession();
+        return null;
+      }
+      // User wiped server-side but token still valid — keep cached UI until they sign in again.
+      if (detail.includes("user not found")) {
+        return cached;
+      }
       clearSession();
       return null;
     }
@@ -186,7 +218,14 @@ export async function login(
   try {
     const data = await apiFetch<{ token: string; user: Record<string, unknown> }>(
       "/api/v1/auth/login",
-      { method: "POST", body: JSON.stringify({ email: email.trim(), password }) }
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          remember_me: rememberMe,
+        }),
+      }
     );
     const user = mapApiUser(data.user);
     persistAuth(data.token, user, rememberMe);
@@ -214,6 +253,7 @@ export async function signup(
           name: name.trim(),
           company: company.trim(),
           password,
+          remember_me: rememberMe,
         }),
       }
     );

@@ -1,9 +1,5 @@
-import { NexaChat } from "@/components/NexaChat";
+import { NexaBrain } from "@/components/NexaBrain";
 
-export default function DashboardChatPage() {
-  return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto h-full">
-      <NexaChat />
-    </div>
-  );
+export default function DashboardBrainPage() {
+  return <NexaBrain />;
 }

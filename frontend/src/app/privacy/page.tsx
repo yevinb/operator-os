@@ -6,6 +6,9 @@ export default function PrivacyPage() {
       <Link href="/" className="text-accent text-sm hover:underline">
         ← Nexa
       </Link>
+      <p className="text-xs text-text-3 mt-8">
+        <Link href="/terms" className="text-accent hover:underline">Terms of Service</Link>
+      </p>
       <h1 className="text-3xl font-bold mt-6 mb-4">Privacy Policy</h1>
       <p className="text-text-2 text-sm mb-6">Last updated: July 2026</p>
 
